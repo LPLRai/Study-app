@@ -1,0 +1,844 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/timer_screen.dart
+//
+// Features:
+//  • Per-subject independent timer state  — switching subjects pauses &
+//    saves the current state; returning to a subject restores it.
+//  • Subject label background colour matches the selected subject's colour.
+//  • Background timer  — if the app is minimised while the timer is running,
+//    the elapsed time is calculated from a stored timestamp so the countdown
+//    stays accurate on resume.
+//  • App-lock overlay (Android)  — when the app goes to the background with
+//    the timer running, an overlay is shown that prevents using other apps.
+//    Pressing "Exit" stops the timer and returns to the app.
+//    Requires flutter_overlay_window — see overlay/overlay_entry.dart for setup.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../constants/app_colors.dart';
+import '../models/study_session_model.dart';
+import '../models/subject_model.dart';
+import '../providers/app_provider.dart';
+import '../widgets/white_noise_widget.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Overlay helper (stub — replace body with real calls once package is added)
+// ─────────────────────────────────────────────────────────────────────────────
+// import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+
+class _OverlayHelper {
+  static const String _keyEndTime = 'timer_overlay_end_time';
+  static const String _keySubjectName = 'timer_overlay_subject';
+
+  /// Call when timer starts running so the overlay can count down independently.
+  static Future<void> saveEndTime(int remainingSecs, String subjectName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final endTime = DateTime.now().add(Duration(seconds: remainingSecs));
+    await prefs.setString(_keyEndTime, endTime.toIso8601String());
+    await prefs.setString(_keySubjectName, subjectName);
+  }
+
+  /// Call when timer is paused / stopped / complete.
+  static Future<void> clearEndTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyEndTime);
+    await prefs.remove(_keySubjectName);
+  }
+
+  /// Returns seconds remaining based on the stored end time, or null if none.
+  static Future<int?> getRemainingFromStore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final endStr = prefs.getString(_keyEndTime);
+    if (endStr == null) return null;
+    final remaining =
+        DateTime.parse(endStr).difference(DateTime.now()).inSeconds;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  // ── Overlay window calls (uncomment after adding flutter_overlay_window) ──
+  static Future<void> showOverlay() async {
+    // final granted = await FlutterOverlayWindow.isPermissionGranted();
+    // if (!granted) await FlutterOverlayWindow.requestPermission();
+    // await FlutterOverlayWindow.showOverlay(
+    //   height:     WindowSize.fullCover,
+    //   width:      WindowSize.matchParent,
+    //   alignment:  OverlayAlignment.center,
+    //   flag:       OverlayFlag.defaultFlag,
+    //   visibility: NotificationVisibility.visibilityPublic,
+    // );
+  }
+
+  static Future<void> closeOverlay() async {
+    // if (await FlutterOverlayWindow.isActive()) {
+    //   await FlutterOverlayWindow.closeOverlay();
+    // }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-subject timer snapshot — everything needed to fully restore a subject's
+// timer state when the user taps back to it.
+// ─────────────────────────────────────────────────────────────────────────────
+class _SubjectTimerSnapshot {
+  final int remainingSecs;
+  final TimerPhase phase;
+  final int currentCycle;
+  final DateTime? sessionStart;
+
+  const _SubjectTimerSnapshot({
+    required this.remainingSecs,
+    required this.phase,
+    required this.currentCycle,
+    this.sessionStart,
+  });
+
+  bool get isDefault =>
+      remainingSecs == TimerScreen._focusSecs &&
+      phase == TimerPhase.focus &&
+      currentCycle == 1 &&
+      sessionStart == null;
+}
+
+enum TimerPhase { focus, shortBreak, longBreak }
+
+// ─────────────────────────────────────────────────────────────────────────────
+class TimerScreen extends StatefulWidget {
+  const TimerScreen({super.key});
+
+  static const int _focusSecs = 25 * 60;
+  static const int _shortBreakSecs = 5 * 60;
+  static const int _longBreakSecs = 15 * 60;
+  static const int _totalCycles = 4;
+
+  @override
+  State<TimerScreen> createState() => _TimerScreenState();
+}
+
+class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
+  // ── Active timer state ────────────────────────────────────────────────────
+  TimerPhase _phase = TimerPhase.focus;
+  int _currentCycle = 1;
+  int _remainingSecs = TimerScreen._focusSecs;
+  bool _isRunning = false;
+  Timer? _ticker;
+  DateTime? _sessionStart;
+
+  // ── Per-subject snapshots ─────────────────────────────────────────────────
+  // Keys are subject IDs.  A missing entry means "use defaults (25:00, cycle 1)".
+  final Map<String, _SubjectTimerSnapshot> _snapshots = {};
+
+  // Track which subject's state is currently loaded so we know when a switch happens.
+  String? _loadedSubjectId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _ticker?.cancel();
+    _OverlayHelper.clearEndTime();
+    super.dispose();
+  }
+
+  // ── App lifecycle — background / foreground ───────────────────────────────
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.paused) {
+      _onAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      _onAppResumed();
+    }
+  }
+
+  Future<void> _onAppPaused() async {
+    if (!_isRunning) return;
+
+    // Save the expected end time so we can recalculate on resume
+    await _OverlayHelper.saveEndTime(
+      _remainingSecs,
+      context.read<AppProvider>().selectedSubject?.name ?? '',
+    );
+
+    // Stop the in-app ticker (the stored end-time handles background elapsed)
+    _ticker?.cancel();
+    setState(() => _isRunning = false);
+
+    // Show the lock overlay (Android only — no-op until package is added)
+    await _OverlayHelper.showOverlay();
+  }
+
+  Future<void> _onAppResumed() async {
+    // Close overlay if it was open
+    await _OverlayHelper.closeOverlay();
+
+    // Check if the user pressed "Exit" in the overlay (clears the stored key)
+    final remaining = await _OverlayHelper.getRemainingFromStore();
+
+    if (remaining == null) {
+      // Overlay "Exit" was pressed — stop timer and save session
+      if (_sessionStart != null) {
+        final elapsed = _phase == TimerPhase.focus
+            ? TimerScreen._focusSecs - _remainingSecs
+            : 0;
+        if (elapsed > 0) _saveSession(elapsed);
+      }
+      setState(() {
+        _isRunning = false;
+        _remainingSecs = _phaseDuration;
+        _sessionStart = null;
+      });
+      return;
+    }
+
+    // Still running — restore the accurate remaining time and resume
+    setState(() {
+      _remainingSecs = remaining;
+      _isRunning = true;
+    });
+    await _OverlayHelper.clearEndTime();
+    _startTicker();
+  }
+
+  // ── Phase helpers ─────────────────────────────────────────────────────────
+  int get _phaseDuration {
+    switch (_phase) {
+      case TimerPhase.focus:
+        return TimerScreen._focusSecs;
+      case TimerPhase.shortBreak:
+        return TimerScreen._shortBreakSecs;
+      case TimerPhase.longBreak:
+        return TimerScreen._longBreakSecs;
+    }
+  }
+
+  String get _phaseLabel {
+    switch (_phase) {
+      case TimerPhase.focus:
+        return 'Pomodoro';
+      case TimerPhase.shortBreak:
+        return 'Short Break';
+      case TimerPhase.longBreak:
+        return 'Long Break';
+    }
+  }
+
+  String get _formattedTime {
+    final m = _remainingSecs ~/ 60;
+    final s = _remainingSecs % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  double get _progress => _remainingSecs / _phaseDuration;
+
+  // ── Subject switching ─────────────────────────────────────────────────────
+  void _onSubjectTapped(String newSubjectId, AppProvider prov) {
+    if (newSubjectId == _loadedSubjectId) return; // already selected
+
+    // 1. Save current state under the currently loaded subject
+    if (_loadedSubjectId != null) {
+      _snapshots[_loadedSubjectId!] = _SubjectTimerSnapshot(
+        remainingSecs: _remainingSecs,
+        phase: _phase,
+        currentCycle: _currentCycle,
+        sessionStart: _sessionStart,
+      );
+    }
+
+    // 2. Pause if running
+    if (_isRunning) {
+      _ticker?.cancel();
+      _isRunning = false;
+    }
+
+    // 3. Load snapshot for the new subject (or defaults if first time)
+    final snap = _snapshots[newSubjectId];
+
+    setState(() {
+      _loadedSubjectId = newSubjectId;
+      _remainingSecs = snap?.remainingSecs ?? TimerScreen._focusSecs;
+      _phase = snap?.phase ?? TimerPhase.focus;
+      _currentCycle = snap?.currentCycle ?? 1;
+      _sessionStart = snap?.sessionStart;
+      _isRunning = false; // never auto-start on switch
+    });
+
+    prov.selectSubject(newSubjectId);
+  }
+
+  // ── Timer controls ────────────────────────────────────────────────────────
+  void _play() {
+    if (_phase == TimerPhase.focus && _sessionStart == null) {
+      _sessionStart = DateTime.now();
+    }
+    setState(() => _isRunning = true);
+    _startTicker();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_remainingSecs > 0) {
+        setState(() => _remainingSecs--);
+      } else {
+        _onPhaseComplete();
+      }
+    });
+  }
+
+  void _pause() {
+    _ticker?.cancel();
+    setState(() => _isRunning = false);
+    _OverlayHelper.clearEndTime();
+  }
+
+  void _reset() {
+    _ticker?.cancel();
+    _OverlayHelper.clearEndTime();
+    if (_phase == TimerPhase.focus && _sessionStart != null) {
+      final elapsed = _phaseDuration - _remainingSecs;
+      if (elapsed > 0) _saveSession(elapsed);
+    }
+    setState(() {
+      _isRunning = false;
+      _remainingSecs = _phaseDuration;
+      _sessionStart = null;
+    });
+    // Clear snapshot for current subject so it resets fresh
+    if (_loadedSubjectId != null) _snapshots.remove(_loadedSubjectId);
+  }
+
+  void _onPhaseComplete() {
+    _ticker?.cancel();
+    _OverlayHelper.clearEndTime();
+
+    if (_phase == TimerPhase.focus) {
+      if (_sessionStart != null) {
+        _saveSession(TimerScreen._focusSecs);
+        _sessionStart = null;
+      }
+      if (_currentCycle < TimerScreen._totalCycles) {
+        setState(() {
+          _phase = TimerPhase.shortBreak;
+          _remainingSecs = TimerScreen._shortBreakSecs;
+          _isRunning = false;
+        });
+      } else {
+        setState(() {
+          _phase = TimerPhase.longBreak;
+          _remainingSecs = TimerScreen._longBreakSecs;
+          _isRunning = false;
+        });
+      }
+    } else if (_phase == TimerPhase.shortBreak) {
+      setState(() {
+        _phase = TimerPhase.focus;
+        _currentCycle++;
+        _remainingSecs = TimerScreen._focusSecs;
+        _isRunning = false;
+      });
+    } else {
+      setState(() {
+        _phase = TimerPhase.focus;
+        _currentCycle = 1;
+        _remainingSecs = TimerScreen._focusSecs;
+        _isRunning = false;
+      });
+    }
+  }
+
+  void _saveSession(int durationSecs) {
+    if (_sessionStart == null) return;
+    final prov = context.read<AppProvider>();
+    final subject = prov.selectedSubject;
+    if (subject == null) return;
+    prov.addSession(StudySessionModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      subjectId: subject.id,
+      subjectName: subject.name,
+      colorIndex: subject.colorIndex,
+      durationMinutes: durationSecs ~/ 60,
+      startTime: _sessionStart!,
+      endTime: DateTime.now(),
+    ));
+  }
+
+  // ── Subject overlay ───────────────────────────────────────────────────────
+  void _showSubjectOverlay(BuildContext ctx, AppProvider prov) {
+    final nameCtrl = TextEditingController();
+    int selectedColor = 0;
+    final t = prov.appTheme;
+
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: t.background,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => StatefulBuilder(builder: (ctx2, setSheet) {
+        return Padding(
+          padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(ctx2).viewInsets.bottom + 24),
+          child: SingleChildScrollView(
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Add / Remove Sessions',
+                            style: GoogleFonts.inder(
+                                color: t.textPrimary,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold)),
+                        IconButton(
+                            icon: Icon(Icons.close, color: t.textPrimary),
+                            onPressed: () => Navigator.pop(ctx2)),
+                      ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: nameCtrl,
+                        style: GoogleFonts.inder(color: t.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Subject name',
+                          hintStyle: GoogleFonts.inder(color: t.textMuted),
+                          filled: true,
+                          fillColor: t.inputBg,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () {
+                        if (nameCtrl.text.trim().isNotEmpty) {
+                          prov.addSubject(nameCtrl.text.trim(), selectedColor);
+                          nameCtrl.clear();
+                          Navigator.pop(ctx2);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 13),
+                        decoration: BoxDecoration(
+                            color: AppColors.blue,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Text('Add',
+                            style: GoogleFonts.inder(
+                                color: Colors.white, fontSize: 14)),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                  Text('Choose colour:',
+                      style:
+                          GoogleFonts.inder(color: t.textMuted, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    children:
+                        List.generate(AppColors.subjectPalette.length, (i) {
+                      final c = AppColors.subjectPalette[i];
+                      return GestureDetector(
+                        onTap: () => setSheet(() => selectedColor = i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                            border: selectedColor == i
+                                ? Border.all(color: Colors.white, width: 3)
+                                : null,
+                            boxShadow: selectedColor == i
+                                ? [
+                                    BoxShadow(
+                                        color: c.withOpacity(0.6),
+                                        blurRadius: 6)
+                                  ]
+                                : null,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 18),
+                  if (prov.subjects.isNotEmpty) ...[
+                    Text('Existing sessions:',
+                        style: GoogleFonts.inder(
+                            color: t.textMuted, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    ...prov.subjects.map((sub) {
+                      final c = AppColors.subjectColor(sub.colorIndex);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                            color: t.widgetBg,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Row(children: [
+                          Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                  color: c, shape: BoxShape.circle)),
+                          const SizedBox(width: 12),
+                          Text(sub.name,
+                              style: GoogleFonts.inder(
+                                  color: t.textPrimary, fontSize: 14)),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () {
+                              prov.removeSubject(sub.id);
+                              setSheet(() {});
+                            },
+                            child: const Icon(
+                                Icons.remove_circle_outline_rounded,
+                                color: AppColors.red,
+                                size: 22),
+                          ),
+                        ]),
+                      );
+                    }),
+                  ],
+                ]),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppProvider>(builder: (ctx, prov, _) {
+      final t = prov.appTheme;
+      final subject = prov.selectedSubject;
+
+      // If the provider's selected subject changed externally and we haven't
+      // loaded it yet (e.g. first build), sync up without saving
+      if (subject != null && _loadedSubjectId == null) {
+        _loadedSubjectId = subject.id;
+      }
+
+      final arcColor = subject != null
+          ? AppColors.subjectColor(subject.colorIndex)
+          : AppColors.blue;
+
+      // Subject label background: use the subject's own colour
+      final labelColor = subject != null
+          ? AppColors.subjectColor(subject.colorIndex)
+          : t.widgetBg;
+
+      return SafeArea(
+        child: Column(children: [
+          // ── Scrollable content fills available space ────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(children: [
+                // ── Title bar ───────────────────────────────────────────
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Stack(alignment: Alignment.center, children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => prov.switchTab(0),
+                        child: Icon(Icons.chevron_left_rounded,
+                            color: t.textPrimary, size: 28),
+                      ),
+                    ),
+                    Text('Focus Timer',
+                        style: GoogleFonts.inder(
+                            color: t.textPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold)),
+                  ]),
+                ),
+
+                // ── Subject label (colour = subject colour) ─────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                        color: labelColor,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      subject != null
+                          ? 'Subject: ${subject.name}'
+                          : 'No subject selected — tap Edit below',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inder(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // ── Circular timer ──────────────────────────────────────
+                _CircularTimer(
+                  progress: _progress,
+                  arcColor: arcColor,
+                  timeLabel: _formattedTime,
+                  phaseLabel: _phaseLabel,
+                  textPrimary: t.textPrimary,
+                ),
+
+                const SizedBox(height: 18),
+
+                Text('Cycle $_currentCycle of ${TimerScreen._totalCycles}',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 14)),
+
+                const SizedBox(height: 22),
+
+                // ── Controls ────────────────────────────────────────────
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  if (_isRunning || _remainingSecs != _phaseDuration) ...[
+                    _controlBtn(
+                        icon: Icons.refresh_rounded,
+                        size: 46,
+                        color: t.widgetBg,
+                        outline: true,
+                        onTap: _reset),
+                    const SizedBox(width: 22),
+                  ],
+                  _controlBtn(
+                    icon: _isRunning
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    size: 64,
+                    color: AppColors.blue,
+                    onTap: _isRunning ? _pause : _play,
+                  ),
+                ]),
+
+                const SizedBox(height: 28),
+                Divider(color: t.divider, height: 1),
+                const SizedBox(height: 4),
+
+                // ── Choose Subjects ─────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Choose Subjects',
+                            style: GoogleFonts.inder(
+                                color: t.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        if (prov.subjects.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                                color: t.widgetBg,
+                                borderRadius: BorderRadius.circular(10)),
+                            child: Center(
+                                child: Text(
+                                    'No subjects yet — press Edit to add one',
+                                    style: GoogleFonts.inder(
+                                        color: t.textMuted, fontSize: 13))),
+                          )
+                        else
+                          ...prov.subjects.map((sub) => _subjectTile(
+                              sub, _loadedSubjectId == sub.id, prov, t)),
+                        const SizedBox(height: 10),
+                        GestureDetector(
+                          onTap: () => _showSubjectOverlay(ctx, prov),
+                          child: Row(children: [
+                            Icon(Icons.edit, color: t.textMuted, size: 15),
+                            const SizedBox(width: 5),
+                            Text('Edit',
+                                style: GoogleFonts.inder(
+                                    color: t.textMuted, fontSize: 13)),
+                          ]),
+                        ),
+                        const SizedBox(height: 16),
+                      ]),
+                ),
+              ]),
+            ),
+          ),
+          // end Expanded
+
+          // ── White Noise widget — always pinned above nav bar ─────────
+          const WhiteNoiseWidget(),
+        ]),
+      );
+    });
+  }
+
+  Widget _controlBtn(
+          {required IconData icon,
+          required double size,
+          required Color color,
+          required VoidCallback onTap,
+          bool outline = false}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: outline ? Colors.transparent : color,
+            shape: BoxShape.circle,
+            border:
+                outline ? Border.all(color: Colors.white24, width: 1.5) : null,
+          ),
+          child: Icon(icon, color: Colors.white, size: size * 0.52),
+        ),
+      );
+
+  Widget _subjectTile(
+      SubjectModel sub, bool isSelected, AppProvider prov, appTheme) {
+    final c = AppColors.subjectColor(sub.colorIndex);
+    final hours = sub.totalMinutes ~/ 60;
+    final mins = sub.totalMinutes % 60;
+    final timeStr =
+        '${hours.toString().padLeft(1, '0')}:${mins.toString().padLeft(2, '0')}:00';
+
+    return GestureDetector(
+      onTap: () => _onSubjectTapped(sub.id, prov),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: isSelected ? c.withOpacity(0.15) : appTheme.widgetBg,
+          borderRadius: BorderRadius.circular(10),
+          border: isSelected ? Border.all(color: c, width: 1.5) : null,
+        ),
+        child: Row(children: [
+          Container(
+              width: 4,
+              height: 32,
+              decoration: BoxDecoration(
+                  color: c, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 14),
+          Text(sub.name,
+              style:
+                  GoogleFonts.inder(color: appTheme.textPrimary, fontSize: 15)),
+          const Spacer(),
+          Text(timeStr,
+              style:
+                  GoogleFonts.inder(color: appTheme.textMuted, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Circular arc timer — CustomPainter
+// ─────────────────────────────────────────────────────────────────────────────
+class _CircularTimer extends StatelessWidget {
+  final double progress;
+  final Color arcColor;
+  final String timeLabel;
+  final String phaseLabel;
+  final Color textPrimary;
+
+  const _CircularTimer({
+    required this.progress,
+    required this.arcColor,
+    required this.timeLabel,
+    required this.phaseLabel,
+    required this.textPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 210,
+      height: 210,
+      child: CustomPaint(
+        painter: _ArcPainter(progress: progress, color: arcColor),
+        child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(timeLabel,
+                style: GoogleFonts.inder(
+                    color: textPrimary,
+                    fontSize: 44,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1)),
+            const SizedBox(height: 4),
+            Text(phaseLabel,
+                style: GoogleFonts.inder(color: AppColors.blue, fontSize: 14)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  const _ArcPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = math.min(cx, cy) - 8;
+    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
+    canvas.drawArc(
+        rect,
+        0,
+        2 * math.pi,
+        false,
+        Paint()
+          ..color = Colors.white.withOpacity(0.08)
+          ..strokeWidth = 9
+          ..style = PaintingStyle.stroke);
+    if (progress > 0) {
+      canvas.drawArc(
+          rect,
+          -math.pi / 2,
+          2 * math.pi * progress,
+          false,
+          Paint()
+            ..color = color
+            ..strokeWidth = 9
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) =>
+      old.progress != progress || old.color != color;
+}

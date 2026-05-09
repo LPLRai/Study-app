@@ -1,0 +1,53 @@
+name: gyan
+description: GYAN — a study motivator and helper app for students.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  shared_preferences: ^2.3.2
+  google_fonts: ^6.2.1
+  audioplayers: ^6.0.0
+  image_picker: ^1.1.2
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+# ── App icon config ───────────────────────────────────────────────────────────
+# After adding your PNG to assets/icon/app_icon.png, run:
+#   flutter pub get
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1C1C20"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  web:
+    generate: false
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icon/ # app logo — put app_icon.png here
+    - assets/audio/ # (uncomment once MP3 files are added) ──────────────
+    # - assets/audio/     # white noise — rain.mp3 / forest.mp3 / cafe.mp3 / ocean.mp3 / fire.mp3
+
+  # ── Offline font (optional — only if bundling Inder locally) ─────────
+  # fonts:
+  #   - family: Inder
+  #     fonts:
+  #       - asset: assets/fonts/Inder-Regular.ttf
