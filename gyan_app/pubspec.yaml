@@ -13,6 +13,8 @@ dependencies:
   shared_preferences: ^2.3.2
   google_fonts: ^6.2.1
   audioplayers: ^6.0.0
+  volume_controller: ^2.0.6
+  flutter_overlay_window: ^0.4.2
   image_picker: ^1.1.2
   path_provider: ^2.1.3
   path: ^1.9.0
@@ -43,8 +45,9 @@ flutter:
 
   assets:
     - assets/icon/ # app logo — put app_icon.png here
-    - assets/audio/ # (uncomment once MP3 files are added) ──────────────
-    # - assets/audio/     # white noise — rain.mp3 / forest.mp3 / cafe.mp3 / ocean.mp3 / fire.mp3
+    # ── Audio assets (uncomment once MP3 files are added) ──────────────
+    - assets/audio/ # white noise — rain.mp3 / forest.mp3 / cafe.mp3 / ocean.mp3 / fire.mp3
+
 
   # ── Offline font (optional — only if bundling Inder locally) ─────────
   # fonts:

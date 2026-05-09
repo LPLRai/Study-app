@@ -17,10 +17,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../constants/app_colors.dart';
 import '../models/study_session_model.dart';
@@ -64,21 +64,21 @@ class _OverlayHelper {
 
   // ── Overlay window calls (uncomment after adding flutter_overlay_window) ──
   static Future<void> showOverlay() async {
-    // final granted = await FlutterOverlayWindow.isPermissionGranted();
-    // if (!granted) await FlutterOverlayWindow.requestPermission();
-    // await FlutterOverlayWindow.showOverlay(
-    //   height:     WindowSize.fullCover,
-    //   width:      WindowSize.matchParent,
-    //   alignment:  OverlayAlignment.center,
-    //   flag:       OverlayFlag.defaultFlag,
-    //   visibility: NotificationVisibility.visibilityPublic,
-    // );
+    final granted = await FlutterOverlayWindow.isPermissionGranted();
+    if (!granted) await FlutterOverlayWindow.requestPermission();
+    await FlutterOverlayWindow.showOverlay(
+      height: WindowSize.fullCover,
+      width: WindowSize.matchParent,
+      alignment: OverlayAlignment.center,
+      flag: OverlayFlag.defaultFlag,
+      visibility: NotificationVisibility.visibilityPublic,
+    );
   }
 
   static Future<void> closeOverlay() async {
-    // if (await FlutterOverlayWindow.isActive()) {
-    //   await FlutterOverlayWindow.closeOverlay();
-    // }
+    if (await FlutterOverlayWindow.isActive()) {
+      await FlutterOverlayWindow.closeOverlay();
+    }
   }
 }
 
@@ -689,10 +689,9 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                         const SizedBox(height: 16),
                       ]),
                 ),
-              ]),
-            ),
-          ),
-          // end Expanded
+              ]), // close inner Column
+            ), // close SingleChildScrollView
+          ), // close Expanded
 
           // ── White Noise widget — always pinned above nav bar ─────────
           const WhiteNoiseWidget(),
