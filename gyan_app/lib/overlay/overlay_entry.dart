@@ -37,7 +37,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:flutter_overlay_window/flutter_overlay_window.dart'; // uncomment when package is added
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 // ── Overlay app entry point ───────────────────────────────────────────────────
 // This is called by the flutter_overlay_window package as a separate isolate.
@@ -66,7 +66,7 @@ class _OverlayScreenState extends State<_OverlayScreen> {
   String _subjectName = '';
   Timer? _ticker;
 
-  static const String _prefKeyEndTime     = 'timer_overlay_end_time';
+  static const String _prefKeyEndTime = 'timer_overlay_end_time';
   static const String _prefKeySubjectName = 'timer_overlay_subject';
 
   @override
@@ -81,16 +81,22 @@ class _OverlayScreenState extends State<_OverlayScreen> {
   }
 
   Future<void> _loadAndStart() async {
-    final prefs   = await SharedPreferences.getInstance();
-    final endStr  = prefs.getString(_prefKeyEndTime);
-    _subjectName  = prefs.getString(_prefKeySubjectName) ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final endStr = prefs.getString(_prefKeyEndTime);
+    _subjectName = prefs.getString(_prefKeySubjectName) ?? '';
 
-    if (endStr == null) { _closeOverlay(); return; }
+    if (endStr == null) {
+      _closeOverlay();
+      return;
+    }
 
     final endTime = DateTime.parse(endStr);
     final remaining = endTime.difference(DateTime.now()).inSeconds;
 
-    if (remaining <= 0) { _closeOverlay(); return; }
+    if (remaining <= 0) {
+      _closeOverlay();
+      return;
+    }
 
     setState(() => _remainingSecs = remaining);
 
@@ -113,7 +119,7 @@ class _OverlayScreenState extends State<_OverlayScreen> {
 
   void _closeOverlay() {
     _ticker?.cancel();
-    // FlutterOverlayWindow.closeOverlay(); // uncomment when package is added
+    FlutterOverlayWindow.closeOverlay();
   }
 
   String get _formattedTime {
@@ -144,7 +150,7 @@ class _OverlayScreenState extends State<_OverlayScreen> {
               Text(
                 'Focus Mode Active',
                 style: GoogleFonts.inder(
-                  color:    Colors.white54,
+                  color: Colors.white54,
                   fontSize: 16,
                 ),
               ),
@@ -152,17 +158,18 @@ class _OverlayScreenState extends State<_OverlayScreen> {
 
               if (_subjectName.isNotEmpty)
                 Container(
-                  margin:  const EdgeInsets.symmetric(horizontal: 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  margin: const EdgeInsets.symmetric(horizontal: 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
-                    color:        const Color(0xFF5865F2),
+                    color: const Color(0xFF5865F2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     _subjectName,
                     style: GoogleFonts.inder(
-                      color:      Colors.white,
-                      fontSize:   16,
+                      color: Colors.white,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -175,8 +182,8 @@ class _OverlayScreenState extends State<_OverlayScreen> {
               Text(
                 _formattedTime,
                 style: GoogleFonts.inder(
-                  color:      Colors.white,
-                  fontSize:   72,
+                  color: Colors.white,
+                  fontSize: 72,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2,
                 ),
@@ -187,7 +194,7 @@ class _OverlayScreenState extends State<_OverlayScreen> {
               Text(
                 'Stay focused — you\'ve got this 💪',
                 style: GoogleFonts.inder(
-                  color:    Colors.white38,
+                  color: Colors.white38,
                   fontSize: 14,
                 ),
               ),
@@ -198,17 +205,17 @@ class _OverlayScreenState extends State<_OverlayScreen> {
               GestureDetector(
                 onTap: _exitPressed,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 48, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                   decoration: BoxDecoration(
-                    color:        const Color(0xFFED4245),
+                    color: const Color(0xFFED4245),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     'Exit',
                     style: GoogleFonts.inder(
-                      color:      Colors.white,
-                      fontSize:   18,
+                      color: Colors.white,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -220,7 +227,7 @@ class _OverlayScreenState extends State<_OverlayScreen> {
               Text(
                 'Exits focus mode and returns to app',
                 style: GoogleFonts.inder(
-                  color:    Colors.white24,
+                  color: Colors.white24,
                   fontSize: 12,
                 ),
               ),

@@ -9,16 +9,16 @@ import 'package:provider/provider.dart';
 
 import 'providers/app_provider.dart';
 import 'screens/main_screen.dart';
-// import 'overlay/overlay_entry.dart'; // uncomment when flutter_overlay_window is added
+import 'overlay/overlay_entry.dart';
 
 // ── Overlay entry point (Android app-lock) ────────────────────────────────────
-// Uncomment BOTH lines below once flutter_overlay_window is added to pubspec:
-//
-// @pragma("vm:entry-point")
-// void overlayMain() {
-//   WidgetsFlutterBinding.ensureInitialized();
-//   runApp(const OverlayEntryApp());
-// }
+// Called by flutter_overlay_window in a separate isolate when the lock screen
+// overlay is shown while the timer runs in the background.
+@pragma("vm:entry-point")
+void overlayMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const OverlayEntryApp());
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,26 +45,26 @@ class GyanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
-    final t    = prov.appTheme;
+    final t = prov.appTheme;
 
     SystemChrome.setSystemUIOverlayStyle(t.systemUiStyle);
 
     return MaterialApp(
-      title:                     'GYAN',
+      title: 'GYAN',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3:            true,
+        useMaterial3: true,
         scaffoldBackgroundColor: t.background,
         colorScheme: ColorScheme(
-          brightness:  t.isDark ? Brightness.dark : Brightness.light,
-          primary:     const Color(0xFF5865F2),
-          onPrimary:   Colors.white,
-          secondary:   const Color(0xFF57F287),
+          brightness: t.isDark ? Brightness.dark : Brightness.light,
+          primary: const Color(0xFF5865F2),
+          onPrimary: Colors.white,
+          secondary: const Color(0xFF57F287),
           onSecondary: Colors.black,
-          surface:     t.widgetBg,
-          onSurface:   t.textPrimary,
-          error:       const Color(0xFFED4245),
-          onError:     Colors.white,
+          surface: t.widgetBg,
+          onSurface: t.textPrimary,
+          error: const Color(0xFFED4245),
+          onError: Colors.white,
         ),
         textTheme: GoogleFonts.inderTextTheme(
           t.isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
@@ -72,7 +72,7 @@ class GyanApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           hintStyle: GoogleFonts.inder(color: t.textMuted),
         ),
-        splashFactory:  NoSplash.splashFactory,
+        splashFactory: NoSplash.splashFactory,
         highlightColor: Colors.transparent,
       ),
       home: const MainScreen(),
