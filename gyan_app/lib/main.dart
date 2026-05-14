@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/app_provider.dart';
+import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
 import 'overlay/overlay_entry.dart';
 
@@ -75,7 +76,17 @@ class GyanApp extends StatelessWidget {
         splashFactory: NoSplash.splashFactory,
         highlightColor: Colors.transparent,
       ),
-      home: const MainScreen(),
+      home: const AuthGate(),
     );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final prov = context.watch<AppProvider>();
+    return prov.isAuthenticated ? const MainScreen() : const AuthScreen();
   }
 }

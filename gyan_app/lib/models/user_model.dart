@@ -8,6 +8,7 @@
 class UserModel {
   String name;
   String grade;
+  String email;
   int    dailyStudyGoalHours; // target hours the user wants to study each day
   String? profileImagePath;   // absolute path to copied profile picture on device
 
@@ -23,6 +24,7 @@ class UserModel {
   UserModel({
     this.name                = 'User',
     this.grade               = '',
+    this.email               = '',
     this.dailyStudyGoalHours = 4,
     this.profileImagePath,
     this.currentStreak       = 0,
@@ -37,6 +39,7 @@ class UserModel {
   Map<String, dynamic> toJson() => {
     'name':                name,
     'grade':               grade,
+    'email':               email,
     'dailyStudyGoalHours': dailyStudyGoalHours,
     'profileImagePath':    profileImagePath,
     'currentStreak':       currentStreak,
@@ -49,6 +52,7 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
     name:                j['name']                ?? 'User',
     grade:               j['grade']               ?? '',
+    email:               j['email']               ?? '',
     dailyStudyGoalHours: j['dailyStudyGoalHours'] ?? 4,
     profileImagePath:    j['profileImagePath'],
     currentStreak:       j['currentStreak']       ?? 0,
