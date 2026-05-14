@@ -10,9 +10,12 @@ import '../models/user_model.dart';
 import '../models/subject_model.dart';
 import '../models/study_session_model.dart';
 import '../models/group_model.dart';
+import '../services/firebase_service.dart';
 import '../theme/app_theme.dart';
 
 class AppProvider extends ChangeNotifier {
+  final FirebaseService _firebaseService = FirebaseService.instance;
+
   UserModel _user = UserModel();
   List<SubjectModel> _subjects = [];
   List<StudySessionModel> _sessions = [];
@@ -20,6 +23,9 @@ class AppProvider extends ChangeNotifier {
   String? _selectedSubjectId;
   int _currentTabIndex = 0;
   bool _isDarkMode = true;
+  bool _remoteBackendReady = false;
+
+  bool get isAuthenticated => _firebaseService.isSignedIn;
 
   UserModel get user => _user;
   List<SubjectModel> get subjects => List.unmodifiable(_subjects);
@@ -31,8 +37,9 @@ class AppProvider extends ChangeNotifier {
   AppThemeData get appTheme => AppThemeData(isDark: _isDarkMode);
 
   SubjectModel? get selectedSubject {
-    if (_selectedSubjectId == null)
+    if (_selectedSubjectId == null) {
       return _subjects.isEmpty ? null : _subjects.first;
+    }
     try {
       return _subjects.firstWhere((s) => s.id == _selectedSubjectId);
     } catch (_) {
@@ -59,12 +66,149 @@ class AppProvider extends ChangeNotifier {
       _sessions.where((s) => s.isQualifying).toList().reversed.take(5).toList();
 
   Future<void> init() async {
+    await _initBackend();
     await _load();
+    if (_remoteBackendReady) {
+      await _loadRemoteData();
+    }
     _checkStreakReset();
     notifyListeners();
   }
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
+
+  Future<void> _initBackend() async {
+    try {
+      await _firebaseService.init();
+      _remoteBackendReady = _firebaseService.isSignedIn;
+    } catch (_) {
+      _remoteBackendReady = false;
+    }
+  }
+
+  Future<void> _loadRemoteData() async {
+    if (!_remoteBackendReady) return;
+    try {
+      final firebaseData = await _firebaseService.loadAppState();
+      if (firebaseData == null) return;
+
+      final remoteUser = firebaseData['user'];
+      if (remoteUser is Map<String, dynamic>) {
+        _user = UserModel.fromJson(remoteUser);
+      }
+
+      final subjectsRemote = firebaseData['subjects'];
+      if (subjectsRemote is List) {
+        _subjects = subjectsRemote
+            .map((e) => SubjectModel.fromJson(
+                Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+
+      final sessionsRemote = firebaseData['sessions'];
+      if (sessionsRemote is List) {
+        _sessions = sessionsRemote
+            .map((e) => StudySessionModel.fromJson(
+                Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+
+      final groupsRemote = firebaseData['groups'];
+      if (groupsRemote is List) {
+        _groups = groupsRemote
+            .map((e) => GroupModel.fromJson(
+                Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+
+      _isDarkMode = firebaseData['isDarkMode'] as bool? ?? _isDarkMode;
+      if (_subjects.isNotEmpty && _selectedSubjectId == null) {
+        _selectedSubjectId = _subjects.first.id;
+      }
+
+      await _saveLocalState();
+    } catch (_) {
+      // Ignore Firestore sync errors and keep local data.
+    }
+  }
+
+  Future<void> _saveLocalState() async {
+    await _saveUser();
+    await _saveSubjects();
+    await _saveSessions();
+    await _saveGroups();
+  }
+
+  Future<void> _syncToFirestore() async {
+    if (!_remoteBackendReady) return;
+    try {
+      await _firebaseService.saveAppState(
+        user: _user.toJson(),
+        subjects: _subjects.map((s) => s.toJson()).toList(),
+        sessions: _sessions.map((s) => s.toJson()).toList(),
+        groups: _groups.map((g) => g.toJson()).toList(),
+        isDarkMode: _isDarkMode,
+      );
+    } catch (_) {
+      // Ignore backend errors and keep local state.
+    }
+  }
+
+  Future<bool> signIn({
+  required String usernameOrEmail,
+  required String password,
+}) async {
+  try {
+    await _firebaseService.init();
+    final email = usernameOrEmail.contains('@')
+        ? usernameOrEmail.trim()
+        : await _firebaseService.emailForUsername(usernameOrEmail.trim());
+
+    print('Trying email: $email');
+    print('Password length: ${password.length}');
+
+    if (email == null || email.isEmpty) return false;
+    await _firebaseService.signInWithEmail(email, password);
+    _remoteBackendReady = true;
+    await _loadRemoteData();
+    await _syncToFirestore();
+    notifyListeners();
+    return true;
+  } catch (e) {
+    print('SignIn error: $e'); // ← this will show exact error
+    return false;
+  }
+}
+
+  Future<bool> register({
+  required String email,
+  required String username,
+  required String password,
+}) async {
+  try {
+    await _firebaseService.init();
+    await _firebaseService.registerWithEmail(email, password);
+    _remoteBackendReady = true;
+    _user.email = email.trim();
+    _user.name = username.trim().isEmpty ? _user.name : username.trim();
+    await _saveLocalState();
+    await _syncToFirestore();
+    notifyListeners();
+    return true;
+  } catch (e) {
+    print('Register error: $e'); // ← add this
+    return false;
+  }
+}
+  Future<void> signOutUser() async {
+    try {
+      await _firebaseService.signOut();
+    } catch (_) {
+      // ignore
+    }
+    _remoteBackendReady = false;
+    notifyListeners();
+  }
 
   Future<void> _load() async {
     final p = await _prefs;
@@ -116,6 +260,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> setDarkMode(bool value) async {
     _isDarkMode = value;
     (await _prefs).setBool('isDarkMode', value);
+    await _syncToFirestore();
     notifyListeners();
   }
 
@@ -140,15 +285,19 @@ class AppProvider extends ChangeNotifier {
           : null;
       if (lastDate == null) {
         _user.currentStreak = 1;
-      } else if (today.difference(lastDate).inDays == 1)
+      } else if (today.difference(lastDate).inDays == 1) {
         _user.currentStreak++;
-      else if (today.difference(lastDate).inDays > 1) _user.currentStreak = 1;
+      } else if (today.difference(lastDate).inDays > 1) {
+        _user.currentStreak = 1;
+      }
       _user.lastSessionDate = DateTime.now();
-      if (_user.currentStreak > _user.bestStreak)
+      if (_user.currentStreak > _user.bestStreak) {
         _user.bestStreak = _user.currentStreak;
+      }
       await _saveUser();
     }
     await _saveSessions();
+    await _syncToFirestore();
     notifyListeners();
   }
 
@@ -159,10 +308,12 @@ class AppProvider extends ChangeNotifier {
       String? profileImagePath}) async {
     if (name != null) _user.name = name;
     if (grade != null) _user.grade = grade;
-    if (dailyStudyGoalHours != null)
+    if (dailyStudyGoalHours != null) {
       _user.dailyStudyGoalHours = dailyStudyGoalHours;
+    }
     if (profileImagePath != null) _user.profileImagePath = profileImagePath;
     await _saveUser();
+    await _syncToFirestore();
     notifyListeners();
   }
 
@@ -174,14 +325,17 @@ class AppProvider extends ChangeNotifier {
     _subjects.add(sub);
     _selectedSubjectId ??= sub.id;
     await _saveSubjects();
+    await _syncToFirestore();
     notifyListeners();
   }
 
   Future<void> removeSubject(String id) async {
     _subjects.removeWhere((s) => s.id == id);
-    if (_selectedSubjectId == id)
+    if (_selectedSubjectId == id) {
       _selectedSubjectId = _subjects.isNotEmpty ? _subjects.first.id : null;
+    }
     await _saveSubjects();
+    await _syncToFirestore();
     notifyListeners();
   }
 
@@ -194,12 +348,14 @@ class AppProvider extends ChangeNotifier {
     _groups.add(GroupModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(), name: name));
     await _saveGroups();
+    await _syncToFirestore();
     notifyListeners();
   }
 
   Future<void> removeGroup(String id) async {
     _groups.removeWhere((g) => g.id == id);
     await _saveGroups();
+    await _syncToFirestore();
     notifyListeners();
   }
 
