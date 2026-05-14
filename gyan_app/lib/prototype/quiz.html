@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  color: #222;
+  padding: 30px 16px 60px;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.sub {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 28px;
+}
+
+/* sections */
+.section {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.section label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+select, textarea, input[type="password"], input[type="text"] {
+  width: 100%;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #222;
+  background: #f9f9f9;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 10px;
+  outline: none;
+}
+select:focus, textarea:focus, input:focus {
+  border-color: #888;
+  background: #fff;
+}
+
+textarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+textarea::placeholder, input::placeholder {
+  color: #aaa;
+}
+
+.hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.hint a { color: #555; }
+
+/* difficulty buttons */
+.diff-row {
+  display: flex;
+  gap: 8px;
+}
+.diff-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f9f9f9;
+  font-size: 13px;
+  font-family: Arial, sans-serif;
+  cursor: pointer;
+  color: #555;
+  text-align: center;
+}
+.diff-btn:hover { background: #eee; }
+.diff-btn.active-easy   { border-color: #2a7a2a; color: #2a7a2a; background: #edf7ed; font-weight: bold; }
+.diff-btn.active-medium { border-color: #9a6200; color: #9a6200; background: #fdf6e3; font-weight: bold; }
+.diff-btn.active-hard   { border-color: #9a2020; color: #9a2020; background: #fdf0f0; font-weight: bold; }
+
+.count-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.count-row span { font-size: 13px; color: #555; white-space: nowrap; }
+.count-row input[type="range"] { flex: 1; accent-color: #444; }
+.count-num { font-weight: bold; font-size: 14px; min-width: 18px; text-align: right; }
+
+/* generate button */
+.gen-btn {
+  width: 100%;
+  padding: 11px;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  cursor: pointer;
+}
+.gen-btn:hover:not(:disabled) { background: #444; }
+.gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* status messages */
+.status {
+  display: none;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+.status.loading { display: block; background: #e8f0fe; border: 1px solid #b0c8fa; color: #1a4fa8; }
+.status.error   { display: block; background: #fdecea; border: 1px solid #f5b8b8; color: #9a1c1c; }
+
+/* quiz output */
+#quiz-out { display: none; margin-top: 24px; }
+
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.quiz-header h2 { font-size: 18px; }
+
+.diff-tag {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-weight: bold;
+  border: 1px solid;
+}
+.diff-tag.easy   { color: #2a7a2a; border-color: #2a7a2a; background: #edf7ed; }
+.diff-tag.medium { color: #9a6200; border-color: #9a6200; background: #fdf6e3; }
+.diff-tag.hard   { color: #9a2020; border-color: #9a2020; background: #fdf0f0; }
+
+/* question cards */
+.q-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.q-num { font-size: 12px; color: #999; margin-bottom: 6px; }
+.q-text { font-size: 15px; font-weight: bold; line-height: 1.5; margin-bottom: 12px; }
+
+.opts { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.opt {
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #f9f9f9;
+  line-height: 1.5;
+}
+.opt:hover:not(.locked) { background: #eee; border-color: #bbb; }
+.opt.correct { border-color: #2a7a2a; background: #edf7ed; color: #2a7a2a; font-weight: bold; }
+.opt.wrong   { border-color: #9a2020; background: #fdf0f0; color: #9a2020; }
+
+.explanation {
+  display: none;
+  margin-top: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: #1a4fa8;
+  background: #e8f0fe;
+  border-left: 3px solid #4a80e8;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.6;
+}
+.explanation.show { display: block; }
+
+/* score */
+.score-box {
+  display: none;
+  margin-top: 14px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+}
+.score-box.show { display: block; }
+.score-box .num { font-size: 36px; font-weight: bold; }
+.score-box .lbl { font-size: 13px; color: #888; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Quiz Generator</h1>
+  <p class="sub">Enter a topic or paste your notes — get a quiz tailored to your grade and board.</p>
+
+  <!-- Provider -->
+  <div class="section">
+    <label>AI Provider</label>
+    <select id="provider">
+      <option value="gemini">Google Gemini 2.0 Flash</option>
+      <option value="groq">Groq — Llama 3.3-70b</option>
+    </select>
+  </div>
+
+  <!-- Topic -->
+  <div class="section">
+    <label>Topic <span style="font-weight:normal;color:#888;">(required)</span></label>
+    <input type="text" id="topic" placeholder="e.g. Molecules, Photosynthesis, Newton's Laws, World War II…"/>
+  </div>
+
+  <!-- Notes -->
+  <div class="section">
+    <label>Your Notes <span style="font-weight:normal;color:#888;">(optional — for a more personalised quiz)</span></label>
+    <textarea id="notes" placeholder="Paste your notes here if you have any. The quiz will be generated from your topic and grade regardless — notes just help personalise it further."></textarea>
+  </div>
+
+  <!-- Settings -->
+  <div class="section">
+    <label>Difficulty</label>
+    <div class="diff-row">
+      <button class="diff-btn active-easy" data-d="easy"   onclick="setDiff(this)">Easy</button>
+      <button class="diff-btn"             data-d="medium" onclick="setDiff(this)">Medium</button>
+      <button class="diff-btn"             data-d="hard"   onclick="setDiff(this)">Hard</button>
+    </div>
+    <div class="count-row">
+      <span>Number of questions:</span>
+      <input type="range" id="q-count" min="3" max="10" value="5"
+             oninput="document.getElementById('q-num').textContent = this.value"/>
+      <span class="count-num" id="q-num">5</span>
+    </div>
+  </div>
+
+  <button class="gen-btn" id="gen-btn" onclick="generate()">Generate Quiz</button>
+
+  <div class="status" id="status-bar"><span id="status-text"></span></div>
+
+  <!-- Quiz output -->
+  <div id="quiz-out">
+    <div class="quiz-header">
+      <h2>Quiz</h2>
+      <span class="diff-tag" id="diff-tag"></span>
+    </div>
+    <div id="q-list"></div>
+    <div class="score-box" id="score-box">
+      <div class="num" id="score-num"></div>
+      <div class="lbl">correct answers</div>
+    </div>
+  </div>
+
+</div>
+<script>
+var diff = 'easy';
+var answered = 0, correct = 0, total = 0;
+
+var KEYS = {
+  gemini: 'AIzaSyAEEx2yhSLAE24KIB-yEr4TkvKJbD-cxlE',
+  groq:   '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'
+};
+
+function setDiff(btn) {
+  diff = btn.dataset.d;
+  document.querySelectorAll('.diff-btn').forEach(function(b) {
+    b.className = 'diff-btn' + (b.dataset.d === diff ? ' active-' + diff : '');
+  });
+}
+
+function buildPrompt(topic, notes, difficulty, count) {
+  var guide = {
+    easy:   'basic recall and definitions',
+    medium: 'applying and connecting concepts',
+    hard:   'analysis, inference, and synthesis'
+  };
+  var notesSection = notes ? '\n\nAdditional notes from the student (use to personalise questions where relevant, but stay within the syllabus scope):\n<notes>\n' + notes + '\n</notes>' : '';
+  return 'Generate ' + count + ' ' + difficulty.toUpperCase() + ' multiple-choice questions on the topic "' + topic + '" for a Grade 10 student following the NEB (Nepal Education Board) curriculum.\n'
+    + 'Difficulty style: ' + guide[difficulty] + '.\n'
+    + 'Questions must strictly match the NEB Grade 10 syllabus depth, scope, and style. Do not go beyond or below this level.'
+    + notesSection + '\n\n'
+    + 'Return ONLY a JSON array, no markdown:\n'
+    + '[{"question":"...","options":["A","B","C","D"],"answer":0,"explanation":"..."}]\n\n'
+    + 'Rules: exactly 4 options, "answer" is the 0-based index of the correct option.';
+}
+
+async function callGemini(key, prompt) {
+  var res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        generationConfig: { responseMimeType: 'application/json' },
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    }
+  );
+  if (!res.ok) {
+    var e = await res.json().catch(function() { return {}; });
+    throw new Error(e.error ? e.error.message : 'Gemini error ' + res.status);
+  }
+  var data = await res.json();
+  var text = data.candidates && data.candidates[0].content.parts[0].text;
+  if (!text) throw new Error('Empty response from Gemini.');
+  return JSON.parse(text);
+}
+
+async function callGroq(key, prompt) {
+  var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: 'Return ONLY a valid JSON array. No markdown, no extra text.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 2000
+    })
+  });
+  if (!res.ok) {
+    var e = await res.json().catch(function() { return {}; });
+    throw new Error(e.error ? e.error.message : 'Groq error ' + res.status);
+  }
+  var data = await res.json();
+  var text = data.choices && data.choices[0].message.content;
+  if (!text) throw new Error('Empty response from Groq.');
+  var parsed = JSON.parse(text);
+  return Array.isArray(parsed) ? parsed : (parsed.questions || parsed[Object.keys(parsed)[0]]);
+}
+
+async function generate() {
+  var topic    = document.getElementById('topic').value.trim();
+  var notes    = document.getElementById('notes').value.trim();
+  var count    = parseInt(document.getElementById('q-count').value);
+  var provider = document.getElementById('provider').value;
+  var key      = KEYS[provider];
+
+  if (!topic) { showStatus('error', 'Please enter a topic to generate a quiz on.'); return; }
+
+  var btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  document.getElementById('quiz-out').style.display = 'none';
+  showStatus('loading', 'Generating NEB Grade 10 quiz on "' + topic + '"…');
+
+  try {
+    var prompt = buildPrompt(topic, notes, diff, count);
+    var questions = provider === 'gemini' ? await callGemini(key, prompt) : await callGroq(key, prompt);
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('No questions returned. Please try again.');
+    renderQuiz(questions);
+    clearStatus();
+  } catch(e) {
+    showStatus('error', e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderQuiz(questions) {
+  total = questions.length; answered = 0; correct = 0;
+
+  var tag = document.getElementById('diff-tag');
+  tag.textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
+  tag.className = 'diff-tag ' + diff;
+
+  var list = document.getElementById('q-list');
+  list.innerHTML = '';
+  document.getElementById('score-box').classList.remove('show');
+
+  questions.forEach(function(q, i) {
+    var card = document.createElement('div');
+    card.className = 'q-card';
+    card.dataset.done = '0';
+
+    var opts = (q.options || []).map(function(opt, j) {
+      return '<li class="opt" data-i="' + j + '" onclick="pick(this,' + q.answer + ')">' + esc(opt) + '</li>';
+    }).join('');
+
+    card.innerHTML =
+      '<div class="q-num">Question ' + (i + 1) + ' of ' + questions.length + '</div>' +
+      '<div class="q-text">' + esc(q.question) + '</div>' +
+      '<ul class="opts">' + opts + '</ul>' +
+      '<div class="explanation">' + esc(q.explanation || '') + '</div>';
+
+    list.appendChild(card);
+  });
+
+  document.getElementById('quiz-out').style.display = 'block';
+  document.getElementById('quiz-out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pick(el, correctIdx) {
+  var card = el.closest('.q-card');
+  if (card.dataset.done === '1') return;
+  card.dataset.done = '1';
+
+  var chosen = parseInt(el.dataset.i);
+  card.querySelectorAll('.opt').forEach(function(o) { o.classList.add('locked'); });
+  card.querySelectorAll('.opt')[correctIdx].classList.add('correct');
+  if (chosen !== correctIdx) el.classList.add('wrong');
+  card.querySelector('.explanation').classList.add('show');
+
+  answered++;
+  if (chosen === correctIdx) correct++;
+
+  if (answered === total) {
+    document.getElementById('score-num').textContent = correct + ' / ' + total;
+    var box = document.getElementById('score-box');
+    box.classList.add('show');
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function showStatus(type, msg) {
+  var bar = document.getElementById('status-bar');
+  bar.className = 'status ' + type;
+  document.getElementById('status-text').textContent = msg;
+}
+function clearStatus() {
+  document.getElementById('status-bar').className = 'status';
+  document.getElementById('status-bar').style.display = 'none';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>
