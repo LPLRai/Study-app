@@ -72,18 +72,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _signOut() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: context.read<AppProvider>().appTheme.widgetBg,
-        title: Text('Sign Out', style: GoogleFonts.inder(color: context.read<AppProvider>().appTheme.textPrimary)),
-        content: Text('Sign-out is not connected to an auth service yet.',
-            style: GoogleFonts.inder(color: context.read<AppProvider>().appTheme.textMuted)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: GoogleFonts.inder(color: AppColors.blue)))],
-      ),
-    );
+  void _signOut() async {
+    await context.read<AppProvider>().signOutUser();
   }
 
   @override

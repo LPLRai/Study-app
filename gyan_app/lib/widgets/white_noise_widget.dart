@@ -25,33 +25,32 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
   int _selectedIdx = 0;
   double _volume = 0.5;
 
-  // put (audio file) paths in the 'asset' field below
   static const List<Map<String, String>> _sounds = [
     {
       'name': 'Rain',
       'emoji': '🌧️',
       'asset': 'audio/rain.mp3'
-    }, // put rain audio path in this section
+    }, 
     {
       'name': 'Forest',
       'emoji': '🌲',
       'asset': 'audio/forest.mp3'
-    }, // put forest audio path in this section
+    }, 
     {
       'name': 'Cafe',
       'emoji': '☕',
       'asset': 'audio/cafe.mp3'
-    }, // put cafe audio path in this section
+    }, 
     {
       'name': 'Ocean',
       'emoji': '🌊',
       'asset': 'audio/ocean.mp3'
-    }, // put ocean audio path in this section
+    },
     {
       'name': 'Fire',
       'emoji': '🔥',
       'asset': 'audio/fire.mp3'
-    }, // put fire audio path in this section
+    }, 
   ];
 
   @override
@@ -60,15 +59,15 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
     _player.setReleaseMode(ReleaseMode.loop);
 
     // Don't show the system volume popup when we change volume in code
-    VolumeController().showSystemUI = false;
+    VolumeController.instance.showSystemUI = false;
 
     // Sync slider to whatever the device volume currently is
-    VolumeController().getVolume().then((vol) {
+    VolumeController.instance.getVolume().then((vol) {
       if (mounted) setState(() => _volume = vol);
     });
 
     // Keep slider in sync if the user changes volume via hardware buttons
-    VolumeController().listener((vol) {
+    VolumeController.instance.addListener((vol) {
       if (mounted) setState(() => _volume = vol);
     });
   }
@@ -76,7 +75,7 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
   @override
   void dispose() {
     _player.dispose();
-    VolumeController().removeListener(); // clean up hardware button listener
+    VolumeController.instance.removeListener(); // clean up hardware button listener
     super.dispose();
   }
 
@@ -101,7 +100,7 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
   // Changes DEVICE media volume (0.0 – 1.0)
   void _onVolumeChanged(double v) {
     setState(() => _volume = v);
-    VolumeController().setVolume(v); // sets actual device volume
+    VolumeController.instance.setVolume(v); // sets actual device volume
   }
 
   @override
