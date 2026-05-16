@@ -6,12 +6,14 @@ import 'home_screen.dart';
 import 'timer_screen.dart';
 import 'groups_screen.dart';
 import 'profile_screen.dart';
+import 'quiz_screen.dart';
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   static const List<Widget> _pages = [
-    HomeScreen(), TimerScreen(), GroupsScreen(), ProfileScreen(),
+    HomeScreen(), TimerScreen(), GroupsScreen(), QuizScreen(), ProfileScreen(), 
   ];
   static const int _pageCount = 4;
 
@@ -91,6 +93,7 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(icon: Icon(Icons.home_rounded),   label: 'Home'),
             BottomNavigationBarItem(icon: Icon(Icons.timer_rounded),   label: 'Timer'),
             BottomNavigationBarItem(icon: Icon(Icons.group_rounded),   label: 'Groups'),
+            BottomNavigationBarItem(icon: Icon(Icons.group_rounded),   label: 'Quiz'),
             BottomNavigationBarItem(icon: Icon(Icons.person_rounded),  label: 'Profile'),
           ],
         ),

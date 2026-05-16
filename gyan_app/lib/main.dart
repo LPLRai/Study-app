@@ -11,6 +11,7 @@ import 'providers/app_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
 import 'overlay/overlay_entry.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ── Overlay entry point (Android app-lock) ────────────────────────────────────
 // Called by flutter_overlay_window in a separate isolate when the lock screen
@@ -23,7 +24,7 @@ void overlayMain() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load(fileName: ".env");
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
