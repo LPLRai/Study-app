@@ -23,6 +23,8 @@ dependencies:
   cloud_firestore: ^6.4.1
   cupertino_icons: ^1.0.6
   flutter_svg: ^2.0.0
+  http: ^1.2.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -49,7 +51,7 @@ flutter:
 
   assets:
     - assets/icon/ # app logo — put app_icon.png here
-    # ── Audio assets (uncomment once MP3 files are added) ──────────────
+    - .env 
     - assets/audio/ # white noise — rain.mp3 / forest.mp3 / cafe.mp3 / ocean.mp3 / fire.mp3
 
 
