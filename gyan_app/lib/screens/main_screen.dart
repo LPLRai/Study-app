@@ -7,12 +7,42 @@ import 'timer_screen.dart';
 import 'groups_screen.dart';
 import 'profile_screen.dart';
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   static const List<Widget> _pages = [
     HomeScreen(), TimerScreen(), GroupsScreen(), ProfileScreen(),
   ];
+  static const int _pageCount = 4;
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialTab = context.read<AppProvider>().currentTabIndex;
+    _pageController = PageController(initialPage: initialTab);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTapped(int index, AppProvider prov) {
+    prov.switchTab(index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,17 +50,36 @@ class MainScreen extends StatelessWidget {
     final t        = prov.appTheme;
     final tabIndex = prov.currentTabIndex;
 
+    // Sync PageController with external tab changes (e.g. from Home's "Quick Start")
+    if (_pageController.hasClients && _pageController.page?.round() != tabIndex) {
+      _pageController.animateToPage(
+        tabIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
     return Scaffold(
       backgroundColor: t.background,
-      body: IndexedStack(index: tabIndex, children: _pages),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          if (prov.currentTabIndex != index) {
+            prov.switchTab(index);
+          }
+        },
+        physics: const ClampingScrollPhysics(),
+        children: MainScreen._pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color:  t.navBar,
           border: Border(top: BorderSide(color: t.divider, width: 1)),
+          boxShadow: t.widgetShadow,
         ),
         child: BottomNavigationBar(
           currentIndex:        tabIndex,
-          onTap:               (i) => prov.switchTab(i),
+          onTap:               (i) => _onTabTapped(i, prov),
           backgroundColor:     t.navBar,
           selectedItemColor:   const Color(0xFF5865F2),
           unselectedItemColor: t.textMuted,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/study_session_model.dart';
 import '../providers/app_provider.dart';
+import '../widgets/profile_modal.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -27,7 +28,7 @@ class HomeScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // ── Header ─────────────────────────────────────────────────
-            _header(prov, t),
+            _header(context, prov, t),
             const SizedBox(height: 20),
             _studiedTodayCard(prov, t),
             const SizedBox(height: 12),
@@ -82,7 +83,7 @@ class HomeScreen extends StatelessWidget {
   Widget _label(String text, t) =>
       Text(text, style: GoogleFonts.inder(color: t.textMuted, fontSize: 14));
 
-  Widget _header(AppProvider prov, t) {
+  Widget _header(BuildContext context, AppProvider prov, t) {
     final imgPath = prov.user.profileImagePath;
     return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -93,16 +94,32 @@ class HomeScreen extends StatelessWidget {
           const Text('👋', style: TextStyle(fontSize: 20)),
         ]),
       ]),
-      Container(
-        width: 48, height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle, color: t.widgetBg,
-          border: Border.all(color: AppColors.blue.withOpacity(0.5), width: 2),
-        ),
-        child: ClipOval(
-          child: imgPath != null && File(imgPath).existsSync()
-              ? Image.file(File(imgPath), fit: BoxFit.cover)
-              : Icon(Icons.person_rounded, color: t.textMuted, size: 28),
+      GestureDetector(
+        onTap: () {
+          showMenu(
+            context: context,
+            position: const RelativeRect.fromLTRB(500, 16, 16, 0),
+            color: Colors.transparent,
+            elevation: 0,
+            items: [
+              PopupMenuItem(
+                enabled: false,
+                padding: EdgeInsets.zero,
+                child: const ProfileModal(),
+              ),
+            ],
+          );
+        },
+        child: Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle, color: t.widgetBg,
+          ),
+          child: ClipOval(
+            child: imgPath != null && File(imgPath).existsSync()
+                ? Image.file(File(imgPath), fit: BoxFit.cover)
+                : Icon(Icons.person_rounded, color: t.textMuted, size: 28),
+          ),
         ),
       ),
     ]);
@@ -112,7 +129,8 @@ class HomeScreen extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     decoration: BoxDecoration(
       color: t.widgetBg, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.blue.withOpacity(0.65), width: 1.5),
+      border: Border.all(color: t.cardBorder, width: 1),
+      boxShadow: t.widgetShadow,
     ),
     child: Row(children: [
       const Icon(Icons.access_time_rounded, color: AppColors.blue, size: 30),
@@ -128,7 +146,8 @@ class HomeScreen extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
       color: t.widgetBg, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.green.withOpacity(0.65), width: 1.5),
+      border: Border.all(color: t.cardBorder, width: 1),
+      boxShadow: t.widgetShadow,
     ),
     child: Row(children: [
       const Icon(Icons.check_circle_rounded, color: AppColors.green, size: 26),
@@ -144,7 +163,8 @@ class HomeScreen extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
       color: t.widgetBg, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.red.withOpacity(0.65), width: 1.5),
+      border: Border.all(color: t.cardBorder, width: 1),
+      boxShadow: t.widgetShadow,
     ),
     child: Row(children: [
       const Text('🔥', style: TextStyle(fontSize: 24)),
@@ -181,35 +201,39 @@ class HomeScreen extends StatelessWidget {
       );
 
   Widget _aiCard({required IconData icon, required Color iconColor, required String label,
-      required String sublabel, required Color badgeColor, required t, required VoidCallback onTap}) =>
-      GestureDetector(
+      required String sublabel, required Color badgeColor, required t, required VoidCallback onTap}) {
+    final Color displayColor = t.isDark 
+        ? iconColor 
+        : (iconColor == AppColors.yellow ? Colors.orange.shade600 : (iconColor == AppColors.green ? Colors.green.shade600 : iconColor));
+
+    return GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: t.widgetBg, borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: iconColor.withOpacity(0.55), width: 1.5),
+            color: t.widgetBg, borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: displayColor.withOpacity(0.25), width: 1.0),
+            boxShadow: t.widgetShadow,
           ),
           child: Row(children: [
             Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: iconColor.withOpacity(0.6))),
-              child: Icon(icon, color: iconColor, size: 22),
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: displayColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: displayColor.withOpacity(0.25), width: 0.8),
+              ),
+              child: Icon(icon, color: displayColor, size: 22),
             ),
             const SizedBox(width: 14),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: GoogleFonts.inder(color: t.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
-              Text(sublabel, style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
+              Text(label, style: GoogleFonts.inder(color: t.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(sublabel, style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
             ]),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: badgeColor.withOpacity(0.18), borderRadius: BorderRadius.circular(20), border: Border.all(color: badgeColor.withOpacity(0.7))),
-              child: Text('Try', style: GoogleFonts.inder(color: badgeColor, fontSize: 12)),
-            ),
           ]),
         ),
       );
+  }
 
   Widget _sessionTile(StudySessionModel s, t) {
     final color  = AppColors.subjectColor(s.colorIndex);
@@ -217,20 +241,20 @@ class HomeScreen extends StatelessWidget {
     final period = s.startTime.hour < 12 ? 'AM' : 'PM';
     final time   = '${h12.toString().padLeft(2,'0')}:${s.startTime.minute.toString().padLeft(2,'0')} $period';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(12)),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(14), border: Border.all(color: t.cardBorder, width: 1), boxShadow: t.widgetShadow),
       child: Row(children: [
-        Container(width: 4, height: 38, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+        Container(width: 4, height: 40, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 14),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(s.subjectName, style: GoogleFonts.inder(color: t.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-          Text(time, style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
+          Text(s.subjectName, style: GoogleFonts.inder(color: t.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(time, style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
         ]),
         const Spacer(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: color.withOpacity(0.18), borderRadius: BorderRadius.circular(20)),
-          child: Text('${s.durationMinutes} min', style: GoogleFonts.inder(color: color, fontSize: 12)),
+          decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.4), width: 1)),
+          child: Text('${s.durationMinutes} min', style: GoogleFonts.inder(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
         ),
       ]),
     );

@@ -118,7 +118,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: 110, height: 110,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle, color: t.widgetBg,
-                      border: Border.all(color: AppColors.blue.withOpacity(0.4), width: 2.5),
                     ),
                     child: ClipOval(
                       child: imgPath != null && File(imgPath).existsSync()
@@ -149,16 +148,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Light / Dark mode toggle — only visible in edit mode ────
-            if (_editMode) ...[
-              _themeTile(prov, t),
-              const SizedBox(height: 20),
-            ],
-
             // ── All-time stats ─────────────────────────────────────────
             Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(14), boxShadow: t.widgetShadow),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('All-Time Stats', style: GoogleFonts.inder(color: t.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
@@ -201,6 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color:        t.widgetBg,
                   borderRadius: BorderRadius.circular(12),
                   border:       Border.all(color: AppColors.red.withOpacity(0.4), width: 1.2),
+                  boxShadow:    t.widgetShadow,
                 ),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.logout_rounded, color: AppColors.red, size: 20),
@@ -224,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color:        t.widgetBg,
         borderRadius: BorderRadius.circular(12),
         border:       Border.all(color: AppColors.blue.withOpacity(0.4), width: 1.2),
+        boxShadow:    t.widgetShadow,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Appearance', style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
@@ -303,6 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           border:       enabled
               ? Border.all(color: AppColors.blue.withOpacity(0.6), width: 1.3)
               : Border.all(color: t.cardBorder),
+          boxShadow:    t.widgetShadow,
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
@@ -332,21 +328,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]);
 
   Widget _aiRow({required IconData icon, required Color iconColor, required String label,
-      required String sublabel, required t, required VoidCallback onTap}) =>
-      GestureDetector(
+      required String sublabel, required t, required VoidCallback onTap}) {
+    final Color displayColor = t.isDark 
+        ? iconColor 
+        : (iconColor == AppColors.yellow ? Colors.orange.shade600 : (iconColor == AppColors.green ? Colors.green.shade600 : iconColor));
+
+    return GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
             color:        t.widgetBg,
             borderRadius: BorderRadius.circular(12),
-            border:       Border.all(color: iconColor.withOpacity(0.5), width: 1.3),
+            border:       Border.all(color: displayColor.withOpacity(0.3), width: 0.5),
+            boxShadow:    t.widgetShadow,
           ),
           child: Row(children: [
             Container(
               width: 42, height: 42,
-              decoration: BoxDecoration(color: iconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: iconColor.withOpacity(0.5))),
-              child: Icon(icon, color: iconColor, size: 22),
+              decoration: BoxDecoration(color: displayColor.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: displayColor.withOpacity(0.5))),
+              child: Icon(icon, color: displayColor, size: 22),
             ),
             const SizedBox(width: 14),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -356,4 +357,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ]),
         ),
       );
+  }
 }

@@ -499,7 +499,8 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                             horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                             color: t.widgetBg,
-                            borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: t.widgetShadow),
                         child: Row(children: [
                           Container(
                               width: 12,
@@ -665,7 +666,8 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                                 color: t.widgetBg,
-                                borderRadius: BorderRadius.circular(10)),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: t.widgetShadow),
                             child: Center(
                                 child: Text(
                                     'No subjects yet — press Edit to add one',
@@ -739,6 +741,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
           color: isSelected ? c.withOpacity(0.15) : appTheme.widgetBg,
           borderRadius: BorderRadius.circular(10),
           border: isSelected ? Border.all(color: c, width: 1.5) : null,
+          boxShadow: appTheme.widgetShadow,
         ),
         child: Row(children: [
           Container(

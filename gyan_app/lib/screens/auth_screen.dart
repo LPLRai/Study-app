@@ -294,9 +294,11 @@ class _AuthScreenState extends State<AuthScreen> {
               Switch(
                 value: prov.isDarkMode,
                 onChanged: (value) => prov.setDarkMode(value),
-                activeThumbColor: AppColors.blue,
+                activeColor: Colors.white,
+                activeTrackColor: AppColors.blue,
                 inactiveThumbColor: Colors.white,
-                inactiveTrackColor: Colors.white38,
+                inactiveTrackColor: const Color(0xFFE8E8F0),
+                trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
               ),
               const SizedBox(width: 6),
               Text(
