@@ -121,7 +121,6 @@ class AppProvider extends ChangeNotifier {
             .toList();
       }
 
-      _isDarkMode = firebaseData['isDarkMode'] as bool? ?? _isDarkMode;
       if (_subjects.isNotEmpty && _selectedSubjectId == null) {
         _selectedSubjectId = _subjects.first.id;
       }

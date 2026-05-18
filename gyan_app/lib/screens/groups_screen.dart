@@ -78,7 +78,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   Container(
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(8), boxShadow: t.widgetShadow),
                     child: Row(children: [
                       Icon(Icons.group_rounded, color: t.textMuted, size: 18),
                       const SizedBox(width: 10),
@@ -147,7 +147,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 if (prov.groups.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(12), boxShadow: t.widgetShadow),
                     child: Center(child: Text('No groups yet — press Edit to create one', style: GoogleFonts.inder(color: t.textMuted, fontSize: 13))),
                   )
                 else
@@ -173,7 +173,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
     final maxMins = data.values.isEmpty ? 1 : data.values.map((e) => e.minutes).reduce((a, b) => a > b ? a : b);
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(14), boxShadow: t.widgetShadow),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('Total time studied', style: GoogleFonts.inder(color: t.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
@@ -243,7 +243,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Widget _groupTile(GroupModel g, t) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(12)),
+    decoration: BoxDecoration(color: t.widgetBg, borderRadius: BorderRadius.circular(12), boxShadow: t.widgetShadow),
     child: Row(children: [
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(g.name, style: GoogleFonts.inder(color: t.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
