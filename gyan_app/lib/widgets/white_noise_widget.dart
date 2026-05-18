@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// widgets/white_noise_widget.dart
-//
-// White noise player — slider controls DEVICE media volume directly.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
