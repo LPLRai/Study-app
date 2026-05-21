@@ -6,6 +6,7 @@ import '../constants/app_colors.dart';
 import '../models/study_session_model.dart';
 import '../providers/app_provider.dart';
 import '../widgets/profile_modal.dart';
+import '../screens/upload_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -50,7 +51,9 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.document_scanner_rounded, iconColor: AppColors.green,
               label: 'Answer Sheet Analyzer', sublabel: 'Upload & get AI feedback',
               badgeColor: AppColors.green, t: t,
-              onTap: () {/* TODO: navigate to AnswerSheetAnalyserScreen */},
+              onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UploadScreen()),
+            ),
             ),
             const SizedBox(height: 10),
             _aiCard(
@@ -59,7 +62,7 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.quiz_rounded, iconColor: AppColors.yellow,
               label: 'Make a Quiz', sublabel: 'AI generates questions for you',
               badgeColor: AppColors.yellow, t: t,
-              onTap: () {/* TODO: navigate to MakeQuizScreen */},
+              onTap: () => context.read<AppProvider>().switchTab(3),
             ),
             const SizedBox(height: 22),
             _label('Recent Session', t),

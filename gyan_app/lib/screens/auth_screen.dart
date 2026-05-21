@@ -61,6 +61,21 @@ class _AuthScreenState extends State<AuthScreen> {
           backgroundColor: AppColors.red,
         ),
       );
+    } else if (_isRegister) {
+      // show after successful registration
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ Verification email sent! Please check your inbox before logging in.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      setState(() {
+        _isRegister = false;
+        _emailController.clear();
+        _passwordController.clear();
+        _usernameController.clear();
+      });
     }
   }
 
@@ -135,7 +150,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
                 ]),
               ),
               const SizedBox(height: 32),
@@ -163,7 +177,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      _isRegister ? 'Create a new account and save your study progress online.' : 'Log in to continue your study streak and sync across devices.',
+                      _isRegister
+                          ? 'Create a new account and save your study progress online.'
+                          : 'Log in to continue your study streak and sync across devices.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inder(color: subtitleColor, fontSize: 14, height: 1.5),
                     ),

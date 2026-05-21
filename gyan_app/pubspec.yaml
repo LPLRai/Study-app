@@ -25,6 +25,9 @@ dependencies:
   flutter_svg: ^2.0.0
   http: ^1.2.0
   flutter_dotenv: ^5.1.0
+  image: ^4.1.7
+  uuid: ^4.4.0
+  firebase_storage: ^13.4.1
 
 dev_dependencies:
   flutter_test:

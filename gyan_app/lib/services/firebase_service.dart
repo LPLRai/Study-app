@@ -6,21 +6,25 @@ import 'package:firebase_core/firebase_core.dart';
 class FirebaseService {
   FirebaseService._();
   static final FirebaseService instance = FirebaseService._();
-
   bool _initialized = false;
-  bool get initialized => _initialized;
 
+  bool get initialized => _initialized;
   User? get currentUser => FirebaseAuth.instance.currentUser;
   bool get isAnonymous => currentUser?.isAnonymous ?? false;
-  bool get isSignedIn => currentUser != null && !isAnonymous;
+
+  // blocks unverified users
+  bool get isSignedIn =>
+      currentUser != null &&
+      !isAnonymous &&
+      (currentUser?.emailVerified ?? false);
 
   Future<void> init() async {
-  if (_initialized) return;
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // ← add this
-  );
-  _initialized = true;
-}
+    if (_initialized) return;
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    _initialized = true;
+  }
 
   Future<UserCredential> signInWithEmail(String email, String password) async {
     await init();
@@ -30,12 +34,15 @@ class FirebaseService {
     );
   }
 
+  // sends verification email after registration
   Future<UserCredential> registerWithEmail(String email, String password) async {
     await init();
-    return FirebaseAuth.instance.createUserWithEmailAndPassword(
+    final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password.trim(),
     );
+    await credential.user?.sendEmailVerification();
+    return credential;
   }
 
   Future<UserCredential> signInAnonymously() async {
@@ -66,7 +73,9 @@ class FirebaseService {
     if (user == null) {
       throw StateError('FirebaseService has not been initialized or signed in.');
     }
-    return FirebaseFirestore.instance.collection('study_app_users').doc(user.uid);
+    return FirebaseFirestore.instance
+        .collection('study_app_users')
+        .doc(user.uid);
   }
 
   Future<void> saveAppState({
