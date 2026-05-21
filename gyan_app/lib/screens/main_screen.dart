@@ -7,15 +7,16 @@ import 'timer_screen.dart';
 import 'groups_screen.dart';
 import 'profile_screen.dart';
 import 'quiz_screen.dart';
+import 'upload_screen.dart';
 
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   static const List<Widget> _pages = [
-    HomeScreen(), TimerScreen(), GroupsScreen(), QuizScreen(), ProfileScreen(), 
+    HomeScreen(), TimerScreen(), GroupsScreen(), QuizScreen(), UploadScreen(), ProfileScreen(), 
   ];
-  static const int _pageCount = 4;
+  static const int _pageCount = 5;
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -90,12 +91,13 @@ class _MainScreenState extends State<MainScreen> {
           selectedLabelStyle:   GoogleFonts.inder(fontSize: 11),
           unselectedLabelStyle: GoogleFonts.inder(fontSize: 11),
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded),   label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.timer_rounded),   label: 'Timer'),
-            BottomNavigationBarItem(icon: Icon(Icons.group_rounded),   label: 'Groups'),
-            BottomNavigationBarItem(icon: Icon(Icons.group_rounded),   label: 'Quiz'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_rounded),  label: 'Profile'),
-          ],
+            BottomNavigationBarItem(icon: Icon(Icons.home_rounded),             label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.timer_rounded),            label: 'Timer'),
+            BottomNavigationBarItem(icon: Icon(Icons.group_rounded),            label: 'Groups'),
+            BottomNavigationBarItem(icon: Icon(Icons.quiz_rounded),             label: 'Quiz'),
+            BottomNavigationBarItem(icon: Icon(Icons.document_scanner_rounded), label: 'Scan'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded),           label: 'Profile'),
+        ],
         ),
       ),
     );

@@ -154,51 +154,49 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<bool> signIn({
-  required String usernameOrEmail,
-  required String password,
-}) async {
-  try {
-    await _firebaseService.init();
-    final email = usernameOrEmail.contains('@')
-        ? usernameOrEmail.trim()
-        : await _firebaseService.emailForUsername(usernameOrEmail.trim());
+    required String usernameOrEmail,
+    required String password,
+  }) async {
+    try {
+      await _firebaseService.init();
+      final email = usernameOrEmail.contains('@')
+          ? usernameOrEmail.trim()
+          : await _firebaseService.emailForUsername(usernameOrEmail.trim());
 
-    print('Trying email: $email');
-    print('Password length: ${password.length}');
-
-    if (email == null || email.isEmpty) return false;
-    await _firebaseService.signInWithEmail(email, password);
-    _remoteBackendReady = true;
-    await _loadRemoteData();
-    await _syncToFirestore();
-    notifyListeners();
-    return true;
-  } catch (e) {
-    print('SignIn error: $e'); // ← this will show exact error
-    return false;
+      if (email == null || email.isEmpty) return false;
+      await _firebaseService.signInWithEmail(email, password);
+      _remoteBackendReady = true;
+      await _loadRemoteData();
+      await _syncToFirestore();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('SignIn error: $e');
+      return false;
+    }
   }
-}
 
   Future<bool> register({
-  required String email,
-  required String username,
-  required String password,
-}) async {
-  try {
-    await _firebaseService.init();
-    await _firebaseService.registerWithEmail(email, password);
-    _remoteBackendReady = true;
-    _user.email = email.trim();
-    _user.name = username.trim().isEmpty ? _user.name : username.trim();
-    await _saveLocalState();
-    await _syncToFirestore();
-    notifyListeners();
-    return true;
-  } catch (e) {
-    print('Register error: $e'); // ← add this
-    return false;
+    required String email,
+    required String username,
+    required String password,
+  }) async {
+    try {
+      await _firebaseService.init();
+      await _firebaseService.registerWithEmail(email, password);
+      // don't set _remoteBackendReady — user not verified yet
+      _user.email = email.trim();
+      _user.name = username.trim().isEmpty ? _user.name : username.trim();
+      await _saveLocalState();
+      // don't sync to Firestore yet — user not verified
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('Register error: $e');
+      return false;
+    }
   }
-}
+
   Future<void> signOutUser() async {
     try {
       await _firebaseService.signOut();
