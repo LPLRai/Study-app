@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import '../models/subject_model.dart';
@@ -177,25 +178,40 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<bool> register({
-    required String email,
-    required String username,
-    required String password,
-  }) async {
-    try {
-      await _firebaseService.init();
-      await _firebaseService.registerWithEmail(email, password);
-      // don't set _remoteBackendReady — user not verified yet
-      _user.email = email.trim();
-      _user.name = username.trim().isEmpty ? _user.name : username.trim();
-      await _saveLocalState();
-      // don't sync to Firestore yet — user not verified
-      notifyListeners();
-      return true;
-    } catch (e) {
-      print('Register error: $e');
-      return false;
+  required String email,
+  required String username,
+  required String password,
+}) async {
+  try {
+    await _firebaseService.init();
+    final credential = await _firebaseService.registerWithEmail(email, password);
+    _user.email = email.trim();
+    _user.name = username.trim().isEmpty ? _user.name : username.trim();
+    await _saveLocalState();
+
+    // Save username+email to Firestore immediately so emailForUsername() works.
+    // We use the uid directly since the user isn't verified yet (isSignedIn=false).
+    final uid = credential.user?.uid;
+    if (uid != null) {
+      await FirebaseFirestore.instance
+          .collection('study_app_users')
+          .doc(uid)
+          .set({
+        'user': _user.toJson(),
+        'subjects': [],
+        'sessions': [],
+        'groups': [],
+        'isDarkMode': _isDarkMode,
+      }, SetOptions(merge: true));
     }
+
+    notifyListeners();
+    return true;
+  } catch (e) {
+    print('Register error: $e');
+    return false;
   }
+}
 
   Future<void> signOutUser() async {
     try {
