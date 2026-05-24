@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'init_page.dart';
 
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
@@ -77,6 +78,17 @@ class _AuthScreenState extends State<AuthScreen> {
         _passwordController.clear();
         _usernameController.clear();
       });
+    } else {
+      // Runs AFTER login success
+     Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (_) => GetStartedPage(
+      isDark: true,
+      onToggle: () {},
+    ),
+  ),
+);
     }
   }
 
