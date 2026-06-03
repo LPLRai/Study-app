@@ -143,7 +143,11 @@ class _QuizService {
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key});
+  /// When embedded inside the AI Features tab the screen's own AppBar is
+  /// hidden, since the host provides a shared header + toggle.
+  final bool embedded;
+
+  const QuizScreen({super.key, this.embedded = false});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -225,14 +229,16 @@ class _QuizScreenState extends State<QuizScreen> {
 
       return Scaffold(
         backgroundColor: t.background,
-        appBar: AppBar(
-          backgroundColor: t.background,
-          elevation: 0,
-          title: Text('Quiz Generator',
-              style: GoogleFonts.inder(
-                  color: t.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-          iconTheme: IconThemeData(color: t.textPrimary),
-        ),
+        appBar: widget.embedded
+            ? null
+            : AppBar(
+                backgroundColor: t.background,
+                elevation: 0,
+                title: Text('Quiz Generator',
+                    style: GoogleFonts.inder(
+                        color: t.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                iconTheme: IconThemeData(color: t.textPrimary),
+              ),
         body: SingleChildScrollView(
           controller: _scrollCtrl,
           padding: const EdgeInsets.all(20),

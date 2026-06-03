@@ -62,7 +62,7 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.quiz_rounded, iconColor: AppColors.yellow,
               label: 'Make a Quiz', sublabel: 'AI generates questions for you',
               badgeColor: AppColors.yellow, t: t,
-              onTap: () => context.read<AppProvider>().switchTab(3),
+              onTap: () => context.read<AppProvider>().switchTab(2),
             ),
             const SizedBox(height: 22),
             _label('Recent Session', t),
