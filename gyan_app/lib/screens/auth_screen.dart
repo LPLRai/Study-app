@@ -1,3 +1,7 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// screens/auth_screen.dart
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +11,8 @@ import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'terms_screen.dart';
+import 'main_screen.dart';
+import 'getstarted_screen.dart'; // ← shown after registration
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,14 +22,15 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _identityController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _usernameController = TextEditingController();
-  bool _isRegister = false;
-  bool _termsAccepted = false;
-  bool _isBusy = false;
+  final _formKey             = GlobalKey<FormState>();
+  final _identityController  = TextEditingController();
+  final _passwordController  = TextEditingController();
+  final _emailController     = TextEditingController();
+  final _usernameController  = TextEditingController();
+
+  bool _isRegister      = false;
+  bool _termsAccepted   = false;
+  bool _isBusy          = false;
   bool _obscurePassword = true;
 
   @override
@@ -38,46 +45,61 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isBusy = true);
-    final prov = context.read<AppProvider>();
-    final messenger = ScaffoldMessenger.of(context);
-    final success = _isRegister
-        ? await prov.register(
-            email: _emailController.text.trim(),
-            username: _usernameController.text.trim(),
-            password: _passwordController.text.trim(),
-          )
-        : await prov.signIn(
-            usernameOrEmail: _identityController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
-    if (!mounted) return;
-    setState(() => _isBusy = false);
 
-    if (!success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _isRegister
-                ? 'Could not register. Check your email and password.'
-                : 'Login failed. Make sure your email is verified and credentials are correct.',
-          ),
+    final prov      = context.read<AppProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (_isRegister) {
+      // ── Registration flow ────────────────────────────────────────────────
+      final success = await prov.register(
+        email:    _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+
+      if (!success) {
+        messenger.showSnackBar(SnackBar(
+          content: const Text('Could not register. Check your email and try again.'),
           backgroundColor: AppColors.red,
-        ),
+        ));
+        return;
+      }
+
+      // Registration succeeded — a verification email was sent automatically
+      // by FirebaseService.registerWithEmail (sendEmailVerification).
+      // Take the new user straight to GetStartedPage to fill their profile.
+      // GetStartedPage will navigate to AuthScreen (login mode) when done.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const GetStartedPage()),
       );
-    } else if (_isRegister) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('✅ Verification email sent! Please check your inbox before logging in.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 5),
-        ),
+    } else {
+      // ── Login flow ───────────────────────────────────────────────────────
+      final success = await prov.signIn(
+        usernameOrEmail: _identityController.text.trim(),
+        password:        _passwordController.text.trim(),
       );
-      setState(() {
-        _isRegister = false;
-        _emailController.clear();
-        _passwordController.clear();
-        _usernameController.clear();
-      });
+
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+
+      if (!success) {
+        messenger.showSnackBar(SnackBar(
+          content: const Text(
+              'Login failed. Make sure your email is verified and credentials are correct.'),
+          backgroundColor: AppColors.red,
+        ));
+        return;
+      }
+
+      // Login succeeded → go to main app
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
     }
   }
 
@@ -101,11 +123,13 @@ class _AuthScreenState extends State<AuthScreen> {
         backgroundColor: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text('Reset Password',
-            style: GoogleFonts.inder(color: textColor, fontWeight: FontWeight.w700)),
+            style: GoogleFonts.inder(
+                color: textColor, fontWeight: FontWeight.w700)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(
-            'Enter your email address and we\'ll send you a link to reset your password.',
-            style: GoogleFonts.inder(color: subtitleColor, fontSize: 13, height: 1.5),
+            "Enter your email address and we'll send you a link to reset your password.",
+            style: GoogleFonts.inder(
+                color: subtitleColor, fontSize: 13, height: 1.5),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -118,14 +142,16 @@ class _AuthScreenState extends State<AuthScreen> {
               hintStyle: TextStyle(color: subtitleColor),
               filled: true,
               fillColor: fillColor,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide(color: AppColors.blue.withOpacity(0.9), width: 1.5),
+                borderSide: BorderSide(
+                    color: AppColors.blue.withOpacity(0.9), width: 1.5),
               ),
             ),
           ),
@@ -133,7 +159,8 @@ class _AuthScreenState extends State<AuthScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.inder(color: subtitleColor)),
+            child: Text('Cancel',
+                style: GoogleFonts.inder(color: subtitleColor)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -145,7 +172,8 @@ class _AuthScreenState extends State<AuthScreen> {
               }
               Navigator.pop(ctx);
               try {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                await FirebaseAuth.instance
+                    .sendPasswordResetEmail(email: email);
                 if (!mounted) return;
                 messenger.showSnackBar(SnackBar(
                   content: Text('📧 Reset link sent to $email'),
@@ -161,10 +189,12 @@ class _AuthScreenState extends State<AuthScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.blue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             child: Text('Send Link',
-                style: GoogleFonts.inder(color: Colors.white, fontWeight: FontWeight.w600)),
+                style: GoogleFonts.inder(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -184,7 +214,8 @@ class _AuthScreenState extends State<AuthScreen> {
     Widget? suffixIcon,
   }) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: GoogleFonts.inder(color: labelColor, fontSize: 12)),
+      Text(label,
+          style: GoogleFonts.inder(color: labelColor, fontSize: 12)),
       const SizedBox(height: 8),
       TextFormField(
         controller: controller,
@@ -195,19 +226,23 @@ class _AuthScreenState extends State<AuthScreen> {
         decoration: InputDecoration(
           filled: true,
           fillColor: fillColor,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: BorderSide(color: textColor.withOpacity(0.15), width: 1.2),
+            borderSide:
+                BorderSide(color: textColor.withOpacity(0.15), width: 1.2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: BorderSide(color: textColor.withOpacity(0.12), width: 1.1),
+            borderSide:
+                BorderSide(color: textColor.withOpacity(0.12), width: 1.1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(24),
-            borderSide: BorderSide(color: AppColors.blue.withOpacity(0.9), width: 1.5),
+            borderSide: BorderSide(
+                color: AppColors.blue.withOpacity(0.9), width: 1.5),
           ),
         ),
         validator: validator,
@@ -217,20 +252,21 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final prov = context.watch<AppProvider>();
-    final isDark = prov.isDarkMode;
-    final background = isDark ? const Color(0xFF121318) : const Color(0xFFF5F2F7);
-    final cardColor = isDark ? const Color(0xFF18181F) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A22);
+    final prov          = context.watch<AppProvider>();
+    final isDark        = prov.isDarkMode;
+    final background    = isDark ? const Color(0xFF121318) : const Color(0xFFF5F2F7);
+    final cardColor     = isDark ? const Color(0xFF18181F) : Colors.white;
+    final textColor     = isDark ? Colors.white : const Color(0xFF1A1A22);
     final subtitleColor = isDark ? Colors.white70 : const Color(0xFF6E6E78);
-    final fillColor = isDark ? const Color(0xFF232329) : const Color(0xFFF2F0F7);
+    final fillColor     = isDark ? const Color(0xFF232329) : const Color(0xFFF2F0F7);
 
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
         child: Stack(children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Column(children: [
               const SizedBox(height: 18),
               const SizedBox(height: 24),
@@ -257,7 +293,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+                      color: Colors.black
+                          .withOpacity(isDark ? 0.35 : 0.08),
                       blurRadius: 32,
                       offset: const Offset(0, 18),
                     ),
@@ -272,18 +309,24 @@ class _AuthScreenState extends State<AuthScreen> {
                         _isRegister ? 'Create Account' : 'Welcome Back',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inder(
-                            color: textColor, fontSize: 24, fontWeight: FontWeight.w700),
+                            color: textColor,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 10),
                       Text(
                         _isRegister
-                            ? 'Create a new account and save your study progress online.'
+                            ? 'Fill in your details, then set up your study profile.'
                             : 'Log in to continue your study streak and sync across devices.',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inder(color: subtitleColor, fontSize: 14, height: 1.5),
+                        style: GoogleFonts.inder(
+                            color: subtitleColor,
+                            fontSize: 14,
+                            height: 1.5),
                       ),
                       const SizedBox(height: 32),
 
+                      // ── Register fields ──────────────────────────────────
                       if (_isRegister) ...[
                         _buildField(
                           label: 'Email',
@@ -293,9 +336,11 @@ class _AuthScreenState extends State<AuthScreen> {
                           labelColor: subtitleColor,
                           textColor: textColor,
                           fillColor: fillColor,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Enter your email';
-                            if (!value.contains('@')) return 'Enter a valid email';
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Enter your email';
+                            if (!v.contains('@'))
+                              return 'Enter a valid email';
                             return null;
                           },
                         ),
@@ -307,12 +352,15 @@ class _AuthScreenState extends State<AuthScreen> {
                           labelColor: subtitleColor,
                           textColor: textColor,
                           fillColor: fillColor,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Enter a username';
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Enter a username';
                             return null;
                           },
                         ),
                         const SizedBox(height: 18),
+
+                      // ── Login fields ─────────────────────────────────────
                       ] else ...[
                         _buildField(
                           label: 'Email',
@@ -322,9 +370,11 @@ class _AuthScreenState extends State<AuthScreen> {
                           labelColor: subtitleColor,
                           textColor: textColor,
                           fillColor: fillColor,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Enter your email';
-                            if (!value.contains('@')) return 'Enter a valid email';
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Enter your email';
+                            if (!v.contains('@'))
+                              return 'Enter a valid email';
                             return null;
                           },
                         ),
@@ -346,12 +396,13 @@ class _AuthScreenState extends State<AuthScreen> {
                             color: subtitleColor,
                             size: 20,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Enter your password';
-                          if (_isRegister && value.trim().length < 6)
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty)
+                            return 'Enter your password';
+                          if (_isRegister && v.trim().length < 6)
                             return 'Password should be at least 6 characters';
                           return null;
                         },
@@ -371,28 +422,28 @@ class _AuthScreenState extends State<AuthScreen> {
                                       fillColor: fillColor,
                                       isDark: isDark,
                                     ),
-                            child: Text(
-                              'Forgot Password?',
-                              style: GoogleFonts.inder(
-                                color: AppColors.blue,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: Text('Forgot Password?',
+                                style: GoogleFonts.inder(
+                                  color: AppColors.blue,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                )),
                           ),
                         ),
                       ],
 
                       const SizedBox(height: 20),
 
+                      // ── Terms checkbox (register only) ───────────────────
                       if (_isRegister) ...[
                         Row(children: [
                           Checkbox(
                             value: _termsAccepted,
-                            onChanged: (value) =>
-                                setState(() => _termsAccepted = value ?? false),
+                            onChanged: (v) =>
+                                setState(() => _termsAccepted = v ?? false),
                             activeColor: AppColors.blue,
-                            fillColor: WidgetStateProperty.all(AppColors.blue),
+                            fillColor:
+                                WidgetStateProperty.all(AppColors.blue),
                           ),
                           Expanded(
                             child: GestureDetector(
@@ -423,15 +474,18 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                         ]),
+                        const SizedBox(height: 10),
                       ],
 
-                      const SizedBox(height: 10),
-
+                      // ── Submit button ────────────────────────────────────
                       ElevatedButton(
-                        onPressed: _isBusy || (_isRegister && !_termsAccepted) ? null : _submit,
+                        onPressed: _isBusy || (_isRegister && !_termsAccepted)
+                            ? null
+                            : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30)),
                         ),
@@ -440,7 +494,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2.2))
+                                    color: Colors.white, strokeWidth: 2.2),
+                              )
                             : Text(
                                 _isRegister ? 'Sign up' : 'Login',
                                 style: GoogleFonts.inder(
@@ -450,21 +505,33 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                       ),
                       const SizedBox(height: 12),
+
+                      // ── Toggle register ↔ login ──────────────────────────
                       if (_isRegister)
                         OutlinedButton(
-                          onPressed:
-                              _isBusy ? null : () => setState(() => _isRegister = false),
+                          onPressed: _isBusy
+                              ? null
+                              : () => setState(() {
+                                    _isRegister = false;
+                                    _emailController.clear();
+                                    _passwordController.clear();
+                                    _usernameController.clear();
+                                  }),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: textColor,
-                            side: BorderSide(color: textColor.withOpacity(0.2)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(
+                                color: textColor.withOpacity(0.2)),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30)),
                           ),
-                          child: Text('Login',
+                          child: Text('Already have an account? Login',
                               style: GoogleFonts.inder(
-                                  fontSize: 15, fontWeight: FontWeight.w600)),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600)),
                         ),
+
                       if (!_isRegister) ...[
                         const SizedBox(height: 14),
                         GestureDetector(
@@ -488,23 +555,27 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 24),
             ]),
           ),
+
+          // ── Dark-mode toggle ─────────────────────────────────────────────
           Positioned(
             left: 24,
             bottom: 0,
             child: Row(children: [
               Switch(
                 value: prov.isDarkMode,
-                onChanged: (value) => prov.setDarkMode(value),
+                onChanged: (v) => prov.setDarkMode(v),
                 activeColor: Colors.white,
                 activeTrackColor: AppColors.blue,
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: const Color(0xFFE8E8F0),
-                trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                trackOutlineColor:
+                    WidgetStateProperty.all(Colors.transparent),
               ),
               const SizedBox(width: 6),
               Text(
                 isDark ? 'Dark Mode' : 'Light Mode',
-                style: GoogleFonts.inder(color: subtitleColor, fontSize: 13),
+                style: GoogleFonts.inder(
+                    color: subtitleColor, fontSize: 13),
               ),
             ]),
           ),

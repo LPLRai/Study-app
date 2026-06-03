@@ -25,6 +25,18 @@ class AppProvider extends ChangeNotifier {
   bool _isDarkMode = true;
   bool _remoteBackendReady = false;
 
+  // ── Onboarding / study-profile ──────────────────────────────────────────
+  bool _onboardingComplete = false;
+
+  /// Extra profile fields saved from GetStartedPage
+  String? profileCourse;
+  String? profileStudyTime;
+  String? profileGoal;
+  List<String> profileStrongSubjects = [];
+  List<String> profileWeakSubjects   = [];
+
+  bool get onboardingComplete => _onboardingComplete;
+
   bool get isAuthenticated => _firebaseService.isSignedIn;
 
   UserModel get user => _user;
@@ -65,6 +77,7 @@ class AppProvider extends ChangeNotifier {
   List<StudySessionModel> get recentSessions =>
       _sessions.where((s) => s.isQualifying).toList().reversed.take(5).toList();
 
+  // ── Init ──────────────────────────────────────────────────────────────────
   Future<void> init() async {
     await _initBackend();
     await _load();
@@ -100,24 +113,21 @@ class AppProvider extends ChangeNotifier {
       final subjectsRemote = firebaseData['subjects'];
       if (subjectsRemote is List) {
         _subjects = subjectsRemote
-            .map((e) => SubjectModel.fromJson(
-                Map<String, dynamic>.from(e as Map)))
+            .map((e) => SubjectModel.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
       }
 
       final sessionsRemote = firebaseData['sessions'];
       if (sessionsRemote is List) {
         _sessions = sessionsRemote
-            .map((e) => StudySessionModel.fromJson(
-                Map<String, dynamic>.from(e as Map)))
+            .map((e) => StudySessionModel.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
       }
 
       final groupsRemote = firebaseData['groups'];
       if (groupsRemote is List) {
         _groups = groupsRemote
-            .map((e) => GroupModel.fromJson(
-                Map<String, dynamic>.from(e as Map)))
+            .map((e) => GroupModel.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
       }
 
@@ -127,7 +137,7 @@ class AppProvider extends ChangeNotifier {
 
       await _saveLocalState();
     } catch (_) {
-      // Ignore Firestore sync errors and keep local data.
+      // Keep local data on Firestore sync errors.
     }
   }
 
@@ -149,10 +159,11 @@ class AppProvider extends ChangeNotifier {
         isDarkMode: _isDarkMode,
       );
     } catch (_) {
-      // Ignore backend errors and keep local state.
+      // Ignore backend errors.
     }
   }
 
+  // ── Auth ──────────────────────────────────────────────────────────────────
   Future<bool> signIn({
     required String usernameOrEmail,
     required String password,
@@ -166,7 +177,6 @@ class AppProvider extends ChangeNotifier {
       if (email == null || email.isEmpty) return false;
       await _firebaseService.signInWithEmail(email, password);
 
-      // check if email is verified
       final verified = _firebaseService.currentUser?.emailVerified ?? false;
       if (!verified) {
         await _firebaseService.signOut();
@@ -194,10 +204,9 @@ class AppProvider extends ChangeNotifier {
       final credential = await _firebaseService.registerWithEmail(email, password);
 
       _user.email = email.trim();
-      _user.name = username.trim().isEmpty ? _user.name : username.trim();
+      _user.name  = username.trim().isEmpty ? _user.name : username.trim();
       await _saveLocalState();
 
-      // save to Firestore using uid directly (user not verified yet)
       final uid = credential.user?.uid;
       if (uid != null) {
         await _firebaseService.saveAppStateForUid(
@@ -218,37 +227,49 @@ class AppProvider extends ChangeNotifier {
   Future<void> signOutUser() async {
     try {
       await _firebaseService.signOut();
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
     _remoteBackendReady = false;
     notifyListeners();
   }
 
+  // ── Local persistence ────────────────────────────────────────────────────
   Future<void> _load() async {
     final p = await _prefs;
+
     final userRaw = p.getString('user');
     if (userRaw != null) _user = UserModel.fromJson(jsonDecode(userRaw));
+
     final subjectsRaw = p.getString('subjects');
     if (subjectsRaw != null) {
       _subjects = (jsonDecode(subjectsRaw) as List)
           .map((e) => SubjectModel.fromJson(e))
           .toList();
     }
+
     final sessionsRaw = p.getString('sessions');
     if (sessionsRaw != null) {
       _sessions = (jsonDecode(sessionsRaw) as List)
           .map((e) => StudySessionModel.fromJson(e))
           .toList();
     }
+
     final groupsRaw = p.getString('groups');
     if (groupsRaw != null) {
       _groups = (jsonDecode(groupsRaw) as List)
           .map((e) => GroupModel.fromJson(e))
           .toList();
     }
+
     _isDarkMode = p.getBool('isDarkMode') ?? true;
     if (_subjects.isNotEmpty) _selectedSubjectId = _subjects.first.id;
+
+    // ── Load study-profile fields written by GetStartedPage ──
+    _onboardingComplete = p.getBool('onboarding_complete') ?? false;
+    profileCourse        = p.getString('profile_course');
+    profileStudyTime     = p.getString('profile_studyTime');
+    profileGoal          = p.getString('profile_goal');
+    profileStrongSubjects = p.getStringList('profile_strong') ?? [];
+    profileWeakSubjects   = p.getStringList('profile_weak')   ?? [];
   }
 
   Future<void> _saveUser() async =>
@@ -257,13 +278,13 @@ class AppProvider extends ChangeNotifier {
       'subjects', jsonEncode(_subjects.map((s) => s.toJson()).toList()));
   Future<void> _saveSessions() async => (await _prefs).setString(
       'sessions', jsonEncode(_sessions.map((s) => s.toJson()).toList()));
-  Future<void> _saveGroups() async => (await _prefs)
-      .setString('groups', jsonEncode(_groups.map((g) => g.toJson()).toList()));
+  Future<void> _saveGroups() async => (await _prefs).setString(
+      'groups', jsonEncode(_groups.map((g) => g.toJson()).toList()));
 
   void _checkStreakReset() {
     if (_user.lastSessionDate == null) return;
     final today = _dateOnly(DateTime.now());
-    final last = _dateOnly(_user.lastSessionDate!);
+    final last  = _dateOnly(_user.lastSessionDate!);
     if (today.difference(last).inDays > 1) {
       _user.currentStreak = 0;
       _saveUser();
@@ -272,6 +293,7 @@ class AppProvider extends ChangeNotifier {
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
+  // ── Settings ──────────────────────────────────────────────────────────────
   Future<void> setDarkMode(bool value) async {
     _isDarkMode = value;
     (await _prefs).setBool('isDarkMode', value);
@@ -284,6 +306,23 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── User update (called by GetStartedPage) ────────────────────────────────
+  Future<void> updateUser({
+    String? name,
+    String? grade,
+    int? dailyStudyGoalHours,
+    String? profileImagePath,
+  }) async {
+    if (name != null)               _user.name = name;
+    if (grade != null)              _user.grade = grade;
+    if (dailyStudyGoalHours != null) _user.dailyStudyGoalHours = dailyStudyGoalHours;
+    if (profileImagePath != null)   _user.profileImagePath = profileImagePath;
+    await _saveUser();
+    await _syncToFirestore();
+    notifyListeners();
+  }
+
+  // ── Sessions ──────────────────────────────────────────────────────────────
   Future<void> addSession(StudySessionModel session) async {
     _sessions.add(session);
     final idx = _subjects.indexWhere((s) => s.id == session.subjectId);
@@ -294,7 +333,7 @@ class AppProvider extends ChangeNotifier {
     if (session.isQualifying) {
       _user.totalSessions++;
       _user.totalMinutesStudied += session.durationMinutes;
-      final today = _dateOnly(DateTime.now());
+      final today    = _dateOnly(DateTime.now());
       final lastDate = _user.lastSessionDate != null
           ? _dateOnly(_user.lastSessionDate!)
           : null;
@@ -316,22 +355,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateUser(
-      {String? name,
-      String? grade,
-      int? dailyStudyGoalHours,
-      String? profileImagePath}) async {
-    if (name != null) _user.name = name;
-    if (grade != null) _user.grade = grade;
-    if (dailyStudyGoalHours != null) {
-      _user.dailyStudyGoalHours = dailyStudyGoalHours;
-    }
-    if (profileImagePath != null) _user.profileImagePath = profileImagePath;
-    await _saveUser();
-    await _syncToFirestore();
-    notifyListeners();
-  }
-
+  // ── Subjects ──────────────────────────────────────────────────────────────
   Future<void> addSubject(String name, int colorIndex) async {
     final sub = SubjectModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -359,6 +383,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Groups ────────────────────────────────────────────────────────────────
   Future<void> addGroup(String name) async {
     _groups.add(GroupModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(), name: name));
@@ -381,6 +406,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Analytics ─────────────────────────────────────────────────────────────
   Map<String, int> studyTimePerSubject(DateTime start, DateTime end) {
     final result = <String, int>{};
     for (final s in _sessions) {
