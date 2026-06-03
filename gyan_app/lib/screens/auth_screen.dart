@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'terms_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -283,7 +284,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // ── Register fields ──────────────────────────────────
                       if (_isRegister) ...[
                         _buildField(
                           label: 'Email',
@@ -314,7 +314,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         const SizedBox(height: 18),
                       ] else ...[
-                        // ── Login field ──────────────────────────────────
                         _buildField(
                           label: 'Email',
                           controller: _identityController,
@@ -332,7 +331,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         const SizedBox(height: 18),
                       ],
 
-                      // ── Password with show/hide ──────────────────────────
                       _buildField(
                         label: 'Password',
                         controller: _passwordController,
@@ -359,7 +357,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         },
                       ),
 
-                      // ── Forgot password ──────────────────────────────────
                       if (!_isRegister) ...[
                         const SizedBox(height: 8),
                         Align(
@@ -388,7 +385,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
                       const SizedBox(height: 20),
 
-                      // ── Terms checkbox ───────────────────────────────────
                       if (_isRegister) ...[
                         Row(children: [
                           Checkbox(
@@ -399,9 +395,31 @@ class _AuthScreenState extends State<AuthScreen> {
                             fillColor: WidgetStateProperty.all(AppColors.blue),
                           ),
                           Expanded(
-                            child: Text(
-                              'I have read the Terms and Conditions',
-                              style: GoogleFonts.inder(color: subtitleColor, fontSize: 12),
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const TermsScreen()),
+                              ),
+                              child: RichText(
+                                text: TextSpan(
+                                  style: GoogleFonts.inder(
+                                      color: subtitleColor, fontSize: 12),
+                                  children: [
+                                    const TextSpan(text: 'I have read the '),
+                                    TextSpan(
+                                      text: 'Terms and Conditions',
+                                      style: GoogleFonts.inder(
+                                        color: AppColors.blue,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: AppColors.blue,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ]),
@@ -409,7 +427,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
                       const SizedBox(height: 10),
 
-                      // ── Submit ───────────────────────────────────────────
                       ElevatedButton(
                         onPressed: _isBusy || (_isRegister && !_termsAccepted) ? null : _submit,
                         style: ElevatedButton.styleFrom(
