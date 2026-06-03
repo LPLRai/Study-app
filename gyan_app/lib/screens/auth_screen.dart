@@ -58,7 +58,7 @@ class _AuthScreenState extends State<AuthScreen> {
           content: Text(
             _isRegister
                 ? 'Could not register. Check your email and password.'
-                : 'Login failed. Check your credentials.',
+                : 'Login failed. Make sure your email is verified and credentials are correct.',
           ),
           backgroundColor: AppColors.red,
         ),
@@ -314,7 +314,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         const SizedBox(height: 18),
                       ] else ...[
-                        // ── Login: email only ────────────────────────────────
+                        // ── Login field ──────────────────────────────────
                         _buildField(
                           label: 'Email',
                           controller: _identityController,
