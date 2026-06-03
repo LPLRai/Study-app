@@ -12,7 +12,7 @@ class FirebaseService {
   User? get currentUser => FirebaseAuth.instance.currentUser;
   bool get isAnonymous => currentUser?.isAnonymous ?? false;
 
-  // blocks unverified users
+  // blocks unverified users from accessing the app
   bool get isSignedIn =>
       currentUser != null &&
       !isAnonymous &&
@@ -34,7 +34,7 @@ class FirebaseService {
     );
   }
 
-  // sends verification email after registration
+  // sends verification email right after registration
   Future<UserCredential> registerWithEmail(String email, String password) async {
     await init();
     final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -76,6 +76,24 @@ class FirebaseService {
     return FirebaseFirestore.instance
         .collection('study_app_users')
         .doc(user.uid);
+  }
+
+  // used during registration before email is verified
+  Future<void> saveAppStateForUid({
+    required String uid,
+    required Map<String, dynamic> user,
+    required bool isDarkMode,
+  }) async {
+    await FirebaseFirestore.instance
+        .collection('study_app_users')
+        .doc(uid)
+        .set({
+      'user': user,
+      'subjects': [],
+      'sessions': [],
+      'groups': [],
+      'isDarkMode': isDarkMode,
+    }, SetOptions(merge: true));
   }
 
   Future<void> saveAppState({
