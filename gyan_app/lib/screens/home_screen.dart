@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/profile_modal.dart';
 import '../widgets/notification_panel.dart';
+import '../widgets/profile_avatar.dart';
 import 'statistics_screen.dart';
 import 'streak_calendar_screen.dart';
 import 'sessions_screen.dart';
@@ -85,7 +85,6 @@ class HomeScreen extends StatelessWidget {
   // ── Header: avatar + greeting/name on the left, bell on the right ──────────
   Widget _header(BuildContext context, AppProvider prov, AppThemeData t) {
     final imgPath = prov.user.profileImagePath;
-    final hasImage = imgPath != null && File(imgPath).existsSync();
 
     return Row(children: [
       // Profile picture — beside the greeting. Tap to open the profile card.
@@ -114,9 +113,8 @@ class HomeScreen extends StatelessWidget {
             border: Border.all(color: t.cardBorder, width: 1.5),
           ),
           child: ClipOval(
-            child: hasImage
-                ? Image.file(File(imgPath), fit: BoxFit.cover)
-                : Icon(Icons.person_rounded, color: t.textMuted, size: 28),
+            child: profileImageChild(imgPath,
+                icon: Icons.person_rounded, color: t.textMuted, iconSize: 28),
           ),
         ),
       ),
@@ -144,19 +142,53 @@ class HomeScreen extends StatelessWidget {
         ]),
       ),
       const SizedBox(width: 12),
-      // Notification bell — opens the side panel.
+      // Notification bell — opens the side panel; shows an unread badge.
       GestureDetector(
         onTap: () => showNotificationPanel(context),
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: t.widgetBg,
-            border: Border.all(color: t.cardBorder, width: 1.5),
-          ),
-          child: Icon(Icons.notifications_none_rounded,
-              color: t.textPrimary, size: 24),
+        child: StreamBuilder<int>(
+          stream: prov.unreadNotificationsStream(),
+          builder: (context, snap) {
+            final unread = snap.data ?? 0;
+            return Stack(clipBehavior: Clip.none, children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: t.widgetBg,
+                  border: Border.all(color: t.cardBorder, width: 1.5),
+                ),
+                child: Icon(
+                    unread > 0
+                        ? Icons.notifications_rounded
+                        : Icons.notifications_none_rounded,
+                    color: t.textPrimary,
+                    size: 24),
+              ),
+              if (unread > 0)
+                Positioned(
+                  right: -1,
+                  top: -1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints:
+                        const BoxConstraints(minWidth: 18, minHeight: 18),
+                    decoration: BoxDecoration(
+                      color: AppColors.red,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: t.background, width: 2),
+                    ),
+                    child: Center(
+                      child: Text(unread > 9 ? '9+' : '$unread',
+                          style: GoogleFonts.inder(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
+            ]);
+          },
         ),
       ),
     ]);

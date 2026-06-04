@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import 'sign_out_dialog.dart';
+import 'profile_avatar.dart';
 class ProfileModal extends StatelessWidget {
   const ProfileModal({super.key});
 
@@ -43,9 +43,8 @@ class ProfileModal extends StatelessWidget {
                   shape: BoxShape.circle, color: t.background,
                 ),
                 child: ClipOval(
-                  child: imgPath != null && File(imgPath).existsSync()
-                      ? Image.file(File(imgPath), fit: BoxFit.cover)
-                      : Icon(Icons.person_rounded, color: t.textMuted, size: 24),
+                  child: profileImageChild(imgPath,
+                      icon: Icons.person_rounded, color: t.textMuted, iconSize: 24),
                 ),
               ),
               const SizedBox(width: 12),

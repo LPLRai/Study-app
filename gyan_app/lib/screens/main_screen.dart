@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../widgets/profile_avatar.dart';
 import 'home_screen.dart';
 import 'timer_screen.dart';
 import 'groups_screen.dart';
@@ -197,7 +197,6 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _avatar(AppProvider prov, t, bool selected) {
     final imgPath = prov.user.profileImagePath;
-    final hasImage = imgPath != null && File(imgPath).existsSync();
     return Container(
       width: 24,
       height: 24,
@@ -209,11 +208,10 @@ class _MainScreenState extends State<MainScreen> {
             : null,
       ),
       child: ClipOval(
-        child: hasImage
-            ? Image.file(File(imgPath), fit: BoxFit.cover)
-            : Icon(Icons.person_rounded,
-                size: 16,
-                color: selected ? Colors.white : t.textMuted),
+        child: profileImageChild(imgPath,
+            icon: Icons.person_rounded,
+            color: selected ? Colors.white : t.textMuted,
+            iconSize: 16),
       ),
     );
   }

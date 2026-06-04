@@ -9,18 +9,15 @@
 //   • Quiz / Answer-Sheet shortcuts removed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import '../widgets/sign_out_dialog.dart';
+import '../widgets/profile_avatar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -72,20 +69,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _editMode = !_editMode);
   }
 
-  Future<void> _pickProfileImage(AppProvider prov) async {
-    if (!_editMode) return;
-    try {
-      final picked = await ImagePicker()
-          .pickImage(source: ImageSource.gallery, imageQuality: 80);
-      if (picked == null) return;
-      final docsDir = await getApplicationDocumentsDirectory();
-      final destPath = p.join(docsDir.path,
-          'profile_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}');
-      await File(picked.path).copy(destPath);
-      await prov.updateUser(profileImagePath: destPath);
-    } on PlatformException catch (e) {
-      debugPrint('Image picker error: $e');
-    }
+  // Lets the user pick one of the 8 curated avatars (stored in Firebase).
+  void _showAvatarPicker(AppProvider prov) {
+    final t = prov.appTheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: t.background,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text('Choose your avatar',
+                    style: GoogleFonts.inder(
+                        color: t.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                    icon: Icon(Icons.close_rounded, color: t.textPrimary),
+                    onPressed: () => Navigator.pop(ctx)),
+              ]),
+              const SizedBox(height: 8),
+              FutureBuilder<List<String>>(
+                future: prov.avatarOptions(),
+                builder: (c, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 44),
+                      child: Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.blue)),
+                    );
+                  }
+                  final urls = snap.data ?? const [];
+                  if (urls.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 28),
+                      child: Column(children: [
+                        Icon(Icons.image_not_supported_outlined,
+                            color: t.textMuted, size: 40),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No avatars available yet.\nUpload them to Firebase Storage → /avatars.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inder(
+                              color: t.textMuted, fontSize: 13, height: 1.4),
+                        ),
+                      ]),
+                    );
+                  }
+                  final current = prov.user.profileImagePath;
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    alignment: WrapAlignment.center,
+                    children: urls.map((url) {
+                      final selected = url == current;
+                      return GestureDetector(
+                        onTap: () {
+                          prov.setProfileAvatar(url);
+                          Navigator.pop(ctx);
+                        },
+                        child: Stack(alignment: Alignment.bottomRight, children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: t.widgetBg,
+                              border: Border.all(
+                                  color: selected
+                                      ? AppColors.blue
+                                      : t.cardBorder,
+                                  width: selected ? 3 : 1.5),
+                              boxShadow: selected
+                                  ? [
+                                      BoxShadow(
+                                          color: AppColors.blue.withOpacity(0.4),
+                                          blurRadius: 10)
+                                    ]
+                                  : null,
+                            ),
+                            child: ClipOval(
+                              child: Image.network(url,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                      Icons.person_rounded,
+                                      color: t.textMuted,
+                                      size: 32)),
+                            ),
+                          ),
+                          if (selected)
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                  color: AppColors.blue,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: t.background, width: 2)),
+                              child: const Icon(Icons.check_rounded,
+                                  color: Colors.white, size: 14),
+                            ),
+                        ]),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ]),
+      ),
+    );
   }
 
   void _signOut() => confirmSignOut(context);
@@ -152,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // ── Profile picture ────────────────────────────────────────
             Center(
               child: GestureDetector(
-                onTap: () => _pickProfileImage(prov),
+                onTap: () => _showAvatarPicker(prov),
                 child: Stack(alignment: Alignment.bottomRight, children: [
                   Container(
                     width: 104,
@@ -165,21 +266,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: _editMode ? 2 : 1),
                     ),
                     child: ClipOval(
-                      child: imgPath != null && File(imgPath).existsSync()
-                          ? Image.file(File(imgPath), fit: BoxFit.cover)
-                          : Icon(Icons.person_rounded,
-                              color: t.textMuted, size: 52),
+                      child: profileImageChild(imgPath,
+                          icon: Icons.person_rounded,
+                          color: t.textMuted,
+                          iconSize: 52),
                     ),
                   ),
-                  if (_editMode)
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                          color: _accent, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt_rounded,
-                          color: Colors.white, size: 16),
-                    ),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                        color: _accent, shape: BoxShape.circle),
+                    child: const Icon(Icons.edit_rounded,
+                        color: Colors.white, size: 16),
+                  ),
                 ]),
               ),
             ),
