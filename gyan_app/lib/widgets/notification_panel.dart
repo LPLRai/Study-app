@@ -14,6 +14,8 @@ import '../theme/app_theme.dart';
 
 /// Slides a notifications panel in from the right edge of the screen.
 void showNotificationPanel(BuildContext context) {
+  // Opening the panel clears the unread badge.
+  context.read<AppProvider>().markNotificationsSeen();
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -97,6 +99,19 @@ class _NotificationPanel extends StatelessWidget {
                   child: StreamBuilder<List<Map<String, dynamic>>>(
                     stream: prov.notificationsStream(),
                     builder: (context, snap) {
+                      if (snap.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              "Couldn't load notifications.\nCheck your Firestore rules are published.",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inder(
+                                  color: AppColors.red, fontSize: 12, height: 1.4),
+                            ),
+                          ),
+                        );
+                      }
                       final items = snap.data ?? const [];
                       if (items.isEmpty) return _emptyState(t);
                       return ListView.separated(
