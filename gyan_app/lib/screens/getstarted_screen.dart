@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_provider.dart';
 import 'auth_screen.dart';
+import '../services/firebase_service.dart';
 
 // ─── GetStartedPage ───────────────────────────────────────────────────────────
 class GetStartedPage extends StatefulWidget {
@@ -329,7 +330,7 @@ class _GetStartedPageState extends State<GetStartedPage>
     );
   }
 
-  // ─── Save profile then go to AuthScreen (login) ───────────────────────────
+    // ─── Save profile then go to AuthScreen (login) ───────────────────────────
   Future<void> _saveAndContinue() async {
     Navigator.pop(context); // close the preview sheet
 
@@ -337,11 +338,25 @@ class _GetStartedPageState extends State<GetStartedPage>
     final hours    = int.tryParse(hoursStr) ?? 1;
 
     if (mounted) {
-      await context.read<AppProvider>().updateUser(
+      final prov = context.read<AppProvider>();
+      await prov.updateUser(
         grade: _grade,
         dailyStudyGoalHours: hours,
+        studyTime: _studyTime,
+        studyGoal: _goal,
+        strongSubjects: _strong.toList(),
+        weakSubjects: _weak.toList(),
       );
       await _saveProfilePrefs();
+
+      // ── Save to Firebase directly (user has a UID from registration) ──
+      final uid = FirebaseService.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseService.instance.saveOnboardingProfile(
+          uid: uid,
+          userData: prov.user.toJson(),
+        );
+      }
     }
 
     if (!mounted) return;

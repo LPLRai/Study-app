@@ -379,4 +379,16 @@ class FirebaseService {
       }, SetOptions(merge: true));
     } catch (_) {/* offline — will sync when back */}
   }
-}
+      /// Saves onboarding profile data for a user.
+  /// Works before email verification since we reference the UID directly.
+  Future<void> saveOnboardingProfile({
+    required String uid,
+    required Map<String, dynamic> userData,
+  }) async {
+    await init();
+    await FirebaseFirestore.instance
+        .collection('study_app_users')
+        .doc(uid)
+        .set({'user': userData}, SetOptions(merge: true));
+  }
+  }
