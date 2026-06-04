@@ -2,6 +2,7 @@ import '../firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class FirebaseService {
   FirebaseService._();
@@ -139,16 +140,32 @@ class FirebaseService {
     return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
   }
 
-  /// Find the uid for an account by email (exact, trimmed). Null if no account.
+  /// Find the uid for an account by email (case-insensitive). Null if none.
   Future<String?> uidForEmail(String email) async {
     if (!_initialized) return null;
-    final e = email.trim();
-    final snap = await FirebaseFirestore.instance
-        .collection('study_app_users')
-        .where('user.email', isEqualTo: e)
-        .limit(1)
-        .get();
+    final raw = email.trim();
+    final lower = raw.toLowerCase();
+    final col = FirebaseFirestore.instance.collection('study_app_users');
+    // 1) normalized index field
+    var snap = await col.where('emailLower', isEqualTo: lower).limit(1).get();
+    if (snap.docs.isNotEmpty) return snap.docs.first.id;
+    // 2) fallback for older docs without emailLower
+    snap = await col.where('user.email', isEqualTo: raw).limit(1).get();
+    if (snap.docs.isNotEmpty) return snap.docs.first.id;
+    snap = await col.where('user.email', isEqualTo: lower).limit(1).get();
     return snap.docs.isEmpty ? null : snap.docs.first.id;
+  }
+
+  /// Writes a lowercase email index on the current user's doc so others can
+  /// find them by email regardless of case. Safe to call on every launch.
+  Future<void> ensureEmailIndex() async {
+    final u = currentUser;
+    final email = u?.email;
+    if (u == null || email == null) return;
+    try {
+      await userDoc.set(
+          {'emailLower': email.trim().toLowerCase()}, SetOptions(merge: true));
+    } catch (_) {}
   }
 
   Future<String> _myName() async {
@@ -223,18 +240,50 @@ class FirebaseService {
       'groupName': groupName,
       'fromName': await _myName(),
       'status': 'pending',
+      'seen': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return 'invited';
   }
 
+  /// Count of unseen notifications (missing/false `seen`) — drives the badge.
+  Stream<int> unreadCountStream() {
+    final uid = currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+    return _notifs(uid).snapshots().map(
+        (s) => s.docs.where((d) => d.data()['seen'] != true).length);
+  }
+
+  /// Marks every notification as seen (clears the badge).
+  Future<void> markAllNotificationsSeen() async {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final snap = await _notifs(uid).get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final d in snap.docs) {
+        if (d.data()['seen'] != true) {
+          batch.update(d.reference, {'seen': true});
+        }
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
   Stream<List<Map<String, dynamic>>> notificationsStream() {
     final uid = currentUser?.uid;
     if (uid == null) return const Stream.empty();
-    return _notifs(uid)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+    // No server orderBy: docs with a pending serverTimestamp would otherwise be
+    // skipped. Sort client-side instead so every invite shows immediately.
+    return _notifs(uid).snapshots().map((s) {
+      final list = s.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      list.sort((a, b) {
+        final ta = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+        final tb = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+        return tb.compareTo(ta);
+      });
+      return list;
+    });
   }
 
   Future<void> acceptInvite(
@@ -287,6 +336,24 @@ class FirebaseService {
         .collection('members')
         .snapshots()
         .map((s) => s.docs.map((d) => {'uid': d.id, ...d.data()}).toList());
+  }
+
+  /// The hand-picked avatar choices, read from Storage at `/avatars`.
+  /// Sorted by file name so the order is stable. Returns [] if Storage isn't
+  /// set up yet.
+  Future<List<String>> fetchAvatarOptions() async {
+    try {
+      final res = await FirebaseStorage.instance.ref('avatars').listAll();
+      final items = res.items.toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      final urls = <String>[];
+      for (final item in items.take(8)) {
+        urls.add(await item.getDownloadURL());
+      }
+      return urls;
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Publishes the current user's study stats to one group's member doc.

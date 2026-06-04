@@ -286,7 +286,10 @@ class AppProvider extends ChangeNotifier {
     await _loadActiveTimer();
     _checkStreakReset();
     _scheduleMidnightRollover();
-    if (_remoteBackendReady) _subscribeGroups();
+    if (_remoteBackendReady) {
+      _subscribeGroups();
+      _firebaseService.ensureEmailIndex(); // make me findable by email
+    }
     notifyListeners();
   }
 
@@ -300,6 +303,24 @@ class AppProvider extends ChangeNotifier {
   }
 
   String? get currentUid => _firebaseService.currentUser?.uid;
+
+  Stream<int> unreadNotificationsStream() =>
+      _firebaseService.unreadCountStream();
+  Future<void> markNotificationsSeen() =>
+      _firebaseService.markAllNotificationsSeen();
+
+  // ── Curated avatars (8 hand-picked, stored in Firebase Storage) ───────────
+  List<String>? _avatarOptions;
+
+  Future<List<String>> avatarOptions() async {
+    if (_avatarOptions != null) return _avatarOptions!;
+    final list = await _firebaseService.fetchAvatarOptions();
+    if (list.isNotEmpty) _avatarOptions = list; // cache once fetched
+    return list;
+  }
+
+  Future<void> setProfileAvatar(String url) =>
+      updateUser(profileImagePath: url);
 
   Stream<List<Map<String, dynamic>>> notificationsStream() =>
       _firebaseService.notificationsStream();
@@ -552,6 +573,7 @@ class AppProvider extends ChangeNotifier {
       await _loadRemoteData();
       await _syncToFirestore();
       _subscribeGroups();
+      _firebaseService.ensureEmailIndex();
       notifyListeners();
       return true;
     } catch (e) {
@@ -597,7 +619,27 @@ class AppProvider extends ChangeNotifier {
     _groupsSub?.cancel();
     _groupsSub = null;
     _myGroupIds = [];
+    _studyStatus = 'idle';
     _remoteBackendReady = false;
+
+    // Clear this account's data so the next account that logs in doesn't
+    // inherit it (profile picture, sessions, subjects, etc.).
+    _user = UserModel();
+    _subjects = [];
+    _sessions = [];
+    _groups = [];
+    _liveSession = null;
+    _activeTimer = null;
+    _selectedSubjectId = null;
+    try {
+      final p = await _prefs;
+      await p.remove('user');
+      await p.remove('subjects');
+      await p.remove('sessions');
+      await p.remove('groups');
+      await p.remove('active_timer');
+    } catch (_) {}
+
     notifyListeners();
   }
 
