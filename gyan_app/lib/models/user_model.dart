@@ -12,6 +12,12 @@ class UserModel {
   int    dailyStudyGoalHours; // target hours the user wants to study each day
   String? profileImagePath;   // absolute path to copied profile picture on device
 
+  // ── Onboarding / study-profile (from GetStartedPage) ──────────────────────
+  String studyTime;            // e.g. 'Morning', 'Evening', 'Flexible'
+  String studyGoal;            // e.g. 'Improve Grades', 'Prepare for Exams'
+  List<String> strongSubjects; // subjects the user is confident in
+  List<String> weakSubjects;   // subjects the user wants to improve
+
   // ── Streak ────────────────────────────────────────────────────────────────
   int      currentStreak;     // consecutive days with ≥1 qualifying session
   int      bestStreak;        // all-time highest streak
@@ -27,12 +33,17 @@ class UserModel {
     this.email               = '',
     this.dailyStudyGoalHours = 4,
     this.profileImagePath,
+    this.studyTime           = '',
+    this.studyGoal           = '',
+    List<String>? strongSubjects,
+    List<String>? weakSubjects,
     this.currentStreak       = 0,
     this.bestStreak          = 0,
     this.lastSessionDate,
     this.totalSessions       = 0,
     this.totalMinutesStudied = 0,
-  });
+  })  : strongSubjects = strongSubjects ?? [],
+        weakSubjects   = weakSubjects   ?? [];
 
   // ── Serialisation ─────────────────────────────────────────────────────────
 
@@ -42,6 +53,10 @@ class UserModel {
     'email':               email,
     'dailyStudyGoalHours': dailyStudyGoalHours,
     'profileImagePath':    profileImagePath,
+    'studyTime':           studyTime,
+    'studyGoal':           studyGoal,
+    'strongSubjects':      strongSubjects,
+    'weakSubjects':        weakSubjects,
     'currentStreak':       currentStreak,
     'bestStreak':          bestStreak,
     'lastSessionDate':     lastSessionDate?.toIso8601String(),
@@ -55,6 +70,10 @@ class UserModel {
     email:               j['email']               ?? '',
     dailyStudyGoalHours: j['dailyStudyGoalHours'] ?? 4,
     profileImagePath:    j['profileImagePath'],
+    studyTime:           j['studyTime']           ?? '',
+    studyGoal:           j['studyGoal']           ?? '',
+    strongSubjects:      List<String>.from(j['strongSubjects'] ?? []),
+    weakSubjects:        List<String>.from(j['weakSubjects']   ?? []),
     currentStreak:       j['currentStreak']       ?? 0,
     bestStreak:          j['bestStreak']           ?? 0,
     lastSessionDate:     j['lastSessionDate'] != null

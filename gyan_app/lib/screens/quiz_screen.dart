@@ -48,7 +48,7 @@ class QuizQuestion {
 // ─────────────────────────────────────────────────────────────────────────────
 class _QuizService {
   static String _buildPrompt(
-      String topic, String notes, String difficulty, int count) {
+      String topic, String notes, String difficulty, int count, String grade) {
     final guide = {
       'easy':   'basic recall and definitions',
       'medium': 'applying and connecting concepts',
@@ -57,11 +57,11 @@ class _QuizService {
     final notesSection = notes.isNotEmpty
         ? '\n\nAdditional notes from the student:\n<notes>\n$notes\n</notes>'
         : '';
+    final gradeText = grade.trim().isEmpty ? 'Grade 10' : grade.trim();
     return 'Generate $count ${difficulty.toUpperCase()} multiple-choice '
-        'questions on the topic "$topic" for a Grade 10 student following '
-        'the NEB (Nepal Education Board) curriculum.\n'
+        'questions on the topic "$topic" for a $gradeText student.\n'
         'Difficulty style: ${guide[difficulty]}.\n'
-        'Questions must strictly match the NEB Grade 10 syllabus depth, '
+        'Questions must strictly match the $gradeText syllabus depth, '
         'scope, and style.$notesSection\n\n'
         'Return ONLY a JSON array, no markdown:\n'
         '[{"question":"...","options":["A","B","C","D"],'
@@ -71,8 +71,8 @@ class _QuizService {
   }
 
   static Future<List<QuizQuestion>> generateGemini(
-      String topic, String notes, String difficulty, int count) async {
-    final prompt = _buildPrompt(topic, notes, difficulty, count);
+      String topic, String notes, String difficulty, int count, String grade) async {
+    final prompt = _buildPrompt(topic, notes, difficulty, count, grade);
     final res = await http.post(
       Uri.parse(
           'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -102,8 +102,8 @@ class _QuizService {
   }
 
   static Future<List<QuizQuestion>> generateGroq(
-      String topic, String notes, String difficulty, int count) async {
-    final prompt = _buildPrompt(topic, notes, difficulty, count);
+      String topic, String notes, String difficulty, int count, String grade) async {
+    final prompt = _buildPrompt(topic, notes, difficulty, count, grade);
     final res = await http.post(
       Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
       headers: {
@@ -192,13 +192,14 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() => _error = 'Please enter a topic.');
       return;
     }
+    final grade = context.read<AppProvider>().user.grade;
     setState(() { _loading = true; _error = ''; _questions = []; _quizDone = false; });
     try {
       final qs = _provider == 'gemini'
           ? await _QuizService.generateGemini(
-              topic, _notesCtrl.text.trim(), _difficulty, _qCount)
+              topic, _notesCtrl.text.trim(), _difficulty, _qCount, grade)
           : await _QuizService.generateGroq(
-              topic, _notesCtrl.text.trim(), _difficulty, _qCount);
+              topic, _notesCtrl.text.trim(), _difficulty, _qCount, grade);
       setState(() { _questions = qs; _loading = false; });
       await Future.delayed(const Duration(milliseconds: 100));
       _scrollCtrl.animateTo(

@@ -717,17 +717,25 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── User update (called by GetStartedPage) ────────────────────────────────
+    // ── User update (called by GetStartedPage & ProfileScreen) ────────────────
   Future<void> updateUser({
     String? name,
     String? grade,
     int? dailyStudyGoalHours,
     String? profileImagePath,
+    String? studyTime,
+    String? studyGoal,
+    List<String>? strongSubjects,
+    List<String>? weakSubjects,
   }) async {
     if (name != null)               _user.name = name;
     if (grade != null)              _user.grade = grade;
     if (dailyStudyGoalHours != null) _user.dailyStudyGoalHours = dailyStudyGoalHours;
     if (profileImagePath != null)   _user.profileImagePath = profileImagePath;
+    if (studyTime != null)          _user.studyTime = studyTime;
+    if (studyGoal != null)          _user.studyGoal = studyGoal;
+    if (strongSubjects != null)     _user.strongSubjects = strongSubjects;
+    if (weakSubjects != null)       _user.weakSubjects = weakSubjects;
     await _saveUser();
     await _syncToFirestore();
     notifyListeners();
