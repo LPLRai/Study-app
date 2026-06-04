@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
 import 'providers/app_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
@@ -14,8 +13,6 @@ import 'overlay/overlay_entry.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ── Overlay entry point (Android app-lock) ────────────────────────────────────
-// Called by flutter_overlay_window in a separate isolate when the lock screen
-// overlay is shown while the timer runs in the background.
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,10 +26,8 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
   final appProvider = AppProvider();
   await appProvider.init();
-
   runApp(
     ChangeNotifierProvider.value(
       value: appProvider,
@@ -48,9 +43,7 @@ class GyanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
     final t = prov.appTheme;
-
     SystemChrome.setSystemUIOverlayStyle(t.systemUiStyle);
-
     return MaterialApp(
       title: 'GYAN',
       debugShowCheckedModeBanner: false,
@@ -82,12 +75,18 @@ class GyanApp extends StatelessWidget {
   }
 }
 
+// ── AuthGate ──────────────────────────────────────────────────────────────────
+// Simple gate: authenticated → MainScreen, otherwise → AuthScreen.
+// GetStartedPage is no longer part of this gate — it is shown directly from
+// AuthScreen immediately after a successful registration, before the user
+// ever logs in for the first time.
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
-    return prov.isAuthenticated ? const MainScreen() : AuthScreen();
+    if (prov.isAuthenticated) return const MainScreen();
+    return const AuthScreen();
   }
 }

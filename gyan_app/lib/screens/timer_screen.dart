@@ -121,7 +121,13 @@ class TimerScreen extends StatefulWidget {
   State<TimerScreen> createState() => _TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
+class _TimerScreenState extends State<TimerScreen>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  // Keep this page (and its running ticker) alive when the user swipes to
+  // another tab, so the timer never resets on navigation.
+  @override
+  bool get wantKeepAlive => true;
+
   // ── Active timer state ────────────────────────────────────────────────────
   TimerPhase _phase = TimerPhase.focus;
   int _currentCycle = 1;
@@ -141,6 +147,29 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Clear any stale overlay end-time left over from a previous hard kill.
+    _OverlayHelper.clearEndTime();
+    // Restore an in-progress timer (paused) after a cold start / hard kill, so
+    // the countdown isn't lost and doesn't reset to 25:00.
+    _restoreActiveTimer();
+  }
+
+  // Reads the persisted timer state from the provider and restores it (paused).
+  void _restoreActiveTimer() {
+    final prov = context.read<AppProvider>();
+    final m = prov.activeTimer;
+    if (m == null) return;
+    final subId = m['subjectId'] as String?;
+    if (subId == null || !prov.subjects.any((s) => s.id == subId)) return;
+    _loadedSubjectId = subId;
+    _remainingSecs = (m['remainingSecs'] as int?) ?? TimerScreen._focusSecs;
+    final pi = (m['phaseIndex'] as int?) ?? 0;
+    _phase = TimerPhase.values[pi.clamp(0, TimerPhase.values.length - 1)];
+    _currentCycle = (m['currentCycle'] as int?) ?? 1;
+    final startMs = m['sessionStartMs'] as int?;
+    _sessionStart =
+        startMs != null ? DateTime.fromMillisecondsSinceEpoch(startMs) : null;
+    _isRunning = false; // always restore paused — the user resumes manually
   }
 
   @override
@@ -200,6 +229,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
         _remainingSecs = _phaseDuration;
         _sessionStart = null;
       });
+      if (mounted) _syncActiveTimer(context.read<AppProvider>());
       return;
     }
 
@@ -276,14 +306,93 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
 
     prov.selectSubject(newSubjectId);
+    _syncActiveTimer(prov); // persist the newly loaded subject's state
+  }
+
+  // Persist the current timer state into the provider so (a) it survives a
+  // restart/hard kill and (b) the Home "Recent Session" list reflects it live.
+  // Status published to study groups so members can see Studying / Idle /
+  // Short break / Long break (the timer screen itself stays unchanged).
+  String _statusString() {
+    if (_isRunning) {
+      switch (_phase) {
+        case TimerPhase.focus:
+          return 'studying';
+        case TimerPhase.shortBreak:
+          return 'short_break';
+        case TimerPhase.longBreak:
+          return 'long_break';
+      }
+    }
+    final hasProgress = _sessionStart != null ||
+        _remainingSecs != _phaseDuration ||
+        _phase != TimerPhase.focus ||
+        _currentCycle != 1;
+    if (!hasProgress) return 'idle';
+    switch (_phase) {
+      case TimerPhase.focus:
+        return 'paused';
+      case TimerPhase.shortBreak:
+        return 'short_break';
+      case TimerPhase.longBreak:
+        return 'long_break';
+    }
+  }
+
+  void _syncActiveTimer(AppProvider prov) {
+    prov.setStudyStatus(_statusString()); // feed group member status
+    final subject = prov.selectedSubject;
+    if (subject == null) {
+      prov.clearActiveTimer();
+      return;
+    }
+    // Idle (fresh focus, nothing started) → nothing to persist.
+    final idle = _phase == TimerPhase.focus &&
+        _sessionStart == null &&
+        _remainingSecs == TimerScreen._focusSecs &&
+        _currentCycle == 1;
+    if (idle) {
+      prov.clearActiveTimer();
+      return;
+    }
+    final elapsed = (_phase == TimerPhase.focus && _sessionStart != null)
+        ? (TimerScreen._focusSecs - _remainingSecs)
+        : 0;
+    prov.saveActiveTimer(
+      subjectId: subject.id,
+      subjectName: subject.name,
+      colorIndex: subject.colorIndex,
+      remainingSecs: _remainingSecs,
+      phaseIndex: _phase.index,
+      currentCycle: _currentCycle,
+      sessionStart: _sessionStart,
+      elapsedSeconds: elapsed,
+    );
   }
 
   // ── Timer controls ────────────────────────────────────────────────────────
   void _play() {
+    final prov = context.read<AppProvider>();
+    // Require a subject before the timer can run.
+    if (prov.selectedSubject == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.red,
+          content: Text(
+            'Add and choose a subject before starting the timer',
+            style: GoogleFonts.inder(color: Colors.white, fontSize: 13),
+          ),
+        ));
+      _showSubjectOverlay(context, prov); // help the user add one right away
+      return;
+    }
     if (_phase == TimerPhase.focus && _sessionStart == null) {
       _sessionStart = DateTime.now();
     }
     setState(() => _isRunning = true);
+    _syncActiveTimer(prov);
     _startTicker();
   }
 
@@ -292,6 +401,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_remainingSecs > 0) {
         setState(() => _remainingSecs--);
+        _syncActiveTimer(context.read<AppProvider>());
       } else {
         _onPhaseComplete();
       }
@@ -302,6 +412,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     _ticker?.cancel();
     setState(() => _isRunning = false);
     _OverlayHelper.clearEndTime();
+    _syncActiveTimer(context.read<AppProvider>()); // persist the paused state
   }
 
   void _reset() {
@@ -318,6 +429,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
     // Clear snapshot for current subject so it resets fresh
     if (_loadedSubjectId != null) _snapshots.remove(_loadedSubjectId);
+    _syncActiveTimer(context.read<AppProvider>()); // now idle → clears it
   }
 
   void _onPhaseComplete() {
@@ -357,6 +469,9 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
         _isRunning = false;
       });
     }
+    // Persist the post-phase state (saved focus session clears the live entry;
+    // the break/next-cycle countdown is persisted so it survives a restart).
+    _syncActiveTimer(context.read<AppProvider>());
   }
 
   void _saveSession(int durationSecs) {
@@ -370,6 +485,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       subjectName: subject.name,
       colorIndex: subject.colorIndex,
       durationMinutes: durationSecs ~/ 60,
+      durationSeconds: durationSecs, // keep precise seconds
       startTime: _sessionStart!,
       endTime: DateTime.now(),
     ));
@@ -536,14 +652,26 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return Consumer<AppProvider>(builder: (ctx, prov, _) {
       final t = prov.appTheme;
       final subject = prov.selectedSubject;
 
       // If the provider's selected subject changed externally and we haven't
-      // loaded it yet (e.g. first build), sync up without saving
+      // loaded it yet (e.g. first build), sync up without saving.
       if (subject != null && _loadedSubjectId == null) {
         _loadedSubjectId = subject.id;
+      } else if (subject != null && subject.id != _loadedSubjectId) {
+        // External switch (e.g. tapping a Recent Session on Home). Load that
+        // subject's snapshot after this frame, reusing the normal switch logic.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final p = context.read<AppProvider>();
+          final sel = p.selectedSubject;
+          if (sel != null && sel.id != _loadedSubjectId) {
+            _onSubjectTapped(sel.id, p);
+          }
+        });
       }
 
       final arcColor = subject != null
@@ -670,23 +798,42 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                                 boxShadow: t.widgetShadow),
                             child: Center(
                                 child: Text(
-                                    'No subjects yet — press Edit to add one',
+                                    'No subjects yet — tap “Add / Edit Subjects” below',
+                                    textAlign: TextAlign.center,
                                     style: GoogleFonts.inder(
                                         color: t.textMuted, fontSize: 13))),
                           )
                         else
                           ...prov.subjects.map((sub) => _subjectTile(
                               sub, _loadedSubjectId == sub.id, prov, t)),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
                         GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () => _showSubjectOverlay(ctx, prov),
-                          child: Row(children: [
-                            Icon(Icons.edit, color: t.textMuted, size: 15),
-                            const SizedBox(width: 5),
-                            Text('Edit',
-                                style: GoogleFonts.inder(
-                                    color: t.textMuted, fontSize: 13)),
-                          ]),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: AppColors.blue.withOpacity(0.5),
+                                  width: 1.5),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.edit_rounded,
+                                    color: AppColors.blue, size: 19),
+                                const SizedBox(width: 8),
+                                Text('Add / Edit Subjects',
+                                    style: GoogleFonts.inder(
+                                        color: AppColors.blue,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ]),
@@ -726,10 +873,31 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   Widget _subjectTile(
       SubjectModel sub, bool isSelected, AppProvider prov, appTheme) {
     final c = AppColors.subjectColor(sub.colorIndex);
-    final hours = sub.totalMinutes ~/ 60;
-    final mins = sub.totalMinutes % 60;
+    // Studied time is derived from saved sessions (so it matches statistics
+    // everywhere), plus the live elapsed seconds while THIS subject's focus
+    // timer is running — giving a real-time count instead of a frozen 0:00:00.
+    int totalSecs = prov.secondsForSubjectId(sub.id);
+    // Show the in-progress focus time for this subject — even after switching
+    // to another one. The active subject reads its live state; switched-away
+    // subjects read their saved snapshot, so their elapsed time stays visible
+    // (frozen) instead of resetting to 0:00:00.
+    if (isSelected) {
+      if (_phase == TimerPhase.focus && _sessionStart != null) {
+        totalSecs += TimerScreen._focusSecs - _remainingSecs;
+      }
+    } else {
+      final snap = _snapshots[sub.id];
+      if (snap != null &&
+          snap.phase == TimerPhase.focus &&
+          snap.sessionStart != null) {
+        totalSecs += TimerScreen._focusSecs - snap.remainingSecs;
+      }
+    }
+    final hours = totalSecs ~/ 3600;
+    final mins = (totalSecs % 3600) ~/ 60;
+    final secs = totalSecs % 60;
     final timeStr =
-        '${hours.toString().padLeft(1, '0')}:${mins.toString().padLeft(2, '0')}:00';
+        '$hours:${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
     return GestureDetector(
       onTap: () => _onSubjectTapped(sub.id, prov),
