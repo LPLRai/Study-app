@@ -11,18 +11,20 @@ class StudySessionModel {
   final String   subjectName;
   final int      colorIndex;       // snapshot of subject colour at session time
   final int      durationMinutes;
+  final int      durationSeconds;  // precise duration (defaults to minutes*60)
   final DateTime startTime;
   final DateTime endTime;
 
-  const StudySessionModel({
+  StudySessionModel({
     required this.id,
     required this.subjectId,
     required this.subjectName,
     required this.colorIndex,
     required this.durationMinutes,
+    int? durationSeconds,
     required this.startTime,
     required this.endTime,
-  });
+  }) : durationSeconds = durationSeconds ?? durationMinutes * 60;
 
   /// Whether this session qualifies for streak / counter purposes.
   bool get isQualifying => durationMinutes >= 10;
@@ -33,6 +35,7 @@ class StudySessionModel {
     'subjectName':     subjectName,
     'colorIndex':      colorIndex,
     'durationMinutes': durationMinutes,
+    'durationSeconds': durationSeconds,
     'startTime':       startTime.toIso8601String(),
     'endTime':         endTime.toIso8601String(),
   };
@@ -43,7 +46,8 @@ class StudySessionModel {
         subjectId:       j['subjectId'],
         subjectName:     j['subjectName'],
         colorIndex:      j['colorIndex']      ?? 0,
-        durationMinutes: j['durationMinutes'],
+        durationMinutes: j['durationMinutes'] ?? 0,
+        durationSeconds: j['durationSeconds'], // null → derived from minutes
         startTime:       DateTime.parse(j['startTime']),
         endTime:         DateTime.parse(j['endTime']),
       );

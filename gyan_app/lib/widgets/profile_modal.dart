@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
+import 'sign_out_dialog.dart';
 class ProfileModal extends StatelessWidget {
   const ProfileModal({super.key});
 
@@ -12,9 +13,9 @@ class ProfileModal extends StatelessWidget {
     return Consumer<AppProvider>(builder: (ctx, prov, _) {
       final t = prov.appTheme;
       final user = prov.user;
-      final isDark = prov.isDarkMode;
       final imgPath = user.profileImagePath;
-      final totalHrs = user.totalMinutesStudied / 60;
+      final totalMin = prov.totalMinutesAllTime; // session-derived, accurate
+      final totalHrs = totalMin / 60;
 
       return Material(
         color: Colors.transparent,
@@ -75,21 +76,21 @@ class ProfileModal extends StatelessWidget {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Studied', style: GoogleFonts.inder(color: t.textMuted, fontSize: 10)),
                 Text(
-                  totalHrs < 1 ? '${user.totalMinutesStudied}m' : '${totalHrs.toStringAsFixed(1)}h',
+                  totalHrs < 1 ? '${totalMin}m' : '${totalHrs.toStringAsFixed(1)}h',
                   style: GoogleFonts.inder(color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ]),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Sessions', style: GoogleFonts.inder(color: t.textMuted, fontSize: 10)),
                 Text(
-                  '${user.totalSessions}',
+                  '${prov.totalSessionsCount}',
                   style: GoogleFonts.inder(color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ]),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Streak', style: GoogleFonts.inder(color: t.textMuted, fontSize: 10)),
                 Text(
-                  '${user.bestStreak}',
+                  '${prov.bestStreakDays}',
                   style: GoogleFonts.inder(color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ]),
@@ -135,10 +136,7 @@ class ProfileModal extends StatelessWidget {
 
             // ── Sign out button ────────────────────────────────────
             GestureDetector(
-              onTap: () {
-                prov.signOutUser();
-                Navigator.pop(context);
-              },
+              onTap: () => confirmSignOut(context),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 10),

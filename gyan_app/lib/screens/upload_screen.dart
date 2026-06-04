@@ -14,7 +14,11 @@ import '../widgets/analyzing_overlay.dart';
 import 'result_screen.dart';
 
 class UploadScreen extends StatefulWidget {
-  const UploadScreen({super.key});
+  /// When embedded inside the AI Features tab the screen's own AppBar is
+  /// hidden, since the host provides a shared header + toggle.
+  final bool embedded;
+
+  const UploadScreen({super.key, this.embedded = false});
 
   @override
   State<UploadScreen> createState() => _UploadScreenState();
@@ -146,20 +150,22 @@ class _UploadScreenState extends State<UploadScreen>
         children: [
           Scaffold(
             backgroundColor: t.background,
-            appBar: AppBar(
-              backgroundColor: t.background,
-              elevation: 0,
-              title: Text(
-                'Answer Sheet Analyzer',
-                style: GoogleFonts.inder(
-                  color: t.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 20,
-                ),
-              ),
-              centerTitle: false,
-              iconTheme: IconThemeData(color: t.textPrimary),
-            ),
+            appBar: widget.embedded
+                ? null
+                : AppBar(
+                    backgroundColor: t.background,
+                    elevation: 0,
+                    title: Text(
+                      'Answer Sheet Analyzer',
+                      style: GoogleFonts.inder(
+                        color: t.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                      ),
+                    ),
+                    centerTitle: false,
+                    iconTheme: IconThemeData(color: t.textPrimary),
+                  ),
             body: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               child: Form(
