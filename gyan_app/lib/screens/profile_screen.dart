@@ -18,6 +18,7 @@ import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import '../widgets/sign_out_dialog.dart';
 import '../widgets/profile_avatar.dart';
+import 'admin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -99,123 +100,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _editMode = !_editMode);
   }
 
-  // Lets the user pick one of the 8 curated avatars (stored in Firebase).
+  // Lets the user pick one of the developer-curated avatars bundled with the
+  // app (assets/avatars/, listed in constants/avatars.dart — no backend).
   void _showAvatarPicker(AppProvider prov) {
     final t = prov.appTheme;
+    final avatars = prov.avatarOptions;
     showModalBottomSheet(
       context: context,
       backgroundColor: t.background,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Text('Choose your avatar',
-                    style: GoogleFonts.inder(
-                        color: t.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold)),
-                const Spacer(),
-                IconButton(
-                    icon: Icon(Icons.close_rounded, color: t.textPrimary),
-                    onPressed: () => Navigator.pop(ctx)),
-              ]),
-              const SizedBox(height: 8),
-              FutureBuilder<List<String>>(
-                future: prov.avatarOptions(),
-                builder: (c, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 44),
-                      child: Center(
-                          child:
-                              CircularProgressIndicator(color: AppColors.blue)),
+      builder: (ctx) {
+        final current = prov.user.profileImagePath;
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text('Choose your avatar',
+                        style: GoogleFonts.inder(
+                            color: t.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(
+                        icon: Icon(Icons.close_rounded, color: t.textPrimary),
+                        onPressed: () => Navigator.pop(ctx)),
+                  ]),
+                  const SizedBox(height: 2),
+                  Text('Tap a picture to set it as your profile photo.',
+                      style:
+                          GoogleFonts.inder(color: t.textMuted, fontSize: 13)),
+                  const SizedBox(height: 18),
+                  // Centered, evenly-aligned grid (5 per row → tidy 2 rows of 5).
+                  LayoutBuilder(builder: (_, c) {
+                    const cols = 5;
+                    const gap = 12.0;
+                    final size = (c.maxWidth - gap * (cols - 1)) / cols;
+                    return Wrap(
+                      spacing: gap,
+                      runSpacing: 14,
+                      alignment: WrapAlignment.center,
+                      children: avatars.map((path) {
+                        final selected = path == current;
+                        return GestureDetector(
+                          onTap: () {
+                            prov.setProfileAvatar(path);
+                            Navigator.pop(ctx);
+                          },
+                          child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  width: size,
+                                  height: size,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: t.widgetBg,
+                                    border: Border.all(
+                                        color: selected
+                                            ? AppColors.blue
+                                            : t.cardBorder,
+                                        width: selected ? 3 : 1.5),
+                                    boxShadow: selected
+                                        ? [
+                                            BoxShadow(
+                                                color: AppColors.blue
+                                                    .withOpacity(0.4),
+                                                blurRadius: 10)
+                                          ]
+                                        : null,
+                                  ),
+                                  child: ClipOval(
+                                    child: Image.asset(path,
+                                        fit: BoxFit.cover,
+                                        width: size,
+                                        height: size,
+                                        alignment: Alignment.center,
+                                        errorBuilder: (_, __, ___) => Icon(
+                                            Icons.person_rounded,
+                                            color: t.textMuted,
+                                            size: size * 0.45)),
+                                  ),
+                                ),
+                                if (selected)
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                        color: AppColors.blue,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: t.background, width: 2)),
+                                    child: const Icon(Icons.check_rounded,
+                                        color: Colors.white, size: 13),
+                                  ),
+                              ]),
+                        );
+                      }).toList(),
                     );
-                  }
-                  final urls = snap.data ?? const [];
-                  if (urls.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 28),
-                      child: Column(children: [
-                        Icon(Icons.image_not_supported_outlined,
-                            color: t.textMuted, size: 40),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No avatars available yet.\nUpload them to Firebase Storage → /avatars.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inder(
-                              color: t.textMuted, fontSize: 13, height: 1.4),
-                        ),
-                      ]),
-                    );
-                  }
-                  final current = prov.user.profileImagePath;
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    alignment: WrapAlignment.center,
-                    children: urls.map((url) {
-                      final selected = url == current;
-                      return GestureDetector(
-                        onTap: () {
-                          prov.setProfileAvatar(url);
-                          Navigator.pop(ctx);
-                        },
-                        child: Stack(alignment: Alignment.bottomRight, children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: t.widgetBg,
-                              border: Border.all(
-                                  color: selected
-                                      ? AppColors.blue
-                                      : t.cardBorder,
-                                  width: selected ? 3 : 1.5),
-                              boxShadow: selected
-                                  ? [
-                                      BoxShadow(
-                                          color: AppColors.blue.withOpacity(0.4),
-                                          blurRadius: 10)
-                                    ]
-                                  : null,
-                            ),
-                            child: ClipOval(
-                              child: Image.network(url,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Icon(
-                                      Icons.person_rounded,
-                                      color: t.textMuted,
-                                      size: 32)),
-                            ),
-                          ),
-                          if (selected)
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                  color: AppColors.blue,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: t.background, width: 2)),
-                              child: const Icon(Icons.check_rounded,
-                                  color: Colors.white, size: 14),
-                            ),
-                        ]),
-                      );
-                    }).toList(),
-                  );
-                },
-              ),
-            ]),
-      ),
+                  }),
+                ]),
+          ),
+        );
+      },
     );
   }
 
@@ -280,10 +273,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // ── Profile picture ────────────────────────────────────────
+            // ── Profile picture (only editable while in edit mode) ─────
             Center(
               child: GestureDetector(
-                onTap: () => _showAvatarPicker(prov),
+                onTap: _editMode ? () => _showAvatarPicker(prov) : null,
                 child: Stack(alignment: Alignment.bottomRight, children: [
                   Container(
                     width: 104,
@@ -302,14 +295,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           iconSize: 52),
                     ),
                   ),
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
-                        color: _accent, shape: BoxShape.circle),
-                    child: const Icon(Icons.edit_rounded,
-                        color: Colors.white, size: 16),
-                  ),
+                  // Edit badge appears only in edit mode — makes it clear the
+                  // picture can only be changed after tapping "Edit".
+                  if (_editMode)
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                          color: _accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: t.background, width: 2)),
+                      child: const Icon(Icons.edit_rounded,
+                          color: Colors.white, size: 16),
+                    ),
                 ]),
               ),
             ),
@@ -434,6 +432,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _weeklyChart(_weeklyMinutes(prov), t),
 
             const SizedBox(height: 32),
+
+            // ── Admin Panel (only shown to eligible admins) ────────────
+            if (prov.isAdmin) ...[
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AdminScreen())),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [_accent, Color(0xFF5865F2)]),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                          color: _accent.withOpacity(0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6)),
+                    ],
+                  ),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.shield_rounded,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 10),
+                        Text('Admin Panel',
+                            style: GoogleFonts.inder(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold)),
+                      ]),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // ── Sign out ───────────────────────────────────────────────
             GestureDetector(

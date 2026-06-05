@@ -89,22 +89,18 @@ class _OverlayHelper {
 // ─────────────────────────────────────────────────────────────────────────────
 class _SubjectTimerSnapshot {
   final int remainingSecs;
+  final int phaseTotalSecs;
   final TimerPhase phase;
   final int currentCycle;
   final DateTime? sessionStart;
 
   const _SubjectTimerSnapshot({
     required this.remainingSecs,
+    required this.phaseTotalSecs,
     required this.phase,
     required this.currentCycle,
     this.sessionStart,
   });
-
-  bool get isDefault =>
-      remainingSecs == TimerScreen._focusSecs &&
-      phase == TimerPhase.focus &&
-      currentCycle == 1 &&
-      sessionStart == null;
 }
 
 enum TimerPhase { focus, shortBreak, longBreak }
@@ -112,11 +108,6 @@ enum TimerPhase { focus, shortBreak, longBreak }
 // ─────────────────────────────────────────────────────────────────────────────
 class TimerScreen extends StatefulWidget {
   const TimerScreen({super.key});
-
-  static const int _focusSecs = 25 * 60;
-  static const int _shortBreakSecs = 5 * 60;
-  static const int _longBreakSecs = 15 * 60;
-  static const int _totalCycles = 4;
 
   @override
   State<TimerScreen> createState() => _TimerScreenState();
@@ -132,7 +123,11 @@ class _TimerScreenState extends State<TimerScreen>
   // ── Active timer state ────────────────────────────────────────────────────
   TimerPhase _phase = TimerPhase.focus;
   int _currentCycle = 1;
-  int _remainingSecs = TimerScreen._focusSecs;
+  int _remainingSecs = 25 * 60; // placeholder; set from config in initState
+  // Full length of the CURRENT phase, captured when the phase starts. Using a
+  // captured value (not the live config) means changing the Pomodoro length
+  // never retroactively corrupts an in-progress session's elapsed time.
+  int _phaseTotalSecs = 25 * 60;
   bool _isRunning = false;
   Timer? _ticker;
   DateTime? _sessionStart;
@@ -148,10 +143,13 @@ class _TimerScreenState extends State<TimerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Start from the configured focus length (admins can change it).
+    _remainingSecs = context.read<AppProvider>().focusSecs;
+    _phaseTotalSecs = _remainingSecs;
     // Clear any stale overlay end-time left over from a previous hard kill.
     _OverlayHelper.clearEndTime();
     // Restore an in-progress timer (paused) after a cold start / hard kill, so
-    // the countdown isn't lost and doesn't reset to 25:00.
+    // the countdown isn't lost and doesn't reset.
     _restoreActiveTimer();
   }
 
@@ -163,9 +161,13 @@ class _TimerScreenState extends State<TimerScreen>
     final subId = m['subjectId'] as String?;
     if (subId == null || !prov.subjects.any((s) => s.id == subId)) return;
     _loadedSubjectId = subId;
-    _remainingSecs = (m['remainingSecs'] as int?) ?? TimerScreen._focusSecs;
     final pi = (m['phaseIndex'] as int?) ?? 0;
     _phase = TimerPhase.values[pi.clamp(0, TimerPhase.values.length - 1)];
+    _remainingSecs = (m['remainingSecs'] as int?) ?? _configDurationFor(_phase);
+    // Phase total is at least the configured length, but never less than the
+    // restored remaining (so progress/elapsed can't go out of range).
+    _phaseTotalSecs = _configDurationFor(_phase);
+    if (_remainingSecs > _phaseTotalSecs) _phaseTotalSecs = _remainingSecs;
     _currentCycle = (m['currentCycle'] as int?) ?? 1;
     final startMs = m['sessionStartMs'] as int?;
     _sessionStart =
@@ -221,7 +223,7 @@ class _TimerScreenState extends State<TimerScreen>
       // Overlay "Exit" was pressed — stop timer and save session
       if (_sessionStart != null) {
         final elapsed = _phase == TimerPhase.focus
-            ? TimerScreen._focusSecs - _remainingSecs
+            ? math.max(0, _phaseTotalSecs - _remainingSecs)
             : 0;
         if (elapsed > 0) _saveSession(elapsed);
       }
@@ -243,17 +245,28 @@ class _TimerScreenState extends State<TimerScreen>
     _startTicker();
   }
 
-  // ── Phase helpers ─────────────────────────────────────────────────────────
-  int get _phaseDuration {
-    switch (_phase) {
+  // ── Configurable durations (admins can change these via the Admin Panel;
+  //    everyone else uses the classic 25 / 5 / 15 × 4 defaults) ───────────────
+  int get _focusSecs => context.read<AppProvider>().focusSecs;
+  int get _shortBreakSecs => context.read<AppProvider>().shortBreakSecs;
+  int get _longBreakSecs => context.read<AppProvider>().longBreakSecs;
+  int get _totalCycles => context.read<AppProvider>().totalCycles;
+
+  // Configured length for a phase — what the clock resets to for a fresh start.
+  int _configDurationFor(TimerPhase p) {
+    switch (p) {
       case TimerPhase.focus:
-        return TimerScreen._focusSecs;
+        return _focusSecs;
       case TimerPhase.shortBreak:
-        return TimerScreen._shortBreakSecs;
+        return _shortBreakSecs;
       case TimerPhase.longBreak:
-        return TimerScreen._longBreakSecs;
+        return _longBreakSecs;
     }
   }
+
+  // ── Phase helpers ─────────────────────────────────────────────────────────
+  // Length of the current phase as captured when it started (see _phaseTotalSecs).
+  int get _phaseDuration => _phaseTotalSecs;
 
   String get _phaseLabel {
     switch (_phase) {
@@ -282,6 +295,7 @@ class _TimerScreenState extends State<TimerScreen>
     if (_loadedSubjectId != null) {
       _snapshots[_loadedSubjectId!] = _SubjectTimerSnapshot(
         remainingSecs: _remainingSecs,
+        phaseTotalSecs: _phaseTotalSecs,
         phase: _phase,
         currentCycle: _currentCycle,
         sessionStart: _sessionStart,
@@ -299,8 +313,10 @@ class _TimerScreenState extends State<TimerScreen>
 
     setState(() {
       _loadedSubjectId = newSubjectId;
-      _remainingSecs = snap?.remainingSecs ?? TimerScreen._focusSecs;
       _phase = snap?.phase ?? TimerPhase.focus;
+      _remainingSecs = snap?.remainingSecs ?? _configDurationFor(_phase);
+      _phaseTotalSecs = snap?.phaseTotalSecs ?? _configDurationFor(_phase);
+      if (_remainingSecs > _phaseTotalSecs) _phaseTotalSecs = _remainingSecs;
       _currentCycle = snap?.currentCycle ?? 1;
       _sessionStart = snap?.sessionStart;
       _isRunning = false; // never auto-start on switch
@@ -350,14 +366,14 @@ class _TimerScreenState extends State<TimerScreen>
     // Idle (fresh focus, nothing started) → nothing to persist.
     final idle = _phase == TimerPhase.focus &&
         _sessionStart == null &&
-        _remainingSecs == TimerScreen._focusSecs &&
+        _remainingSecs == _phaseTotalSecs &&
         _currentCycle == 1;
     if (idle) {
       prov.clearActiveTimer();
       return;
     }
     final elapsed = (_phase == TimerPhase.focus && _sessionStart != null)
-        ? (TimerScreen._focusSecs - _remainingSecs)
+        ? math.max(0, _phaseTotalSecs - _remainingSecs)
         : 0;
     prov.saveActiveTimer(
       subjectId: subject.id,
@@ -426,12 +442,13 @@ class _TimerScreenState extends State<TimerScreen>
     _ticker?.cancel();
     _OverlayHelper.clearEndTime();
     if (_phase == TimerPhase.focus && _sessionStart != null) {
-      final elapsed = _phaseDuration - _remainingSecs;
+      final elapsed = math.max(0, _phaseTotalSecs - _remainingSecs);
       if (elapsed > 0) _saveSession(elapsed);
     }
     setState(() {
       _isRunning = false;
-      _remainingSecs = _phaseDuration;
+      _phaseTotalSecs = _configDurationFor(_phase); // pick up latest config
+      _remainingSecs = _phaseTotalSecs;
       _sessionStart = null;
     });
     // Clear snapshot for current subject so it resets fresh
@@ -446,20 +463,22 @@ class _TimerScreenState extends State<TimerScreen>
     if (_phase == TimerPhase.focus) {
       _playNotificationSound('audio/focus_end.mp3');
       if (_sessionStart != null) {
-        _saveSession(TimerScreen._focusSecs);
+        _saveSession(_phaseTotalSecs); // the focus length just completed
         _sessionStart = null;
       }
-      if (_currentCycle < TimerScreen._totalCycles) {
+      if (_currentCycle < _totalCycles) {
         setState(() {
           _phase = TimerPhase.shortBreak;
-          _remainingSecs = TimerScreen._shortBreakSecs;
+          _phaseTotalSecs = _shortBreakSecs;
+          _remainingSecs = _phaseTotalSecs;
           _isRunning = true;
         });
       } else {
         _playNotificationSound('audio/long_break_start.mp3');
         setState(() {
           _phase = TimerPhase.longBreak;
-          _remainingSecs = TimerScreen._longBreakSecs;
+          _phaseTotalSecs = _longBreakSecs;
+          _remainingSecs = _phaseTotalSecs;
           _isRunning = true;
         });
       }
@@ -468,7 +487,8 @@ class _TimerScreenState extends State<TimerScreen>
       setState(() {
         _phase = TimerPhase.focus;
         _currentCycle++;
-        _remainingSecs = TimerScreen._focusSecs;
+        _phaseTotalSecs = _focusSecs;
+        _remainingSecs = _phaseTotalSecs;
         _sessionStart = DateTime.now();
         _isRunning = true;
       });
@@ -477,7 +497,8 @@ class _TimerScreenState extends State<TimerScreen>
       setState(() {
         _phase = TimerPhase.focus;
         _currentCycle = 1;
-        _remainingSecs = TimerScreen._focusSecs;
+        _phaseTotalSecs = _focusSecs;
+        _remainingSecs = _phaseTotalSecs;
         _sessionStart = DateTime.now();
         _isRunning = true;
       });
@@ -669,6 +690,17 @@ class _TimerScreenState extends State<TimerScreen>
       final t = prov.appTheme;
       final subject = prov.selectedSubject;
 
+      // While idle on a fresh phase, follow the latest configured length so an
+      // admin changing the Pomodoro timing updates the clock immediately —
+      // without ever touching an in-progress or paused session.
+      if (!_isRunning && _sessionStart == null) {
+        final cfg = _configDurationFor(_phase);
+        if (_remainingSecs == _phaseTotalSecs && _phaseTotalSecs != cfg) {
+          _phaseTotalSecs = cfg;
+          _remainingSecs = cfg;
+        }
+      }
+
       // If the provider's selected subject changed externally and we haven't
       // loaded it yet (e.g. first build), sync up without saving.
       if (subject != null && _loadedSubjectId == null) {
@@ -760,7 +792,7 @@ class _TimerScreenState extends State<TimerScreen>
 
                 const SizedBox(height: 18),
 
-                Text('Cycle $_currentCycle of ${TimerScreen._totalCycles}',
+                Text('Cycle $_currentCycle of $_totalCycles',
                     style: GoogleFonts.inder(color: t.textMuted, fontSize: 14)),
 
                 const SizedBox(height: 22),
@@ -896,14 +928,14 @@ class _TimerScreenState extends State<TimerScreen>
     // (frozen) instead of resetting to 0:00:00.
     if (isSelected) {
       if (_phase == TimerPhase.focus && _sessionStart != null) {
-        totalSecs += TimerScreen._focusSecs - _remainingSecs;
+        totalSecs += math.max(0, _phaseTotalSecs - _remainingSecs);
       }
     } else {
       final snap = _snapshots[sub.id];
       if (snap != null &&
           snap.phase == TimerPhase.focus &&
           snap.sessionStart != null) {
-        totalSecs += TimerScreen._focusSecs - snap.remainingSecs;
+        totalSecs += math.max(0, snap.phaseTotalSecs - snap.remainingSecs);
       }
     }
     final hours = totalSecs ~/ 3600;

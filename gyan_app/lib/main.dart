@@ -4,12 +4,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/main_screen.dart';
 import 'overlay/overlay_entry.dart';
+import 'services/push_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ── Overlay entry point (Android app-lock) ────────────────────────────────────
@@ -28,6 +30,10 @@ Future<void> main() async {
   ]);
   final appProvider = AppProvider();
   await appProvider.init();
+  // Register the FCM background/terminated handler now that Firebase is ready
+  // (AppProvider.init() initialises Firebase). Notification-type messages are
+  // shown by the OS automatically when the app isn't in the foreground.
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(
     ChangeNotifierProvider.value(
       value: appProvider,

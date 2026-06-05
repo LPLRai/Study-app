@@ -246,7 +246,7 @@ class HomeScreen extends StatelessWidget {
 
   Widget _dayCell(AppProvider prov, AppThemeData t, String letter,
       DateTime date, DateTime today) {
-    final studied = prov.didStudyOn(date);
+    final studied = prov.isStreakDay(date);
     final isToday = _sameDay(date, today);
     final isFuture = date.isAfter(today);
     const double sz = 38;

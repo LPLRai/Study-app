@@ -1,8 +1,10 @@
+import 'dart:convert';
 import '../firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 
 class FirebaseService {
   FirebaseService._();
@@ -168,6 +170,37 @@ class FirebaseService {
     } catch (_) {}
   }
 
+  /// Fire-and-forget: asks the free push server (see push-server/) to deliver an
+  /// FCM notification to [toUid]. No-op when PUSH_ENDPOINT isn't configured, so
+  /// the in-app notification still works on its own. Never throws to the caller.
+  void _sendPush(String toUid, String type, {String groupName = ''}) {
+    final endpoint = dotenv.env['PUSH_ENDPOINT'] ?? '';
+    if (endpoint.isEmpty) return;
+    () async {
+      try {
+        final token = await currentUser?.getIdToken();
+        if (token == null) return;
+        await http
+            .post(
+              Uri.parse(endpoint),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({
+                'toUid': toUid,
+                'type': type,
+                'groupName': groupName,
+                'fromName': await _myName(),
+              }),
+            )
+            .timeout(const Duration(seconds: 10));
+      } catch (_) {
+        // Ignore — the in-app notification has already been recorded.
+      }
+    }();
+  }
+
   Future<String> _myName() async {
     final data = (await userDoc.get()).data();
     final n = (data?['user'] as Map<String, dynamic>?)?['name'] as String?;
@@ -252,6 +285,7 @@ class FirebaseService {
       'seen': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    _sendPush(uid, 'group_invite', groupName: groupName);
     return 'invited';
   }
 
@@ -389,23 +423,27 @@ class FirebaseService {
       'seen': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    _sendPush(toUid, 'study_reminder');
   }
 
-  /// The hand-picked avatar choices, read from Storage at `/avatars`.
-  /// Sorted by file name so the order is stable. Returns [] if Storage isn't
-  /// set up yet.
-  Future<List<String>> fetchAvatarOptions() async {
+  /// Sends a study-reminder notification to the account behind [email].
+  /// Returns 'sent', 'no_account', or 'error'. Used by the admin test tool to
+  /// verify the notification pipeline end-to-end.
+  Future<String> sendStudyReminderByEmail(String email) async {
+    if (!_initialized) return 'error';
     try {
-      final res = await FirebaseStorage.instance.ref('avatars').listAll();
-      final items = res.items.toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
-      final urls = <String>[];
-      for (final item in items.take(8)) {
-        urls.add(await item.getDownloadURL());
-      }
-      return urls;
+      final uid = await uidForEmail(email);
+      if (uid == null) return 'no_account';
+      await _notifs(uid).add({
+        'type': 'study_reminder',
+        'fromName': await _myName(),
+        'seen': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _sendPush(uid, 'study_reminder');
+      return 'sent';
     } catch (_) {
-      return [];
+      return 'error';
     }
   }
 
@@ -443,5 +481,166 @@ class FirebaseService {
         .collection('study_app_users')
         .doc(uid)
         .set({'user': userData}, SetOptions(merge: true));
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Admin panel — presence, aggregate counts, and admin grants
+  // ───────────────────────────────────────────────────────────────────────────
+  String? get currentEmail => currentUser?.email;
+
+  CollectionReference<Map<String, dynamic>> get _admins =>
+      FirebaseFirestore.instance.collection('admins');
+
+  /// Records that this user is active now (heartbeat for the "active users"
+  /// metric). Writes only to the user's own doc, so the existing rules allow it.
+  Future<void> touchPresence() async {
+    if (!_initialized || currentUser == null) return;
+    try {
+      await userDoc
+          .set({'lastActiveAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// Stores this device's FCM token on the user doc so the Cloud Function can
+  /// push notifications (group invites, study reminders) to their phone.
+  Future<void> saveFcmToken(String token) async {
+    if (!_initialized || currentUser == null) return;
+    try {
+      await userDoc.set(
+          {'fcmTokens': FieldValue.arrayUnion([token])}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// Detaches a token (on sign-out) so the device stops receiving that account's
+  /// notifications.
+  Future<void> removeFcmToken(String token) async {
+    if (!_initialized || currentUser == null) return;
+    try {
+      await userDoc.set(
+          {'fcmTokens': FieldValue.arrayRemove([token])}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// Asks the free push server to delete "orphan" user docs (accounts removed
+  /// from Firebase Auth). Returns {purged, registered} or null if unavailable
+  /// (endpoint not set / not an admin / network). Auth accounts are untouched.
+  Future<Map<String, int>?> purgeDeletedUsers() async {
+    final endpoint = dotenv.env['PUSH_ENDPOINT'] ?? '';
+    if (endpoint.isEmpty) return null;
+    final purgeUrl =
+        '${endpoint.replaceFirst(RegExp(r'/send/?$'), '')}/purge';
+    try {
+      final token = await currentUser?.getIdToken();
+      if (token == null) return null;
+      final res = await http.post(
+        Uri.parse(purgeUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 60));
+      if (res.statusCode != 200) return null;
+      final data = Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+      return {
+        'purged': (data['purged'] as num?)?.toInt() ?? 0,
+        'registered': (data['registered'] as num?)?.toInt() ?? 0,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Total registered accounts (aggregate count — cheap, no full read).
+  Future<int> registeredUserCount() async {
+    if (!_initialized) return 0;
+    try {
+      final agg = await FirebaseFirestore.instance
+          .collection('study_app_users')
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Accounts active within [window] (based on the lastActiveAt heartbeat).
+  Future<int> activeUserCount(
+      {Duration window = const Duration(minutes: 10)}) async {
+    if (!_initialized) return 0;
+    try {
+      final cutoff = Timestamp.fromDate(DateTime.now().subtract(window));
+      final agg = await FirebaseFirestore.instance
+          .collection('study_app_users')
+          .where('lastActiveAt', isGreaterThan: cutoff)
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Paid (subscribed) accounts. Counts docs whose top-level `isPaid` == true.
+  /// Returns 0 until a paywall starts setting that flag (see the paywall guide).
+  Future<int> paidUserCount() async {
+    if (!_initialized) return 0;
+    try {
+      final agg = await FirebaseFirestore.instance
+          .collection('study_app_users')
+          .where('isPaid', isEqualTo: true)
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Whether the account [uid] has been granted admin (Firestore-backed).
+  Future<bool> isAdminUid(String uid) async {
+    if (!_initialized) return false;
+    try {
+      final d = await _admins.doc(uid).get();
+      return d.exists && d.data()?['isAdmin'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Grants admin to the account behind [email].
+  /// Returns 'granted', 'no_account', or 'error'.
+  /// (Server rules only permit ROOT admins to actually write here.)
+  Future<String> grantAdminByEmail(String email) async {
+    if (!_initialized || currentUser == null) return 'error';
+    try {
+      final uid = await uidForEmail(email);
+      if (uid == null) return 'no_account';
+      await _admins.doc(uid).set({
+        'isAdmin': true,
+        'email': email.trim().toLowerCase(),
+        'grantedBy': currentUser!.email,
+        'grantedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return 'granted';
+    } catch (_) {
+      return 'error';
+    }
+  }
+
+  /// Revokes a granted admin. (Root admins from AdminConfig are unaffected.)
+  Future<void> revokeAdmin(String uid) async {
+    if (!_initialized) return;
+    try {
+      await _admins.doc(uid).delete();
+    } catch (_) {}
+  }
+
+  /// Live list of granted admins (for the manage-admins UI).
+  Stream<List<Map<String, dynamic>>> adminsStream() {
+    if (!_initialized) return const Stream.empty();
+    return _admins
+        .snapshots()
+        .map((s) => s.docs.map((d) => {'uid': d.id, ...d.data()}).toList());
   }
   }
