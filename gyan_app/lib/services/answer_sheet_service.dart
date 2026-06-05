@@ -41,6 +41,7 @@ class AnalysisParameters {
   final int passingMarks;
   final String? answerKey;
   final String? rubric;
+  final String strictness;
 
   const AnalysisParameters({
     required this.subject,
@@ -49,6 +50,7 @@ class AnalysisParameters {
     required this.passingMarks,
     this.answerKey,
     this.rubric,
+    this.strictness = 'moderate',
   });
 }
 
@@ -191,9 +193,17 @@ class AnswerSheetService {
   Future<AIFeedback> _getGroqFeedback(
       String ocrText, AnalysisParameters params) async {
     const system = '''
-You are an expert academic evaluator. Analyze student answer sheets and 
-return ONLY a valid JSON object matching the schema the user provides.
+You are an expert academic evaluator. Your job is to analyze OCR text from student answer sheets and provide highly accurate, actionable, and fair grading feedback.
+Return ONLY a valid JSON object matching the schema the user provides.
 No markdown fences. No prose outside JSON. No trailing commas.
+
+GRADING STRICTNESS GUIDELINES:
+1. "lenient": Focus heavily on conceptual understanding. Grant generous partial marks if the student has the correct core idea. Do not penalize for spelling, grammar, phrasing, or OCR reading errors.
+2. "moderate": Apply standard, balanced academic grading. Expect main points to be correct, but allow minor wording variations. Grant fair partial credit for partially correct answers.
+3. "strict": Grade rigorously and precisely. Check for exact key terms, formulas, steps, or definitions. Expect high accuracy and complete details for full marks.
+
+CRITICAL SCORE ASSIGNMENT RULE:
+- Do NOT artificially cap or restrict the student's score or grade (e.g. limit to 60%). If the student answers everything correctly according to the strictness level, they should receive up to 100%. Evaluate the student's work fairly and objectively. Assign marks out of the total marks provided.
 ''';
 
     final user = '''
@@ -205,13 +215,26 @@ Subject      : ${params.subject}
 Grade/Level  : ${params.gradeLevel}
 Total Marks  : ${params.totalMarks}
 Passing Marks: ${params.passingMarks}
+Strictness   : ${params.strictness.toUpperCase()}
 ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.rubric != null ? 'Rubric:\n${params.rubric}\n' : ''}
+
+### EVALUATION INSTRUCTIONS
+1. Analyze the OCR text. Identify individual student answers and match them to questions.
+2. Grade based on the Strictness level (${params.strictness.toUpperCase()}).
+3. For the overall score, do not artificially cap it; assign the fair percentage (0-100) based on performance.
+4. Calculate 'estimatedMarks' proportionally to 'overallScore' out of total ${params.totalMarks} marks.
+5. In 'questionBreakdown', detail each question. For 'feedback', clearly explain:
+   - What the student wrote.
+   - What was correct/incorrect.
+   - Specifically what they missed or how partial credit was calculated.
+6. Suggest highly specific subtopics or concepts for revision in 'recommendedTopics' (e.g. "Reactions of Mitochondria in Cellular Respiration" instead of just "Biology").
+
 ### RESPOND ONLY WITH THIS JSON SCHEMA
 {
-  "overallScore": <0-100>,
-  "estimatedMarks": <number>,
+  "overallScore": <0-100 (percentage)>,
+  "estimatedMarks": <estimated marks score based on performance out of ${params.totalMarks}>,
   "grade": "<A|B|C|D|F>",
-  "passed": <true|false>,
+  "passed": <true|false based on estimatedMarks vs passingMarks ${params.passingMarks}>,
   "summary": "<2-3 sentence overall assessment>",
   "strengths": ["<point>"],
   "improvements": ["<point>"],
@@ -230,7 +253,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
     "presentation": <0-10>,
     "completeness": <0-10>
   },
-  "recommendedTopics": ["<topic>"],
+  "recommendedTopics": ["<specific subtopic>"],
   "teacherNote": "<brief note>"
 }
 ''';
@@ -244,7 +267,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
       body: jsonEncode({
         'model':       _groqModel,
         'temperature': 0.2,
-        'max_tokens':  2048,
+        'max_tokens':  3500,
         'messages': [
           {'role': 'system', 'content': system},
           {'role': 'user',   'content': user},
@@ -291,6 +314,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
         'gradeLevel':     params.gradeLevel,
         'totalMarks':     params.totalMarks,
         'passingMarks':   params.passingMarks,
+        'strictness':     params.strictness,
         'extractedText':  extractedText,
         'feedback':       feedback.toJson(),
         'overallScore':   feedback.overallScore,
@@ -311,6 +335,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
         'passed':       feedback.passed,
         'createdAt':    FieldValue.serverTimestamp(),
         'pageCount':    pageCount,
+        'strictness':   params.strictness,
       },
     );
 

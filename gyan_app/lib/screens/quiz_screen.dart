@@ -12,7 +12,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 
-final _kGeminiKey = dotenv.env['GEMINI_KEY'] ?? '';
 final _kGroqKey   = dotenv.env['GROQ_KEY'] ?? '';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,36 +69,6 @@ class _QuizService {
         'correct option.';
   }
 
-  static Future<List<QuizQuestion>> generateGemini(
-      String topic, String notes, String difficulty, int count, String grade) async {
-    final prompt = _buildPrompt(topic, notes, difficulty, count, grade);
-    final res = await http.post(
-      Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/'
-          'gemini-2.0-flash:generateContent?key=$_kGeminiKey'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'generationConfig': {'responseMimeType': 'application/json'},
-        'contents': [
-          {
-            'parts': [
-              {'text': prompt}
-            ]
-          }
-        ],
-      }),
-    );
-    if (res.statusCode != 200) {
-      final err = jsonDecode(res.body);
-      throw Exception(err['error']?['message'] ?? 'Gemini error ${res.statusCode}');
-    }
-    final data  = jsonDecode(res.body);
-    final text  = data['candidates'][0]['content']['parts'][0]['text'] as String;
-    final clean = text.replaceAll('```json', '').replaceAll('```', '').trim();
-    return (jsonDecode(clean) as List)
-        .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
 
   static Future<List<QuizQuestion>> generateGroq(
       String topic, String notes, String difficulty, int count, String grade) async {
@@ -158,7 +127,6 @@ class _QuizScreenState extends State<QuizScreen> {
   final _notesCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  String _provider   = 'gemini';
   String _difficulty = 'easy';
   int    _qCount     = 5;
 
@@ -192,14 +160,21 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() => _error = 'Please enter a topic.');
       return;
     }
+
+    // Anti-gibberish validation
+    final letters = topic.replaceAll(RegExp(r'[^a-zA-Z]'), '');
+    final vowels = topic.replaceAll(RegExp(r'[^aeiouyAEIOUY]'), '');
+    final uniqueChars = topic.replaceAll(RegExp(r'\s+'), '').split('').toSet();
+    if (topic.length < 2 || letters.length < 2 || vowels.isEmpty || uniqueChars.length < 2) {
+      setState(() => _error = 'Please enter a valid topic (e.g. Photosynthesis, World War II).');
+      return;
+    }
+
     final grade = context.read<AppProvider>().user.grade;
     setState(() { _loading = true; _error = ''; _questions = []; _quizDone = false; });
     try {
-      final qs = _provider == 'gemini'
-          ? await _QuizService.generateGemini(
-              topic, _notesCtrl.text.trim(), _difficulty, _qCount, grade)
-          : await _QuizService.generateGroq(
-              topic, _notesCtrl.text.trim(), _difficulty, _qCount, grade);
+      final qs = await _QuizService.generateGroq(
+          topic, _notesCtrl.text.trim(), _difficulty, _qCount, grade);
       setState(() { _questions = qs; _loading = false; });
       await Future.delayed(const Duration(milliseconds: 100));
       _scrollCtrl.animateTo(
