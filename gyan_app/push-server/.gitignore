@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Local secrets — NEVER commit these
+.env
+*.env
+serviceAccount*.json
+service-account*.json
+*service_account*.json
+
+# Logs
+*.log
+npm-debug.log*
