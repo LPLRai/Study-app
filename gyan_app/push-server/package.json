@@ -1,0 +1,16 @@
+{
+  "name": "gyan-push-server",
+  "version": "1.0.0",
+  "description": "Free FCM sender for GYAN (no Firebase Blaze required).",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^13.0.0"
+  }
+}
