@@ -30,9 +30,9 @@ class _MainScreenState extends State<MainScreen> {
   // Tab definitions — order matters and maps 1:1 to [_pages].
   static const List<_NavTab> _tabs = [
     _NavTab(icon: Icons.home_rounded,        label: 'Home'),
-    _NavTab(icon: Icons.trending_up_rounded, label: 'Timer'),
+    _NavTab(icon: Icons.schedule_rounded, label: 'Timer'),
     _NavTab(icon: Icons.auto_awesome_rounded, label: 'AI Features'),
-    _NavTab(icon: Icons.menu_book_rounded,   label: 'Groups'),
+    _NavTab(icon: Icons.groups_rounded,       label: 'Groups'),
     _NavTab(icon: Icons.person_rounded,      label: 'Profile', isAvatar: true),
   ];
 
