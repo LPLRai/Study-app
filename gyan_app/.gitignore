@@ -45,4 +45,13 @@ app.*.map.json
 /android/app/release
 
 .env
+*.env
 .claude
+
+# Service-account keys — NEVER commit (these grant full Firebase admin access)
+**/serviceAccount*.json
+**/service-account*.json
+**/*service_account*.json
+
+# Node dependencies (push-server / functions)
+**/node_modules/
