@@ -23,7 +23,7 @@ class AppProvider extends ChangeNotifier {
   List<GroupModel> _groups = [];
   String? _selectedSubjectId;
   int _currentTabIndex = 0;
-  bool _isDarkMode = true;
+  bool _isDarkMode = false;
   bool _remoteBackendReady = false;
   Timer? _midnightTimer;
 
@@ -328,13 +328,22 @@ class AppProvider extends ChangeNotifier {
       _firebaseService.myGroupsStream();
   Stream<List<Map<String, dynamic>>> groupMembersStream(String groupId) =>
       _firebaseService.groupMembersStream(groupId);
+  Stream<Map<String, dynamic>?> groupStream(String groupId) =>
+      _firebaseService.groupStream(groupId);
+  Future<void> updateGroupInfo(
+          String groupId, String name, String description) =>
+      _firebaseService.updateGroupInfo(groupId, name.trim(), description.trim());
+  Future<Map<String, dynamic>?> fetchUserProfile(String uid) =>
+      _firebaseService.fetchUserProfile(uid);
+  Future<void> sendStudyReminder(String toUid) =>
+      _firebaseService.sendStudyReminder(toUid);
 
   /// Creates a group (max 5 owned). Returns 'ok', 'limit', or 'error'.
-  Future<String> createGroupRemote(String name) async {
+  Future<String> createGroupRemote(String name, {String description = ''}) async {
     if (!_remoteBackendReady) return 'error';
     try {
       if (await _firebaseService.ownedGroupCount() >= 5) return 'limit';
-      await _firebaseService.createGroup(name.trim(), totalSecondsAllTime);
+      await _firebaseService.createGroup(name.trim(), totalSecondsAllTime, description: description);
       return 'ok';
     } catch (_) {
       return 'error';
@@ -372,6 +381,8 @@ class AppProvider extends ChangeNotifier {
       _firebaseService.leaveGroup(groupId);
   Future<void> deleteGroupRemote(String groupId) =>
       _firebaseService.deleteGroup(groupId);
+  Future<void> kickMember(String groupId, String memberUid) =>
+      _firebaseService.kickMember(groupId, memberUid);
 
   /// Pushes the current user's study stats to every group they're in.
   void _publishToGroups() {
@@ -671,7 +682,7 @@ class AppProvider extends ChangeNotifier {
           .toList();
     }
 
-    _isDarkMode = p.getBool('isDarkMode') ?? true;
+    _isDarkMode = p.getBool('isDarkMode') ?? false;
     if (_subjects.isNotEmpty) _selectedSubjectId = _subjects.first.id;
 
     // ── Load study-profile fields written by GetStartedPage ──

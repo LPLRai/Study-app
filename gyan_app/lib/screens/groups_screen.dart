@@ -21,83 +21,137 @@ class GroupsScreen extends StatelessWidget {
 
   void _showCreateSheet(BuildContext ctx, AppProvider prov) {
     final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
     final t = prov.appTheme;
     showModalBottomSheet(
       context: ctx,
       backgroundColor: t.background,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      // Use the sheet's own context for viewInsets — fixes keyboard-covers-field bug
+      builder: (sheetCtx) => Padding(
         padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Create a Group',
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text('Create a Group',
+                      style: GoogleFonts.inder(
+                          color: t.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(sheetCtx),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                          color: t.inputBg, shape: BoxShape.circle),
+                      child: Icon(Icons.close_rounded,
+                          color: t.textMuted, size: 18),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Text('You can create up to 5 groups.',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
+                const SizedBox(height: 18),
+                // Group name
+                Text('Group Name',
                     style: GoogleFonts.inder(
-                        color: t.textPrimary,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold)),
-                IconButton(
-                    icon: Icon(Icons.close, color: t.textPrimary),
-                    onPressed: () => Navigator.pop(ctx)),
-              ]),
-              const SizedBox(height: 6),
-              Text('You can create up to 5 groups.',
-                  style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
-              const SizedBox(height: 14),
-              Row(children: [
-                Expanded(
-                    child: TextField(
+                        color: t.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
                   controller: nameCtrl,
                   style: GoogleFonts.inder(color: t.textPrimary),
+                  textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
-                      hintText: 'Group name',
+                      hintText: 'e.g. Study Squad',
                       hintStyle: GoogleFonts.inder(color: t.textMuted),
                       filled: true,
                       fillColor: t.inputBg,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                          horizontal: 14, vertical: 13),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none)),
-                )),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () async {
-                    final name = nameCtrl.text.trim();
-                    if (name.isEmpty) return;
-                    final res = await prov.createGroupRemote(name);
-                    if (!ctx.mounted) return;
-                    Navigator.pop(ctx);
-                    if (res == 'ok') {
-                      _toast(ctx, 'Group "$name" created');
-                    } else if (res == 'limit') {
-                      _toast(ctx, "You've reached the limit of 5 groups",
-                          error: true);
-                    } else {
-                      _toast(ctx, 'Could not create group (are you online?)',
-                          error: true);
-                    }
-                  },
-                  child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 13),
-                      decoration: BoxDecoration(
-                          color: AppColors.blue,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Text('Create',
-                          style: GoogleFonts.inder(
-                              color: Colors.white, fontSize: 14))),
+                ),
+                const SizedBox(height: 14),
+                // Description
+                Text('Description (optional)',
+                    style: GoogleFonts.inder(
+                        color: t.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: descCtrl,
+                  style: GoogleFonts.inder(color: t.textPrimary),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                      hintText: 'What is this group about?',
+                      hintStyle: GoogleFonts.inder(color: t.textMuted),
+                      filled: true,
+                      fillColor: t.inputBg,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none)),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) return;
+                      final desc = descCtrl.text.trim();
+                      final res = await prov.createGroupRemote(name,
+                          description: desc);
+                      if (!ctx.mounted) return;
+                      Navigator.pop(sheetCtx);
+                      if (res == 'ok') {
+                        _toast(ctx, 'Group "$name" created!');
+                      } else if (res == 'limit') {
+                        _toast(ctx,
+                            "You've reached the limit of 5 groups",
+                            error: true);
+                      } else {
+                        _toast(ctx,
+                            'Could not create group (are you online?)',
+                            error: true);
+                      }
+                    },
+                    child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        decoration: BoxDecoration(
+                            color: AppColors.blue,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.blue.withOpacity(0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              )
+                            ]),
+                        child: Text('Create Group',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inder(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600))),
+                  ),
                 ),
               ]),
-            ]),
+        ),
       ),
     );
   }
@@ -149,18 +203,37 @@ class GroupsScreen extends StatelessWidget {
                           )
                         else if (groups.isEmpty)
                           Container(
-                            padding: const EdgeInsets.all(18),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                                 color: t.widgetBg,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(color: t.cardBorder),
                                 boxShadow: t.widgetShadow),
-                            child: Center(
-                                child: Text(
-                                    'No groups yet — tap "Create a Group" below',
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.blue.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.groups_rounded,
+                                      color: AppColors.blue, size: 32),
+                                ),
+                                const SizedBox(height: 12),
+                                Text('No groups yet',
+                                    style: GoogleFonts.inder(
+                                        color: t.textPrimary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('Create a group to study with friends',
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.inder(
-                                        color: t.textMuted, fontSize: 13))),
+                                        color: t.textMuted, fontSize: 13)),
+                              ],
+                            ),
                           )
                         else
                           ...groups.map((g) => Padding(
@@ -173,20 +246,27 @@ class GroupsScreen extends StatelessWidget {
                           onTap: () => _showCreateSheet(ctx, prov),
                           child: Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
-                              color: AppColors.blue.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(12),
+                              color: AppColors.blue.withOpacity(0.10),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                  color: AppColors.blue.withOpacity(0.5),
+                                  color: AppColors.blue.withOpacity(0.45),
                                   width: 1.5),
                             ),
                             child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.add_rounded,
-                                      color: AppColors.blue, size: 20),
-                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.blue,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.add_rounded,
+                                        color: Colors.white, size: 16),
+                                  ),
+                                  const SizedBox(width: 10),
                                   Text('Create a Group',
                                       style: GoogleFonts.inder(
                                           color: AppColors.blue,
@@ -207,27 +287,34 @@ class GroupsScreen extends StatelessWidget {
 
   Widget _groupTile(BuildContext ctx, t, Map<String, dynamic> g) {
     final name = g['name'] as String? ?? 'Group';
-    final members = (g['memberUids'] as List?)?.length ?? 1;
+    final ownerUid = g['ownerUid'] as String? ?? '';
+    final description = g['description'] as String? ?? '';
+    final memberCount = (g['memberUids'] as List?)?.length ?? 1;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Navigator.of(ctx).push(MaterialPageRoute(
-          builder: (_) =>
-              GroupDetailScreen(groupId: g['id'] as String, groupName: name))),
+          builder: (_) => GroupDetailScreen(
+                groupId: g['id'] as String,
+                groupName: name,
+                ownerUid: ownerUid,
+                description: description,
+              ))),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
             color: t.widgetBg,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: t.cardBorder),
             boxShadow: t.widgetShadow),
         child: Row(children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-                color: AppColors.blue.withOpacity(0.15), shape: BoxShape.circle),
+                color: AppColors.blue.withOpacity(0.13),
+                borderRadius: BorderRadius.circular(12)),
             child: const Icon(Icons.groups_rounded,
-                color: AppColors.blue, size: 22),
+                color: AppColors.blue, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -242,10 +329,20 @@ class GroupsScreen extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 3),
-                Text('Tap to open · $members member${members == 1 ? '' : 's'}',
+                if (description.isNotEmpty) ...[
+                  Text(description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
+                  const SizedBox(height: 2),
+                ],
+                Text(
+                    '$memberCount member${memberCount == 1 ? '' : 's'}',
                     style:
                         GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
               ])),
+          const SizedBox(width: 8),
           Icon(Icons.chevron_right_rounded, color: t.textMuted, size: 22),
         ]),
       ),
