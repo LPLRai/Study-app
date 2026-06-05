@@ -29,6 +29,7 @@ class _UploadScreenState extends State<UploadScreen>
   // ── State ──────────────────────────────────────────────────────────────────
   final List<File> _images = [];
   String? _selectedGrade;
+  String _strictness = 'moderate';
   bool _analyzing = false;
   AnalysisStage _stage = AnalysisStage.compressing;
   double _progress = 0.0;
@@ -126,6 +127,7 @@ class _UploadScreenState extends State<UploadScreen>
       totalMarks:   int.tryParse(_totalCtrl.text) ?? 100,
       passingMarks: int.tryParse(_passingCtrl.text) ?? 40,
       answerKey:    _answerKeyCtrl.text.trim().isEmpty ? null : _answerKeyCtrl.text.trim(),
+      strictness:   _strictness,
     );
 
     setState(() {
@@ -263,7 +265,38 @@ class _UploadScreenState extends State<UploadScreen>
                         ),
                       ),
                     ]),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+
+                    _SectionLabel('Grading Strictness', t: t),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _StrictnessChip(
+                          label: 'Lenient',
+                          value: 'lenient',
+                          selected: _strictness == 'lenient',
+                          onTap: () => setState(() => _strictness = 'lenient'),
+                          t: t,
+                        ),
+                        const SizedBox(width: 8),
+                        _StrictnessChip(
+                          label: 'Moderate',
+                          value: 'moderate',
+                          selected: _strictness == 'moderate',
+                          onTap: () => setState(() => _strictness = 'moderate'),
+                          t: t,
+                        ),
+                        const SizedBox(width: 8),
+                        _StrictnessChip(
+                          label: 'Strict',
+                          value: 'strict',
+                          selected: _strictness == 'strict',
+                          onTap: () => setState(() => _strictness = 'strict'),
+                          t: t,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
                     _SectionLabel('Answer Key (optional)', t: t),
                     const SizedBox(height: 8),
@@ -753,6 +786,55 @@ class _SheetOption extends StatelessWidget {
                     fontSize: 15,
                     fontWeight: FontWeight.w500)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StrictnessChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool selected;
+  final VoidCallback onTap;
+  final dynamic t;
+
+  const _StrictnessChip({
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+    required this.t,
+  });
+
+  Color get _color => switch (value) {
+        'lenient'  => const Color(0xFF57F287),
+        'moderate' => const Color(0xFFFAA61A),
+        _          => const Color(0xFFED4245),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? _color.withOpacity(0.15) : t.inputBg,
+            border: Border.all(color: selected ? _color : t.cardBorder),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.inder(
+              color: selected ? _color : t.textMuted,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
+            ),
+          ),
         ),
       ),
     );
