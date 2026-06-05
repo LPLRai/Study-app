@@ -27,19 +27,24 @@ class UploadScreen extends StatefulWidget {
 class _UploadScreenState extends State<UploadScreen>
     with SingleTickerProviderStateMixin {
   // ── State ──────────────────────────────────────────────────────────────────
-  File? _image;
+  final List<File> _images = [];
+  String? _selectedGrade;
   bool _analyzing = false;
   AnalysisStage _stage = AnalysisStage.compressing;
   double _progress = 0.0;
 
   final _subjectCtrl   = TextEditingController();
-  final _gradeCtrl     = TextEditingController();
   final _totalCtrl     = TextEditingController(text: '100');
   final _passingCtrl   = TextEditingController(text: '40');
   final _answerKeyCtrl = TextEditingController();
   final _formKey       = GlobalKey<FormState>();
   final _picker        = ImagePicker();
   final _service       = AnswerSheetService();
+
+  static const _grades = [
+    '6th Grade', '7th Grade', '8th Grade', '9th Grade', '10th Grade',
+    '11th Grade', '12th Grade', 'Bachelor',
+  ];
 
   late final AnimationController _thumbAnim;
   late final Animation<double> _thumbScale;
@@ -53,13 +58,18 @@ class _UploadScreenState extends State<UploadScreen>
         vsync: this, duration: const Duration(milliseconds: 200));
     _thumbScale = Tween<double>(begin: 1, end: 0.96)
         .animate(CurvedAnimation(parent: _thumbAnim, curve: Curves.easeInOut));
+
+    // Default the grade to the user's saved profile grade
+    final userGrade = context.read<AppProvider>().user.grade;
+    if (userGrade.isNotEmpty) {
+      _selectedGrade = userGrade;
+    }
   }
 
   @override
   void dispose() {
     _thumbAnim.dispose();
     _subjectCtrl.dispose();
-    _gradeCtrl.dispose();
     _totalCtrl.dispose();
     _passingCtrl.dispose();
     _answerKeyCtrl.dispose();
@@ -70,9 +80,26 @@ class _UploadScreenState extends State<UploadScreen>
 
   Future<void> _pick(ImageSource source) async {
     Navigator.pop(context);
-    final picked = await _picker.pickImage(source: source, imageQuality: 95);
-    if (picked == null) return;
-    setState(() => _image = File(picked.path));
+    if (source == ImageSource.gallery) {
+      final pickedList = await _picker.pickMultiImage(imageQuality: 95);
+      if (pickedList.isNotEmpty) {
+        setState(() {
+          for (var picked in pickedList) {
+            if (_images.length < 5) {
+              _images.add(File(picked.path));
+            }
+          }
+        });
+      }
+    } else {
+      final picked = await _picker.pickImage(source: source, imageQuality: 95);
+      if (picked == null) return;
+      setState(() {
+        if (_images.length < 5) {
+          _images.add(File(picked.path));
+        }
+      });
+    }
   }
 
   void _showPickerSheet(dynamic t) {
@@ -86,8 +113,8 @@ class _UploadScreenState extends State<UploadScreen>
   // ── Analysis ───────────────────────────────────────────────────────────────
 
   Future<void> _startAnalysis() async {
-    if (_image == null) {
-      _snack('Please select an answer sheet image first');
+    if (_images.isEmpty) {
+      _snack('Please select at least one answer sheet page first');
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -95,7 +122,7 @@ class _UploadScreenState extends State<UploadScreen>
 
     final params = AnalysisParameters(
       subject:      _subjectCtrl.text.trim(),
-      gradeLevel:   _gradeCtrl.text.trim().isEmpty ? 'General' : _gradeCtrl.text.trim(),
+      gradeLevel:   _selectedGrade ?? 'General',
       totalMarks:   int.tryParse(_totalCtrl.text) ?? 100,
       passingMarks: int.tryParse(_passingCtrl.text) ?? 40,
       answerKey:    _answerKeyCtrl.text.trim().isEmpty ? null : _answerKeyCtrl.text.trim(),
@@ -109,7 +136,7 @@ class _UploadScreenState extends State<UploadScreen>
 
     try {
       final result = await _service.analyzeAnswerSheet(
-        _image!,
+        _images,
         params: params,
         onProgress: (stage, progress) {
           if (!mounted) return;
@@ -174,10 +201,15 @@ class _UploadScreenState extends State<UploadScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Image picker card ──────────────────────────────────
-                    _ImagePickerCard(
-                      image: _image,
+                    _MultiImagePickerCard(
+                      images: _images,
                       thumbScale: _thumbScale,
-                      onTap: () => _showPickerSheet(t),
+                      onAddTap: () => _showPickerSheet(t),
+                      onRemoveTap: (index) {
+                        setState(() {
+                          _images.removeAt(index);
+                        });
+                      },
                       t: t,
                     ),
 
@@ -197,10 +229,16 @@ class _UploadScreenState extends State<UploadScreen>
                     const SizedBox(height: 12),
                     Row(children: [
                       Expanded(
-                        child: _Field(
-                          controller: _gradeCtrl,
+                        child: _DropdownField(
+                          value: _selectedGrade,
                           label: 'Grade / Level',
-                          hint: 'e.g. Grade 10',
+                          hint: 'Select',
+                          items: _grades,
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedGrade = v;
+                            });
+                          },
                           t: t,
                         ),
                       ),
@@ -281,16 +319,18 @@ class _UploadScreenState extends State<UploadScreen>
 
 // ─── Sub-widgets ─────────────────────────────────────────────────────────────
 
-class _ImagePickerCard extends StatelessWidget {
-  final File? image;
+class _MultiImagePickerCard extends StatelessWidget {
+  final List<File> images;
   final Animation<double> thumbScale;
-  final VoidCallback onTap;
+  final VoidCallback onAddTap;
+  final Function(int) onRemoveTap;
   final dynamic t;
 
-  const _ImagePickerCard({
-    required this.image,
+  const _MultiImagePickerCard({
+    required this.images,
     required this.thumbScale,
-    required this.onTap,
+    required this.onAddTap,
+    required this.onRemoveTap,
     required this.t,
   });
 
@@ -298,72 +338,185 @@ class _ImagePickerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedBuilder(
-        animation: thumbScale,
-        builder: (_, child) =>
-            Transform.scale(scale: thumbScale.value, child: child),
-        child: Container(
-          height: 200,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: t.widgetBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: image != null ? _accent : t.cardBorder,
-              width: 1.5,
+    if (images.isEmpty) {
+      return GestureDetector(
+        onTap: onAddTap,
+        child: AnimatedBuilder(
+          animation: thumbScale,
+          builder: (_, child) =>
+              Transform.scale(scale: thumbScale.value, child: child),
+          child: Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: t.widgetBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: t.cardBorder,
+                width: 1.5,
+              ),
+              boxShadow: t.widgetShadow,
             ),
-            boxShadow: t.widgetShadow,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.upload_file_rounded, size: 48, color: _accent),
+                const SizedBox(height: 12),
+                Text('Tap to upload answer sheet pages',
+                    style: GoogleFonts.inder(
+                        color: t.textMuted,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text('Up to 5 pages • Camera or gallery',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
+              ],
+            ),
           ),
-          child: image == null
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.upload_file_rounded, size: 48, color: _accent),
-                    const SizedBox(height: 12),
-                    Text('Tap to upload answer sheet',
-                        style: GoogleFonts.inder(
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Answer Sheet Pages',
+              style: GoogleFonts.inder(
+                color: t.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: _accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${images.length} / 5',
+                style: GoogleFonts.inder(
+                  color: _accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 160,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length + (images.length < 5 ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == images.length) {
+                return GestureDetector(
+                  onTap: onAddTap,
+                  child: Container(
+                    width: 120,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: t.widgetBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: t.cardBorder,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_rounded, color: _accent, size: 28),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add Page',
+                          style: GoogleFonts.inder(
                             color: t.textMuted,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 4),
-                    Text('Camera or gallery',
-                        style: GoogleFonts.inder(color: t.textMuted, fontSize: 12)),
-                  ],
-                )
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final image = images[index];
+              return Container(
+                width: 120,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: t.cardBorder, width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.file(image!, fit: BoxFit.cover),
-                      Positioned(
-                        bottom: 10,
-                        right: 10,
+                      Image.file(image, fit: BoxFit.cover),
+                      Positioned.fill(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.65),
-                            borderRadius: BorderRadius.circular(10),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.7),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              stops: const [0.6, 1.0],
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.edit_rounded, size: 13, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text('Change',
-                                  style: TextStyle(color: Colors.white, fontSize: 12)),
-                            ],
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Text(
+                          'Page ${index + 1}',
+                          style: GoogleFonts.inder(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: GestureDetector(
+                          onTap: () => onRemoveTap(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withOpacity(0.65),
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -491,6 +644,73 @@ class _SourceSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+class _DropdownField extends StatelessWidget {
+  final String? value;
+  final String label;
+  final String hint;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+  final dynamic t;
+
+  const _DropdownField({
+    required this.value,
+    required this.label,
+    required this.hint,
+    required this.items,
+    required this.onChanged,
+    required this.t,
+  });
+
+  static const _accent = Color(0xFF5865F2);
+
+  @override
+  Widget build(BuildContext context) {
+    final dropdownItems = List<String>.from(items);
+    if (value != null && value!.isNotEmpty && !dropdownItems.contains(value)) {
+      dropdownItems.add(value!);
+    }
+
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: dropdownItems
+          .map((e) => DropdownMenuItem(
+                value: e,
+                child: Text(
+                  e.replaceAll(' Grade', ''),
+                  style: GoogleFonts.inder(fontSize: 12),
+                ),
+              ))
+          .toList(),
+      onChanged: onChanged,
+      dropdownColor: t.inputBg,
+      isExpanded: true,
+      icon: Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: t.textMuted),
+      style: GoogleFonts.inder(color: t.textPrimary, fontSize: 12),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: GoogleFonts.inder(color: _accent, fontSize: 12),
+        hintStyle: GoogleFonts.inder(color: t.textMuted, fontSize: 12),
+        filled: true,
+        fillColor: t.inputBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: t.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: t.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _accent, width: 1.5),
+        ),
       ),
     );
   }

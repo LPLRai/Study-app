@@ -33,38 +33,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   late TextEditingController _nameCtrl;
-  late TextEditingController _gradeCtrl;
-  late TextEditingController _goalCtrl;
+  String? _selectedGrade;
+  String? _selectedGoal;
+  String? _selectedDailyTarget;
+  final Set<String> _strong = {};
+  final Set<String> _weak   = {};
+
+  static const _grades = [
+    '6th Grade', '7th Grade', '8th Grade', '9th Grade', '10th Grade',
+    '11th Grade', '12th Grade', 'Bachelor',
+  ];
+
+  static const _goals = [
+    'Improve Grades', 'Build Consistency',
+    'Prepare for Exams', 'Learn Faster',
+  ];
+
+  static const _subjectsList = [
+    'Mathematics', 'Physics', 'Chemistry', 'Biology',
+    'English', 'Nepali', 'Social Studies',
+    'Computer Science', 'Accounts', 'Economics', 'History',
+  ];
 
   @override
   void initState() {
     super.initState();
     final user = context.read<AppProvider>().user;
     _nameCtrl = TextEditingController(text: user.name);
-    _gradeCtrl = TextEditingController(text: user.grade);
-    _goalCtrl = TextEditingController(text: user.dailyStudyGoalHours.toString());
+    _selectedGrade = user.grade.isEmpty ? null : user.grade;
+    _selectedGoal = user.studyGoal.isEmpty ? null : user.studyGoal;
+    _selectedDailyTarget = '${user.dailyStudyGoalHours} ${user.dailyStudyGoalHours == 1 ? 'Hour' : 'Hours'}';
+    _strong.addAll(user.strongSubjects);
+    _weak.addAll(user.weakSubjects);
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _gradeCtrl.dispose();
-    _goalCtrl.dispose();
     super.dispose();
   }
 
   void _toggleEdit(AppProvider prov) {
     if (_editMode) {
+      final hoursStr = _selectedDailyTarget?.split(' ').first ?? '4';
+      final hours = int.tryParse(hoursStr) ?? 4;
       prov.updateUser(
         name: _nameCtrl.text.trim().isEmpty ? 'User' : _nameCtrl.text.trim(),
-        grade: _gradeCtrl.text.trim(),
-        dailyStudyGoalHours:
-            int.tryParse(_goalCtrl.text) ?? prov.user.dailyStudyGoalHours,
+        grade: _selectedGrade ?? '',
+        dailyStudyGoalHours: hours,
+        studyGoal: _selectedGoal ?? '',
+        strongSubjects: _strong.toList(),
+        weakSubjects: _weak.toList(),
       );
     } else {
-      _nameCtrl.text = prov.user.name;
-      _gradeCtrl.text = prov.user.grade;
-      _goalCtrl.text = prov.user.dailyStudyGoalHours.toString();
+      final user = prov.user;
+      _nameCtrl.text = user.name;
+      _selectedGrade = user.grade.isEmpty ? null : user.grade;
+      _selectedGoal = user.studyGoal.isEmpty ? null : user.studyGoal;
+      _selectedDailyTarget = '${user.dailyStudyGoalHours} ${user.dailyStudyGoalHours == 1 ? 'Hour' : 'Hours'}';
+      _strong.clear();
+      _strong.addAll(user.strongSubjects);
+      _weak.clear();
+      _weak.addAll(user.weakSubjects);
     }
     setState(() => _editMode = !_editMode);
   }
@@ -289,24 +319,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // ── Identity / editable info ───────────────────────────────
             if (_editMode) ...[
               _editField(
-                  label: 'Full Name',
+                  label: 'Username',
                   icon: Icons.person_outline_rounded,
                   controller: _nameCtrl,
                   t: t),
               const SizedBox(height: 12),
-              _editField(
-                  label: 'Grade / Year',
-                  icon: Icons.school_outlined,
-                  controller: _gradeCtrl,
-                  t: t),
+              _editDropdown(
+                label: 'Grade / Education Level',
+                icon: Icons.school_outlined,
+                value: _selectedGrade,
+                items: _grades,
+                onChanged: (v) => setState(() => _selectedGrade = v),
+                t: t,
+              ),
               const SizedBox(height: 12),
-              _editField(
-                  label: 'Daily Study Goal (hours)',
-                  icon: Icons.flag_outlined,
-                  controller: _goalCtrl,
-                  t: t,
-                  inputType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+              _editDropdown(
+                label: 'Study Goal',
+                icon: Icons.flag_outlined,
+                value: _selectedGoal,
+                items: _goals,
+                onChanged: (v) => setState(() => _selectedGoal = v),
+                t: t,
+              ),
+              const SizedBox(height: 12),
+              _editDropdown(
+                label: 'Daily Study Target',
+                icon: Icons.timer_outlined,
+                value: _selectedDailyTarget,
+                items: List.generate(
+                    8, (i) => '${i + 1} ${i + 1 == 1 ? 'Hour' : 'Hours'}'),
+                onChanged: (v) => setState(() => _selectedDailyTarget = v),
+                t: t,
+              ),
+              const SizedBox(height: 20),
+              _chipSelector(
+                label: 'Strong Subjects',
+                selected: _strong,
+                excluded: _weak,
+                accent: const Color(0xFF2DC88A),
+                t: t,
+              ),
+              const SizedBox(height: 16),
+              _chipSelector(
+                label: 'Weak Subjects',
+                selected: _weak,
+                excluded: _strong,
+                accent: const Color(0xFFEF5A55),
+                t: t,
+              ),
             ] else ...[
               Center(
                 child: Column(children: [
@@ -327,9 +387,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
 
-            const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-            // ── Statistics (text only) ─────────────────────────────────
+            // ── Study Info (from onboarding) ─────────────────────────────────
+            if (user.studyTime.isNotEmpty || user.studyGoal.isNotEmpty) ...[
+              _sectionLabel('Study Info', t),
+              const SizedBox(height: 8),
+              if (user.studyTime.isNotEmpty)
+                _statRow('Preferred Study Time', user.studyTime, t),
+              if (user.studyGoal.isNotEmpty)
+                _statRow('Study Goal', user.studyGoal, t, last: true),
+              const SizedBox(height: 30),
+            ],
+
+            // ── Subjects (from onboarding) ───────────────────────────────────
+            if (user.strongSubjects.isNotEmpty || user.weakSubjects.isNotEmpty) ...[
+              _sectionLabel('My Subjects', t),
+              const SizedBox(height: 12),
+              if (user.strongSubjects.isNotEmpty)
+                _subjectChips('Strong', user.strongSubjects, const Color(0xFF2DC88A), t),
+              if (user.weakSubjects.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _subjectChips('Weak', user.weakSubjects, const Color(0xFFEF5A55), t),
+              ],
+              const SizedBox(height: 30),
+            ],
+
+            // ── Statistics (text only) ─────────────────────────────────────────
             _sectionLabel('Statistics', t),
             const SizedBox(height: 8),
             _statRow(
@@ -515,4 +599,198 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _fmtShort(int mins) =>
       mins < 60 ? '${mins}m' : '${(mins / 60).toStringAsFixed(1)}h';
+        /// Displays a row of coloured subject chips (used for strong / weak).
+  Widget _subjectChips(String label, List<String> items, Color accent, t) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(label,
+              style: GoogleFonts.inder(
+                  color: t.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: items
+              .map((s) => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: accent.withOpacity(0.4), width: 1),
+                    ),
+                    child: Text(s,
+                        style: GoogleFonts.inder(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: accent)),
+                  ))
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  /// Dropdown editor for study info fields.
+  Widget _editDropdown({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    required t,
+  }) {
+    final dropdownItems = List<String>.from(items);
+    if (value != null && value.isNotEmpty && !dropdownItems.contains(value)) {
+      dropdownItems.add(value);
+    }
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      decoration: BoxDecoration(
+        color: t.inputBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _accent.withOpacity(0.6), width: 1.3),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
+        const SizedBox(height: 2),
+        Row(children: [
+          Icon(icon, color: t.textMuted, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                hint: Text('Select $label',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 15)),
+                isExpanded: true,
+                isDense: true,
+                icon: Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 22, color: t.textMuted),
+                dropdownColor: t.inputBg,
+                borderRadius: BorderRadius.circular(14),
+                items: dropdownItems
+                    .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e,
+                              style: GoogleFonts.inder(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: t.textPrimary,
+                              )),
+                        ))
+                    .toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  /// Chip selector for subjects inside edit mode.
+  Widget _chipSelector({
+    required String label,
+    required Set<String> selected,
+    required Set<String> excluded,
+    required Color accent,
+    required t,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(label,
+              style: GoogleFonts.inder(
+                  color: t.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          if (selected.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('${selected.length}',
+                  style: GoogleFonts.inder(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  )),
+            ),
+          ],
+        ]),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: _subjectsList.map((s) {
+            final on = selected.contains(s);
+            final disabled = excluded.contains(s);
+            return GestureDetector(
+              onTap: disabled
+                  ? null
+                  : () {
+                      setState(() {
+                        if (on) {
+                          selected.remove(s);
+                        } else {
+                          selected.add(s);
+                        }
+                      });
+                    },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: disabled
+                      ? t.cardBorder.withOpacity(0.1)
+                      : on
+                          ? accent.withOpacity(0.14)
+                          : t.inputBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: disabled
+                        ? t.cardBorder.withOpacity(0.4)
+                        : on
+                            ? accent.withOpacity(0.6)
+                            : t.cardBorder,
+                    width: on ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Text(s,
+                    style: GoogleFonts.inder(
+                      fontSize: 12,
+                      fontWeight: on ? FontWeight.bold : FontWeight.normal,
+                      color: disabled
+                          ? t.textMuted.withOpacity(0.4)
+                          : on
+                              ? accent
+                              : t.textPrimary,
+                    )),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
 }

@@ -85,28 +85,43 @@ class AnswerSheetService {
   // ── Public entry point ────────────────────────────────────────────────────
 
   Future<AnalysisResult> analyzeAnswerSheet(
-    File imageFile, {
+    List<File> imageFiles, {
     required AnalysisParameters params,
     void Function(AnalysisStage, double)? onProgress,
   }) async {
+    if (imageFiles.isEmpty) {
+      throw const AnalysisException('No images selected for analysis');
+    }
     final sessionId = const Uuid().v4();
+    final List<String> pageTexts = [];
 
-    onProgress?.call(AnalysisStage.compressing, 0.10);
-    final Uint8List imgBytes = await _compressToJpg(imageFile);
+    for (int i = 0; i < imageFiles.length; i++) {
+      // Progress calculation for each image
+      // Compression: starts at 0.05 + i * (0.20 / total)
+      final double compressProgress = 0.05 + (i * 0.20 / imageFiles.length);
+      onProgress?.call(AnalysisStage.compressing, compressProgress);
+      final Uint8List imgBytes = await _compressToJpg(imageFiles[i]);
 
-    onProgress?.call(AnalysisStage.extractingText, 0.35);
-    final String ocrText = await _performOCR(imgBytes);
+      // OCR: starts at 0.25 + i * (0.40 / total)
+      final double ocrProgress = 0.25 + (i * 0.40 / imageFiles.length);
+      onProgress?.call(AnalysisStage.extractingText, ocrProgress);
+      final String ocrText = await _performOCR(imgBytes);
 
-    onProgress?.call(AnalysisStage.analyzingWithAI, 0.65);
-    final AIFeedback feedback = await _getGroqFeedback(ocrText, params);
+      pageTexts.add('--- Page ${i + 1} ---\n$ocrText');
+    }
+
+    onProgress?.call(AnalysisStage.analyzingWithAI, 0.70);
+    final String combinedOcrText = pageTexts.join('\n\n');
+    final AIFeedback feedback = await _getGroqFeedback(combinedOcrText, params);
 
     onProgress?.call(AnalysisStage.saving, 0.90);
     final String docId = await _saveToFirestore(
       sessionId:     sessionId,
       imageUrl:      '', // Storage skipped — wire up later
-      extractedText: ocrText,
+      extractedText: combinedOcrText,
       feedback:      feedback,
       params:        params,
+      pageCount:     imageFiles.length,
     );
 
     onProgress?.call(AnalysisStage.done, 1.0);
@@ -260,6 +275,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
     required String extractedText,
     required AIFeedback feedback,
     required AnalysisParameters params,
+    int pageCount = 1,
   }) async {
     final uid   = _auth.currentUser?.uid ?? 'anonymous';
     final batch = _db.batch();
@@ -281,6 +297,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
         'estimatedMarks': feedback.estimatedMarks,
         'grade':          feedback.grade,
         'passed':         feedback.passed,
+        'pageCount':      pageCount,
       },
     );
 
@@ -293,6 +310,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
         'overallScore': feedback.overallScore,
         'passed':       feedback.passed,
         'createdAt':    FieldValue.serverTimestamp(),
+        'pageCount':    pageCount,
       },
     );
 
