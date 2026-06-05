@@ -170,7 +170,19 @@ class _NotificationPanel extends StatelessWidget {
     final groupName = n['groupName'] as String? ?? 'a group';
     final fromName = n['fromName'] as String? ?? 'Someone';
     final isInvite = type == 'group_invite';
+    final isReminder = type == 'study_reminder';
     final pending = isInvite && status == 'pending';
+
+    // Per-type icon, accent and copy.
+    const reminderColor = Color(0xFFFF8C00);
+    final IconData icon =
+        isReminder ? Icons.notifications_active_rounded : Icons.group_add_rounded;
+    final Color accent = isReminder ? reminderColor : AppColors.blue;
+    final String title =
+        isReminder ? 'Study reminder' : 'Group invitation';
+    final String body = isReminder
+        ? '$fromName is nudging you to study. Time to focus! 💪'
+        : '$fromName invited you to join "$groupName"';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -186,21 +198,19 @@ class _NotificationPanel extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: AppColors.blue.withOpacity(0.15),
-                shape: BoxShape.circle),
-            child: const Icon(Icons.group_add_rounded,
-                color: AppColors.blue, size: 20),
+                color: accent.withOpacity(0.15), shape: BoxShape.circle),
+            child: Icon(icon, color: accent, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Group invitation',
+              Text(title,
                   style: GoogleFonts.inder(
                       color: t.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 3),
-              Text('$fromName invited you to join "$groupName"',
+              Text(body,
                   style: GoogleFonts.inder(
                       color: t.textMuted, fontSize: 11, height: 1.3)),
             ]),
@@ -225,7 +235,7 @@ class _NotificationPanel extends StatelessWidget {
               }),
             ),
           ]),
-        ] else
+        ] else if (isInvite)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(

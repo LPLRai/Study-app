@@ -16,6 +16,7 @@
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -408,6 +409,12 @@ class _TimerScreenState extends State<TimerScreen>
     });
   }
 
+  Future<void> _playNotificationSound(String assetPath) async {
+    final player = AudioPlayer();
+    await player.play(AssetSource(assetPath));
+    player.onPlayerComplete.first.then((_) => player.dispose());
+  }
+
   void _pause() {
     _ticker?.cancel();
     setState(() => _isRunning = false);
@@ -437,6 +444,7 @@ class _TimerScreenState extends State<TimerScreen>
     _OverlayHelper.clearEndTime();
 
     if (_phase == TimerPhase.focus) {
+      _playNotificationSound('audio/focus_end.mp3');
       if (_sessionStart != null) {
         _saveSession(TimerScreen._focusSecs);
         _sessionStart = null;
@@ -445,33 +453,37 @@ class _TimerScreenState extends State<TimerScreen>
         setState(() {
           _phase = TimerPhase.shortBreak;
           _remainingSecs = TimerScreen._shortBreakSecs;
-          _isRunning = false;
+          _isRunning = true;
         });
       } else {
+        _playNotificationSound('audio/long_break_start.mp3');
         setState(() {
           _phase = TimerPhase.longBreak;
           _remainingSecs = TimerScreen._longBreakSecs;
-          _isRunning = false;
+          _isRunning = true;
         });
       }
     } else if (_phase == TimerPhase.shortBreak) {
+      _playNotificationSound('audio/break_end.mp3');
       setState(() {
         _phase = TimerPhase.focus;
         _currentCycle++;
         _remainingSecs = TimerScreen._focusSecs;
-        _isRunning = false;
+        _sessionStart = DateTime.now();
+        _isRunning = true;
       });
     } else {
+      _playNotificationSound('audio/break_end.mp3');
       setState(() {
         _phase = TimerPhase.focus;
         _currentCycle = 1;
         _remainingSecs = TimerScreen._focusSecs;
-        _isRunning = false;
+        _sessionStart = DateTime.now();
+        _isRunning = true;
       });
     }
-    // Persist the post-phase state (saved focus session clears the live entry;
-    // the break/next-cycle countdown is persisted so it survives a restart).
     _syncActiveTimer(context.read<AppProvider>());
+    _startTicker();
   }
 
   void _saveSession(int durationSecs) {
@@ -740,6 +752,7 @@ class _TimerScreenState extends State<TimerScreen>
                 _CircularTimer(
                   progress: _progress,
                   arcColor: arcColor,
+                  trackColor: t.textPrimary.withOpacity(0.1),
                   timeLabel: _formattedTime,
                   phaseLabel: _phaseLabel,
                   textPrimary: t.textPrimary,
@@ -937,6 +950,7 @@ class _TimerScreenState extends State<TimerScreen>
 class _CircularTimer extends StatelessWidget {
   final double progress;
   final Color arcColor;
+  final Color trackColor;
   final String timeLabel;
   final String phaseLabel;
   final Color textPrimary;
@@ -944,6 +958,7 @@ class _CircularTimer extends StatelessWidget {
   const _CircularTimer({
     required this.progress,
     required this.arcColor,
+    required this.trackColor,
     required this.timeLabel,
     required this.phaseLabel,
     required this.textPrimary,
@@ -955,7 +970,7 @@ class _CircularTimer extends StatelessWidget {
       width: 210,
       height: 210,
       child: CustomPaint(
-        painter: _ArcPainter(progress: progress, color: arcColor),
+        painter: _ArcPainter(progress: progress, color: arcColor, trackColor: trackColor),
         child: Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(timeLabel,
@@ -977,7 +992,8 @@ class _CircularTimer extends StatelessWidget {
 class _ArcPainter extends CustomPainter {
   final double progress;
   final Color color;
-  const _ArcPainter({required this.progress, required this.color});
+  final Color trackColor;
+  const _ArcPainter({required this.progress, required this.color, required this.trackColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -991,7 +1007,7 @@ class _ArcPainter extends CustomPainter {
         2 * math.pi,
         false,
         Paint()
-          ..color = Colors.white.withOpacity(0.08)
+          ..color = trackColor
           ..strokeWidth = 9
           ..style = PaintingStyle.stroke);
     if (progress > 0) {
@@ -1010,5 +1026,5 @@ class _ArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArcPainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress || old.color != color || old.trackColor != trackColor;
 }

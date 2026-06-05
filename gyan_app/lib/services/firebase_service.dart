@@ -183,11 +183,12 @@ class FirebaseService {
   }
 
   /// Creates a group with the current user as owner + first member.
-  Future<String> createGroup(String name, int myTotalSeconds) async {
+  Future<String> createGroup(String name, int myTotalSeconds, {String description = ''}) async {
     final uid = currentUser!.uid;
     final myName = await _myName();
     final ref = await _groups.add({
       'name': name,
+      'description': description,
       'ownerUid': uid,
       'ownerName': myName,
       'memberUids': [uid],
@@ -222,6 +223,14 @@ class FirebaseService {
       'memberUids': FieldValue.arrayRemove([uid])
     });
     await _groups.doc(groupId).collection('members').doc(uid).delete();
+  }
+
+  /// Removes [memberUid] from a group — called by the group owner.
+  Future<void> kickMember(String groupId, String memberUid) async {
+    await _groups.doc(groupId).update({
+      'memberUids': FieldValue.arrayRemove([memberUid])
+    });
+    await _groups.doc(groupId).collection('members').doc(memberUid).delete();
   }
 
   /// Sends an in-app invite (notification) to the account behind [email].
@@ -336,6 +345,50 @@ class FirebaseService {
         .collection('members')
         .snapshots()
         .map((s) => s.docs.map((d) => {'uid': d.id, ...d.data()}).toList());
+  }
+
+  /// Live single-group document (name, description, ownerUid, memberUids…).
+  /// Emits null if the group no longer exists (e.g. owner deleted it).
+  Stream<Map<String, dynamic>?> groupStream(String groupId) {
+    return _groups.doc(groupId).snapshots().map(
+        (d) => d.exists ? {'id': d.id, ...?d.data()} : null);
+  }
+
+  /// Owner edits the group's name + description.
+  Future<void> updateGroupInfo(
+      String groupId, String name, String description) async {
+    await _groups.doc(groupId).update({
+      'name': name,
+      'description': description,
+    });
+  }
+
+  /// Reads another user's public profile (the `user` map on their doc) so the
+  /// group can show class, subjects, study goal, etc. Null if unavailable.
+  Future<Map<String, dynamic>?> fetchUserProfile(String uid) async {
+    if (!_initialized) return null;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('study_app_users')
+          .doc(uid)
+          .get();
+      final user = snap.data()?['user'];
+      return user is Map<String, dynamic> ? user : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sends a "time to study" nudge notification to [toUid].
+  Future<void> sendStudyReminder(String toUid) async {
+    final uid = currentUser?.uid;
+    if (uid == null) return;
+    await _notifs(toUid).add({
+      'type': 'study_reminder',
+      'fromName': await _myName(),
+      'seen': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   /// The hand-picked avatar choices, read from Storage at `/avatars`.
