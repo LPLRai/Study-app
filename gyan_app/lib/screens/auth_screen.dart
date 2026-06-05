@@ -25,6 +25,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey             = GlobalKey<FormState>();
   final _identityController  = TextEditingController();
   final _passwordController  = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _emailController     = TextEditingController();
   final _usernameController  = TextEditingController();
 
@@ -32,11 +33,13 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _termsAccepted   = false;
   bool _isBusy          = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _identityController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _emailController.dispose();
     _usernameController.dispose();
     super.dispose();
@@ -407,6 +410,36 @@ class _AuthScreenState extends State<AuthScreen> {
                           return null;
                         },
                       ),
+
+                      if (_isRegister) ...[
+                        const SizedBox(height: 18),
+                        _buildField(
+                          label: 'Confirm Password',
+                          controller: _confirmPasswordController,
+                          obscureText: _obscureConfirmPassword,
+                          labelColor: subtitleColor,
+                          textColor: textColor,
+                          fillColor: fillColor,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              color: subtitleColor,
+                              size: 20,
+                            ),
+                            onPressed: () => setState(
+                                () => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Confirm your password';
+                            if (v.trim() != _passwordController.text.trim())
+                              return 'Passwords do not match';
+                            return null;
+                          },
+                        ),
+                      ],
 
                       if (!_isRegister) ...[
                         const SizedBox(height: 8),

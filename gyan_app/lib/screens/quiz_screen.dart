@@ -245,31 +245,6 @@ class _QuizScreenState extends State<QuizScreen> {
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
 
-            // ── Provider selector ────────────────────────────────────────
-            _SectionCard(
-              title: 'AI Provider',
-              t: t,
-              child: Row(children: [
-                _ProviderChip(
-                  label: 'Google Gemini',
-                  selected: _provider == 'gemini',
-                  onTap: () => setState(() => _provider = 'gemini'),
-                  color: _blue,
-                  t: t,
-                ),
-                const SizedBox(width: 10),
-                _ProviderChip(
-                  label: 'Groq Llama',
-                  selected: _provider == 'groq',
-                  onTap: () => setState(() => _provider = 'groq'),
-                  color: const Color(0xFFF97316),
-                  t: t,
-                ),
-              ]),
-            ),
-
-            const SizedBox(height: 12),
-
             // ── Topic ────────────────────────────────────────────────────
             _SectionCard(
               title: 'Topic',
@@ -629,44 +604,6 @@ class _StyledField extends StatelessWidget {
   }
 }
 
-class _ProviderChip extends StatelessWidget {
-  const _ProviderChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    required this.color,
-    required this.t,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color color;
-  final dynamic t;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? color.withOpacity(0.15) : t.inputBg,
-            border: Border.all(color: selected ? color : t.cardBorder),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: Text(label,
-              style: GoogleFonts.inder(
-                  color: selected ? color : t.textMuted,
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.normal)),
-        ),
-      ),
-    );
-  }
-}
 
 class _DiffChip extends StatelessWidget {
   const _DiffChip({
