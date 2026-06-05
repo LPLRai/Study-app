@@ -7,12 +7,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/avatars.dart';
 import '../models/user_model.dart';
 import '../models/subject_model.dart';
 import '../models/study_session_model.dart';
 import '../models/group_model.dart';
 import '../services/firebase_service.dart';
+import '../services/push_service.dart';
 import '../theme/app_theme.dart';
+import '../config/admin_config.dart';
 
 class AppProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService.instance;
@@ -26,6 +29,26 @@ class AppProvider extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _remoteBackendReady = false;
   Timer? _midnightTimer;
+
+  // ── Timer configuration (per-device; only the Admin Panel changes it) ───────
+  // Defaults are the classic Pomodoro. Normal users never see an editor, so
+  // their experience is unchanged. Reset on sign-out so a shared device never
+  // leaks an admin's custom timings to the next account.
+  int _focusMinutes = 25;
+  int _shortBreakMinutes = 5;
+  int _longBreakMinutes = 15;
+  int _cycles = 4;
+
+  // ── Admin-only headline stat overrides (null = use real, derived value) ─────
+  int? _ovrStreak;
+  int? _ovrBestStreak;
+  int? _ovrSessions;
+  int? _ovrStudyMinutes;
+
+  // ── Admin status ────────────────────────────────────────────────────────────
+  // Root admins come from AdminConfig (verified email); granted admins are
+  // loaded from Firestore at init.
+  bool _grantedAdmin = false;
 
   // Real-time group backend
   StreamSubscription? _groupsSub;
@@ -64,6 +87,30 @@ class AppProvider extends ChangeNotifier {
   int get currentTabIndex => _currentTabIndex;
   bool get isDarkMode => _isDarkMode;
   AppThemeData get appTheme => AppThemeData(isDark: _isDarkMode);
+
+  // ── Timer configuration ─────────────────────────────────────────────────────
+  int get focusMinutes => _focusMinutes;
+  int get shortBreakMinutes => _shortBreakMinutes;
+  int get longBreakMinutes => _longBreakMinutes;
+  int get cyclesPerSession => _cycles;
+  int get focusSecs => _focusMinutes * 60;
+  int get shortBreakSecs => _shortBreakMinutes * 60;
+  int get longBreakSecs => _longBreakMinutes * 60;
+  int get totalCycles => _cycles;
+
+  // ── Admin status ────────────────────────────────────────────────────────────
+  String? get currentEmail => _firebaseService.currentEmail;
+  bool get isRootAdmin => AdminConfig.isRootAdmin(currentEmail);
+  bool get isAdmin => isRootAdmin || _grantedAdmin;
+  bool get hasStatOverrides =>
+      _ovrStreak != null ||
+      _ovrBestStreak != null ||
+      _ovrSessions != null ||
+      _ovrStudyMinutes != null;
+  int? get overrideStreak => _ovrStreak;
+  int? get overrideBestStreak => _ovrBestStreak;
+  int? get overrideSessions => _ovrSessions;
+  int? get overrideStudyMinutes => _ovrStudyMinutes;
 
   SubjectModel? get selectedSubject {
     if (_selectedSubjectId == null) {
@@ -156,11 +203,29 @@ class AppProvider extends ChangeNotifier {
 
   bool studiedOnDay(DateTime day) => studiedDays.contains(_dateOnly(day));
 
+  /// Whether [day] should appear as a "fire" streak day in the calendars.
+  /// With an admin streak override active, the current streak is exactly the
+  /// last N days ending today; otherwise it's the real qualifying-session days.
+  /// (Best streak is unaffected — only the current-streak window lights up.)
+  bool isStreakDay(DateTime day) {
+    final d = _dateOnly(day);
+    final ovr = _ovrStreak;
+    if (ovr != null) {
+      if (ovr <= 0) return false;
+      final today = _dateOnly(DateTime.now());
+      if (d.isAfter(today)) return false;
+      final start = today.subtract(Duration(days: ovr - 1));
+      return !d.isBefore(start); // within [start, today]
+    }
+    return studiedDays.contains(d);
+  }
+
   int get totalStudiedDays => studiedDays.length;
 
   /// Consecutive studied days ending today (or yesterday if today isn't done
   /// yet — the streak is still alive until the day ends).
   int get currentStreakDays {
+    if (_ovrStreak != null) return _ovrStreak!;
     final days = studiedDays;
     if (days.isEmpty) return 0;
     final today = _dateOnly(DateTime.now());
@@ -179,6 +244,7 @@ class AppProvider extends ChangeNotifier {
 
   /// Longest run of consecutive studied days, ever.
   int get bestStreakDays {
+    if (_ovrBestStreak != null) return _ovrBestStreak!;
     final days = studiedDays.toList()..sort();
     if (days.isEmpty) return 0;
     int best = 1, run = 1;
@@ -256,8 +322,14 @@ class AppProvider extends ChangeNotifier {
 
   int get totalSecondsAllTime =>
       _statSessions.fold(0, (sum, s) => sum + s.durationSeconds);
-  int get totalMinutesAllTime => totalSecondsAllTime ~/ 60;
-  int get totalSessionsCount => _sessions.where((s) => s.isQualifying).length;
+  int get totalMinutesAllTime => _ovrStudyMinutes ?? (totalSecondsAllTime ~/ 60);
+  /// All-time seconds for HEADLINE displays (honours the admin override). The
+  /// per-subject / per-day data used by graphs always uses the real values, so
+  /// charts are never distorted by an override.
+  int get displayTotalSeconds =>
+      _ovrStudyMinutes != null ? _ovrStudyMinutes! * 60 : totalSecondsAllTime;
+  int get totalSessionsCount =>
+      _ovrSessions ?? _sessions.where((s) => s.isQualifying).length;
 
   /// Per-subject totals (merged by name) within [start, end), sorted desc.
   /// Includes the live session, so the breakdown updates in real time.
@@ -289,8 +361,22 @@ class AppProvider extends ChangeNotifier {
     if (_remoteBackendReady) {
       _subscribeGroups();
       _firebaseService.ensureEmailIndex(); // make me findable by email
+      await _loadAdminStatus(); // load granted-admin flag for this account
+      _firebaseService.touchPresence(); // heartbeat for the active-users metric
+      PushService.instance.init(); // register for push notifications
     }
     notifyListeners();
+  }
+
+  /// Loads whether the signed-in account has been granted admin in Firestore.
+  /// (Root admins are determined purely by their verified email via AdminConfig.)
+  Future<void> _loadAdminStatus() async {
+    final uid = _firebaseService.currentUser?.uid;
+    if (uid == null) {
+      _grantedAdmin = false;
+      return;
+    }
+    _grantedAdmin = await _firebaseService.isAdminUid(uid);
   }
 
   // ── Real-time group backend ───────────────────────────────────────────────
@@ -309,18 +395,13 @@ class AppProvider extends ChangeNotifier {
   Future<void> markNotificationsSeen() =>
       _firebaseService.markAllNotificationsSeen();
 
-  // ── Curated avatars (8 hand-picked, stored in Firebase Storage) ───────────
-  List<String>? _avatarOptions;
+  // ── Curated avatars (developer-provided, bundled with the app) ────────────
+  // No backend / Firebase Storage needed — the choices live in
+  // constants/avatars.dart and ship as app assets.
+  List<String> get avatarOptions => kAvatarAssets;
 
-  Future<List<String>> avatarOptions() async {
-    if (_avatarOptions != null) return _avatarOptions!;
-    final list = await _firebaseService.fetchAvatarOptions();
-    if (list.isNotEmpty) _avatarOptions = list; // cache once fetched
-    return list;
-  }
-
-  Future<void> setProfileAvatar(String url) =>
-      updateUser(profileImagePath: url);
+  Future<void> setProfileAvatar(String assetPath) =>
+      updateUser(profileImagePath: assetPath);
 
   Stream<List<Map<String, dynamic>>> notificationsStream() =>
       _firebaseService.notificationsStream();
@@ -342,7 +423,9 @@ class AppProvider extends ChangeNotifier {
   Future<String> createGroupRemote(String name, {String description = ''}) async {
     if (!_remoteBackendReady) return 'error';
     try {
-      if (await _firebaseService.ownedGroupCount() >= 5) return 'limit';
+      if (!isAdmin && await _firebaseService.ownedGroupCount() >= 5) {
+        return 'limit';
+      }
       await _firebaseService.createGroup(name.trim(), totalSecondsAllTime, description: description);
       return 'ok';
     } catch (_) {
@@ -585,6 +668,9 @@ class AppProvider extends ChangeNotifier {
       await _syncToFirestore();
       _subscribeGroups();
       _firebaseService.ensureEmailIndex();
+      await _loadAdminStatus();
+      _firebaseService.touchPresence();
+      PushService.instance.init(); // register for push notifications
       notifyListeners();
       return true;
     } catch (e) {
@@ -624,6 +710,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> signOutUser() async {
+    // Detach this device's push token while we're still authenticated, so the
+    // next account doesn't inherit the previous user's notifications.
+    await PushService.instance.clearToken();
     try {
       await _firebaseService.signOut();
     } catch (_) {}
@@ -642,6 +731,16 @@ class AppProvider extends ChangeNotifier {
     _liveSession = null;
     _activeTimer = null;
     _selectedSubjectId = null;
+
+    // Reset admin privileges, custom timings and stat overrides so the next
+    // account on this device starts clean (no leaked admin settings).
+    _grantedAdmin = false;
+    _focusMinutes = 25;
+    _shortBreakMinutes = 5;
+    _longBreakMinutes = 15;
+    _cycles = 4;
+    _ovrStreak = _ovrBestStreak = _ovrSessions = _ovrStudyMinutes = null;
+
     try {
       final p = await _prefs;
       await p.remove('user');
@@ -649,6 +748,14 @@ class AppProvider extends ChangeNotifier {
       await p.remove('sessions');
       await p.remove('groups');
       await p.remove('active_timer');
+      await p.remove('cfg_focus');
+      await p.remove('cfg_short');
+      await p.remove('cfg_long');
+      await p.remove('cfg_cycles');
+      await p.remove('ovr_streak');
+      await p.remove('ovr_best');
+      await p.remove('ovr_sessions');
+      await p.remove('ovr_minutes');
     } catch (_) {}
 
     notifyListeners();
@@ -684,6 +791,16 @@ class AppProvider extends ChangeNotifier {
 
     _isDarkMode = p.getBool('isDarkMode') ?? false;
     if (_subjects.isNotEmpty) _selectedSubjectId = _subjects.first.id;
+
+    // Timer configuration + admin stat overrides (default to classic values).
+    _focusMinutes = p.getInt('cfg_focus') ?? 25;
+    _shortBreakMinutes = p.getInt('cfg_short') ?? 5;
+    _longBreakMinutes = p.getInt('cfg_long') ?? 15;
+    _cycles = p.getInt('cfg_cycles') ?? 4;
+    _ovrStreak = p.getInt('ovr_streak');
+    _ovrBestStreak = p.getInt('ovr_best');
+    _ovrSessions = p.getInt('ovr_sessions');
+    _ovrStudyMinutes = p.getInt('ovr_minutes');
 
     // ── Load study-profile fields written by GetStartedPage ──
     _onboardingComplete = p.getBool('onboarding_complete') ?? false;
@@ -722,6 +839,68 @@ class AppProvider extends ChangeNotifier {
     await _syncToFirestore();
     notifyListeners();
   }
+
+  // ── Admin: timer configuration ──────────────────────────────────────────────
+  Future<void> setTimerConfig({
+    int? focusMinutes,
+    int? shortBreakMinutes,
+    int? longBreakMinutes,
+    int? cycles,
+  }) async {
+    if (focusMinutes != null) _focusMinutes = focusMinutes.clamp(1, 180);
+    if (shortBreakMinutes != null) {
+      _shortBreakMinutes = shortBreakMinutes.clamp(1, 120);
+    }
+    if (longBreakMinutes != null) _longBreakMinutes = longBreakMinutes.clamp(1, 180);
+    if (cycles != null) _cycles = cycles.clamp(1, 12);
+    final p = await _prefs;
+    await p.setInt('cfg_focus', _focusMinutes);
+    await p.setInt('cfg_short', _shortBreakMinutes);
+    await p.setInt('cfg_long', _longBreakMinutes);
+    await p.setInt('cfg_cycles', _cycles);
+    notifyListeners();
+  }
+
+  Future<void> resetTimerConfig() => setTimerConfig(
+      focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, cycles: 4);
+
+  // ── Admin: headline stat overrides ──────────────────────────────────────────
+  Future<void> adminSetStatOverrides({
+    int? streak,
+    int? bestStreak,
+    int? sessions,
+    int? studyMinutes,
+  }) async {
+    _ovrStreak = streak;
+    _ovrBestStreak = bestStreak;
+    _ovrSessions = sessions;
+    _ovrStudyMinutes = studyMinutes;
+    final p = await _prefs;
+    Future<void> put(String k, int? v) =>
+        v == null ? p.remove(k) : p.setInt(k, v);
+    await put('ovr_streak', _ovrStreak);
+    await put('ovr_best', _ovrBestStreak);
+    await put('ovr_sessions', _ovrSessions);
+    await put('ovr_minutes', _ovrStudyMinutes);
+    notifyListeners();
+    _publishToGroups(); // reflect new totals on group leaderboards
+  }
+
+  Future<void> clearStatOverrides() => adminSetStatOverrides();
+
+  // ── Admin: aggregate metrics & grants (delegates to the backend) ────────────
+  Future<int> registeredUserCount() => _firebaseService.registeredUserCount();
+  Future<int> activeUserCount() => _firebaseService.activeUserCount();
+  Future<int> paidUserCount() => _firebaseService.paidUserCount();
+  Future<Map<String, int>?> purgeDeletedUsers() =>
+      _firebaseService.purgeDeletedUsers();
+  Future<String> grantAdminByEmail(String email) =>
+      _firebaseService.grantAdminByEmail(email);
+  Future<String> sendStudyReminderByEmail(String email) =>
+      _firebaseService.sendStudyReminderByEmail(email);
+  Future<void> revokeAdmin(String uid) => _firebaseService.revokeAdmin(uid);
+  Stream<List<Map<String, dynamic>>> adminsStream() =>
+      _firebaseService.adminsStream();
 
   void switchTab(int index) {
     _currentTabIndex = index;

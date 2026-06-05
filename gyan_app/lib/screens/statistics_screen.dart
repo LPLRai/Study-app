@@ -201,7 +201,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           _miniStat(_range == _Range.daily ? 'Total today' : 'Daily avg',
               _fmt(avgSec), t),
           _vDivider(t),
-          _miniStat('All-time', _fmt(prov.totalSecondsAllTime), t),
+          _miniStat('All-time', _fmt(prov.displayTotalSeconds), t),
         ]),
       ]),
     );
