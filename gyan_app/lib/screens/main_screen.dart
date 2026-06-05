@@ -24,8 +24,15 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late PageController _pageController;
 
+  // The tab the PageController is already aligned with. Used so we only drive
+  // an animation on a real (external) tab change — never mid-swipe, which is
+  // what made switching feel choppy.
+  int _syncedIndex = 0;
+
   // Vibrant violet accent used for the selected nav pill (matches the design).
   static const _accent = Color(0xFF7C5CFF);
+  static const _switchDuration = Duration(milliseconds: 320);
+  static const _switchCurve = Curves.easeOutCubic;
 
   // Tab definitions — order matters and maps 1:1 to [_pages].
   static const List<_NavTab> _tabs = [
@@ -40,6 +47,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     final initialTab = context.read<AppProvider>().currentTabIndex;
+    _syncedIndex = initialTab;
     _pageController = PageController(initialPage: initialTab);
   }
 
@@ -50,11 +58,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onTabTapped(int index, AppProvider prov) {
+    if (index == prov.currentTabIndex) return;
+    _syncedIndex = index; // we drive this animation ourselves
     prov.switchTab(index);
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
+      duration: _switchDuration,
+      curve: _switchCurve,
     );
   }
 
@@ -64,13 +74,21 @@ class _MainScreenState extends State<MainScreen> {
     final t        = prov.appTheme;
     final tabIndex = prov.currentTabIndex;
 
-    // Sync PageController with external tab changes (e.g. from Home's "Quick Start")
-    if (_pageController.hasClients && _pageController.page?.round() != tabIndex) {
-      _pageController.animateToPage(
-        tabIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
+    // Only animate on a real external tab change (e.g. Home's "Quick Start").
+    // Done after the frame so it never competes with an in-progress swipe —
+    // that competition was what made switching feel choppy.
+    if (tabIndex != _syncedIndex) {
+      _syncedIndex = tabIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients) return;
+        if (_pageController.page?.round() != tabIndex) {
+          _pageController.animateToPage(
+            tabIndex,
+            duration: _switchDuration,
+            curve: _switchCurve,
+          );
+        }
+      });
     }
 
     return Scaffold(
@@ -78,6 +96,7 @@ class _MainScreenState extends State<MainScreen> {
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
+          _syncedIndex = index; // keep in sync so we don't re-animate a swipe
           if (prov.currentTabIndex != index) {
             prov.switchTab(index);
           }
@@ -103,16 +122,16 @@ class _MainScreenState extends State<MainScreen> {
           // Row (not Center/Align) so the bar wraps its own height instead of
           // expanding to fill the loose constraints the bottom-nav slot gives.
           return Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 14),
+            padding: const EdgeInsets.only(top: 6, bottom: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
                   width: barWidth,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                   decoration: BoxDecoration(
                     color: t.navBar,
-                    borderRadius: BorderRadius.circular(32),
+                    borderRadius: BorderRadius.circular(30),
                     border: Border.all(color: t.cardBorder, width: 1),
                     boxShadow: [
                       BoxShadow(
@@ -154,7 +173,9 @@ class _MainScreenState extends State<MainScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
-        height: 46,
+        height: 44,
+        // Unselected tabs are just a tight icon; the selected one expands to
+        // reveal its label — so the bar stays compact until you're on a page.
         padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 10),
         decoration: BoxDecoration(
           color: selected
@@ -162,13 +183,13 @@ class _MainScreenState extends State<MainScreen> {
               : (t.isDark
                   ? Colors.white.withOpacity(0.05)
                   : Colors.black.withOpacity(0.04)),
-          borderRadius: BorderRadius.circular(23),
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             leading,
-            // Label is only revealed for the selected tab.
+            // Label is only revealed once you're on (selected) the tab.
             AnimatedSize(
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,

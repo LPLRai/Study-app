@@ -2,9 +2,10 @@
 // widgets/profile_avatar.dart
 //
 // Returns the image child for a circular profile avatar.
-//   • Cloud URL (http…)  → Image.network  (the new, account-scoped path)
-//   • Legacy local path  → Image.file     (kept for backward compatibility)
-//   • Otherwise          → fallback icon
+//   • Bundled asset (assets/…) → Image.asset   (the current, developer-curated path)
+//   • Cloud URL (http…)        → Image.network (legacy / backward compatibility)
+//   • Legacy local path        → Image.file    (backward compatibility)
+//   • Otherwise                → fallback icon
 // Wrap the result in a ClipOval.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,14 @@ Widget profileImageChild(
   required double iconSize,
 }) {
   if (path != null && path.isNotEmpty) {
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => Icon(icon, color: color, size: iconSize),
+      );
+    }
     if (path.startsWith('http')) {
       return Image.network(
         path,

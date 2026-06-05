@@ -49,7 +49,7 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
     if (seconds <= 0) return '';
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
-    if (h > 0) return m > 0 ? '${h}h${m}' : '${h}h';
+    if (h > 0) return m > 0 ? '${h}h$m' : '${h}h';
     return '${m}m';
   }
 
@@ -57,7 +57,6 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(builder: (context, prov, _) {
       final t = prov.appTheme;
-      final studied = prov.studiedDays; // computed once
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
@@ -138,7 +137,7 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
                           .toList(),
                     ),
                     const SizedBox(height: 6),
-                    _grid(prov, t, studied, today),
+                    _grid(prov, t, today),
                   ]),
                 ),
                 const SizedBox(height: 16),
@@ -158,8 +157,7 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
   }
 
   // ── Calendar grid ───────────────────────────────────────────────────────────
-  Widget _grid(AppProvider prov, AppThemeData t, Set<DateTime> studied,
-      DateTime today) {
+  Widget _grid(AppProvider prov, AppThemeData t, DateTime today) {
     final daysInMonth = DateUtils.getDaysInMonth(_month.year, _month.month);
     final leading = _month.weekday - 1; // Monday-first offset
     final cells = leading + daysInMonth;
@@ -177,7 +175,7 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
         final dayNum = i - leading + 1;
         if (dayNum < 1 || dayNum > daysInMonth) return const SizedBox.shrink();
         final day = DateTime(_month.year, _month.month, dayNum);
-        final isStudied = studied.contains(day);
+        final isStudied = prov.isStreakDay(day);
         final isToday = _sameDay(day, today);
         final isFuture = day.isAfter(today);
         final secs = isStudied
