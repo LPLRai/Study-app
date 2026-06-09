@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // screens/quiz_screen.dart
-// AI-powered Quiz Generator — Gemini + Groq
+// AI-powered Quiz Generator — Groq
 // Themed: uses AppProvider.appTheme for dark/light mode
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -154,6 +154,57 @@ class _QuizScreenState extends State<QuizScreen> {
         _        => const Color(0xFFED4245),
       };
 
+  bool _isGibberish(String text) {
+    final clean = text.trim().toLowerCase();
+    if (clean.length < 2) return true;
+
+    // Check if it consists only of repetitive characters
+    final allAlpha = clean.replaceAll(RegExp(r'[^a-z]'), '');
+    if (allAlpha.isEmpty) return true;
+
+    // Check if it's just random digits or symbols
+    final alphanumeric = clean.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (alphanumeric.length < 2) return true;
+
+    final words = clean.split(RegExp(r'\s+'));
+    for (final word in words) {
+      final alphaOnly = word.replaceAll(RegExp(r'[^a-z]'), '');
+      if (alphaOnly.isEmpty) continue;
+
+      // No word should have 5+ consecutive consonants (with 'y' as vowel)
+      int consecutiveConsonants = 0;
+      int maxConsonants = 0;
+      for (int i = 0; i < alphaOnly.length; i++) {
+        if ('aeiouy'.contains(alphaOnly[i])) {
+          consecutiveConsonants = 0;
+        } else {
+          consecutiveConsonants++;
+          if (consecutiveConsonants > maxConsonants) {
+            maxConsonants = consecutiveConsonants;
+          }
+        }
+      }
+      if (maxConsonants >= 5) return true;
+
+      // Words longer than 3 chars must contain at least one vowel
+      final vowels = alphaOnly.replaceAll(RegExp(r'[^aeiouy]'), '');
+      if (vowels.isEmpty && alphaOnly.length > 3) return true;
+    }
+
+    // Check vowel/consonant ratio for longer words
+    final vowelsCount = allAlpha.replaceAll(RegExp(r'[^aeiouy]'), '').length;
+    final vowelRatio = vowelsCount / allAlpha.length;
+    if (allAlpha.length >= 6 && (vowelRatio < 0.15 || vowelRatio > 0.85)) {
+      return true;
+    }
+
+    // Unique character check
+    final uniqueChars = allAlpha.split('').toSet();
+    if (allAlpha.length >= 6 && uniqueChars.length < 3) return true;
+
+    return false;
+  }
+
   Future<void> _generate() async {
     final topic = _topicCtrl.text.trim();
     if (topic.isEmpty) {
@@ -161,11 +212,7 @@ class _QuizScreenState extends State<QuizScreen> {
       return;
     }
 
-    // Anti-gibberish validation
-    final letters = topic.replaceAll(RegExp(r'[^a-zA-Z]'), '');
-    final vowels = topic.replaceAll(RegExp(r'[^aeiouyAEIOUY]'), '');
-    final uniqueChars = topic.replaceAll(RegExp(r'\s+'), '').split('').toSet();
-    if (topic.length < 2 || letters.length < 2 || vowels.isEmpty || uniqueChars.length < 2) {
+    if (_isGibberish(topic)) {
       setState(() => _error = 'Please enter a valid topic (e.g. Photosynthesis, World War II).');
       return;
     }
