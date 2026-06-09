@@ -23,6 +23,9 @@ void overlayMain() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Use the bundled Inder font (google_fonts/Inder-Regular.ttf) instead of
+  // downloading it at runtime — removes the first-launch network fetch + flash.
+  GoogleFonts.config.allowRuntimeFetching = false;
   await dotenv.load(fileName: ".env");
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

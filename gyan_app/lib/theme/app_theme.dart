@@ -20,20 +20,26 @@ class AppThemeData {
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
   Color get background => isDark
-      ? const Color(0xFF1C1C20)
+      ? const Color(0xFF202225)
       : const Color(0xFFF0F0F7);
 
   Color get widgetBg => isDark
-      ? const Color(0xFF353536)
+      ? const Color(0xFF2B2B30)
       : const Color(0xFFFFFFFF);
 
   Color get inputBg => isDark
-      ? const Color(0xFF353536)
+      ? const Color(0xFF34343A)
       : const Color(0xFFE8E8F0);
 
   Color get navBar => isDark
-      ? const Color(0xFF353536)
+      ? const Color(0xFF2B2B30)
       : const Color(0xFFFFFFFF);
+
+  // ── Brand accent (single source of truth for the whole app) ─────────────────
+  // One consistent accent in both modes — readable with white text everywhere.
+  // Change these two lines to re-theme every accent in the app at once.
+  Color get accent => const Color(0xFF5865F2);
+  Color get onAccent => Colors.white;
 
   // ── Text ───────────────────────────────────────────────────────────────────
   Color get textPrimary => isDark

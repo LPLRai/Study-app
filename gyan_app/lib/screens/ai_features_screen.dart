@@ -25,7 +25,7 @@ class _AiFeaturesScreenState extends State<AiFeaturesScreen> {
   // 0 = Quiz, 1 = Scan
   int _sub = 0;
 
-  static const _accent = Color(0xFF7C5CFF);
+  static const _accent = Color(0xFF5865F2);
 
   @override
   Widget build(BuildContext context) {

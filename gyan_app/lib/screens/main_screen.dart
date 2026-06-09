@@ -29,8 +29,8 @@ class _MainScreenState extends State<MainScreen> {
   // what made switching feel choppy.
   int _syncedIndex = 0;
 
-  // Vibrant violet accent used for the selected nav pill (matches the design).
-  static const _accent = Color(0xFF7C5CFF);
+  // Unified app accent (matches the theme accent / AppColors.blue everywhere).
+  static const _accent = Color(0xFF5865F2);
   static const _switchDuration = Duration(milliseconds: 320);
   static const _switchCurve = Curves.easeOutCubic;
 
