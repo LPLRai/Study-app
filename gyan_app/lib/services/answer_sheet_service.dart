@@ -197,22 +197,25 @@ You are an expert academic evaluator. Your job is to analyze OCR text from stude
 Return ONLY a valid JSON object matching the schema the user provides.
 No markdown fences. No prose outside JSON. No trailing commas.
 
-OCR ERROR HANDLING (IMPORTANT):
-The answer text comes from imperfect OCR and may contain misread characters, broken or merged words, missing punctuation, or jumbled math/science symbols. BEFORE grading, intelligently reconstruct what the student most likely intended to write, using subject context and surrounding words. NEVER penalize the student for OCR artifacts, spacing, formatting, or character-recognition mistakes — grade the underlying intended answer, not the raw OCR noise.
+OCR ERROR HANDLING & INTENT RECONSTRUCTION (CRITICAL):
+- The input answer text is extracted via OCR and is highly prone to errors, missing characters, typos, run-together words, or weird spacing (e.g. "neutns secnd ly" instead of "Newton's second law", or "photsnthsis" instead of "photosynthesis").
+- BEFORE grading, compare the student's answer with subject expectations or the provided Answer Key. Intelligently reconstruct what the student intended to write.
+- NEVER penalize the student for spelling, grammar, punctuation, transcription, or OCR mistakes. Grade the conceptual understanding demonstrated. If they got the core concept right, award full marks (or near full marks depending on strictness).
 
-COMPLETENESS RULE (CRITICAL):
-You MUST evaluate EVERY question present in the sheet. First identify ALL question markers (e.g. "Q1", "1.", "1)", "a)", "(i)", "Question 2", etc.), then output exactly one entry per question in "questionBreakdown" — in order. NEVER skip, merge, drop, or summarize away questions. If a question's answer is blank or unreadable, still include it with scoreAwarded 0 and feedback saying it appeared blank/unreadable. The number of entries in questionBreakdown MUST equal the number of questions detected.
+GRADING STRICTNESS GUIDELINES:
+1. "lenient": Focus entirely on conceptual correctness. Ignore spelling, syntax, incomplete wording, or bad formatting. Award full marks if the student has the correct core idea.
+2. "moderate": Balanced grading. Expect main points and core details to be present, but allow synonyms and phrasing variations. Award partial marks generously.
+3. "strict": Rigorous grading. Check for precise terms, steps, formulas, or definitions as expected in standard textbooks or the answer key. Deduct for vague details.
 
-GRADING STRICTNESS GUIDELINES (apply to EVERY question's marks):
-1. "lenient": Focus heavily on conceptual understanding. Grant generous partial marks if the student has the correct core idea. Do not penalize for spelling, grammar, phrasing, or OCR reading errors.
-2. "moderate": Apply standard, balanced academic grading. Expect main points to be correct, but allow minor wording variations. Grant fair partial credit for partially correct answers.
-3. "strict": Grade rigorously and precisely. Check for exact key terms, formulas, steps, or definitions. Expect high accuracy and complete details for full marks; deduct for any missing or vague detail.
+NO ARTIFICIAL MARKS CAPPING:
+- Do NOT artificially restrict, cap, or limit the student's marks (e.g. capping at 60%). If the student answers a question correctly, award full marks (up to 100% of the question's value). Be fair and objective.
 
-CRITICAL SCORE ASSIGNMENT RULE:
-- Do NOT artificially cap or restrict the student's score or grade (e.g. limit to 60%). If the student answers everything correctly according to the strictness level, they should receive up to 100%. Evaluate the student's work fairly and objectively. Assign marks out of the total marks provided.
-
-OUTPUT BUDGET:
-- Keep every "feedback" string concise (1-2 sentences) so that ALL questions fit in the response without being cut off. Brevity per question matters less than covering every question.
+COMPLETENESS & QUESTION BREAKDOWN:
+- Identify EVERY question in the answer sheet. Do not skip or combine questions.
+- For each question in the breakdown:
+  1. Reconstruct the clean, corrected text of the student's answer in 'detectedAnswer' (do not just copy-paste raw OCR errors).
+  2. For 'maxScore', allocate marks so that the sum of 'maxScore' for all questions in the breakdown exactly equals the total marks provided.
+  3. 'feedback' must be highly specific, actionable, and detail-oriented. Explain exactly what was correct, what key terms or formulas were missing or wrong, and how to improve. Avoid generic praise like "Well done".
 ''';
 
     final user = '''
@@ -228,13 +231,13 @@ Strictness   : ${params.strictness.toUpperCase()}
 ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.rubric != null ? 'Rubric:\n${params.rubric}\n' : ''}
 
 ### EVALUATION INSTRUCTIONS
-1. First, reconstruct the OCR text into the student's intended answers (fixing obvious OCR errors), then identify EVERY question and match each answer to it.
-2. Grade strictly according to the Strictness level (${params.strictness.toUpperCase()}) — apply it to each individual question's partial credit, not just the overall score.
-3. 'questionBreakdown' MUST contain one entry for EVERY question detected, in order — do not skip or merge any. If N questions exist, output N entries.
-4. For the overall score, do not artificially cap it; assign the fair percentage (0-100) based on performance across ALL questions.
-5. Calculate 'estimatedMarks' proportionally to 'overallScore' out of total ${params.totalMarks} marks (it should equal the sum of all 'scoreAwarded' values).
-6. Keep each 'feedback' to 1-2 concise sentences (what was right/wrong + what was missed) so every question fits.
-7. Suggest highly specific subtopics or concepts for revision in 'recommendedTopics' (e.g. "Reactions of Mitochondria in Cellular Respiration" instead of just "Biology").
+1. Reconstruct the OCR text to understand the student's intended answers, resolving any character/spelling errors.
+2. Identify EVERY question on the sheet. Ensure 'questionBreakdown' has exactly one entry per question, in order.
+3. Distribute the total marks (${params.totalMarks}) among all questions. The sum of 'maxScore' across all questions MUST equal ${params.totalMarks}.
+4. Grade each question according to the strictness level (${params.strictness.toUpperCase()}). Do not artificially cap the overall score or individual question scores.
+5. In 'questionBreakdown', make sure 'detectedAnswer' is the clean, reconstructed student answer. 'feedback' must explain exactly what was correct/incorrect/missing and how to improve for that question specifically.
+6. Provide a highly specific list of topics/concepts for revision in 'recommendedTopics'. Do NOT write broad subjects (e.g., do not write "Biology" or "Physics"). Instead, list micro-concepts (e.g., "Reactions of Mitochondria in Cellular Respiration", "Applying Newton's Second Law to Friction").
+7. Ensure 'estimatedMarks' is equal to the sum of all 'scoreAwarded' values, and 'overallScore' equals (estimatedMarks / ${params.totalMarks}) * 100.
 
 ### RESPOND ONLY WITH THIS JSON SCHEMA
 {
@@ -251,7 +254,7 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
       "detectedAnswer": "<student snippet>",
       "scoreAwarded": <number>,
       "maxScore": <number>,
-      "feedback": "<specific feedback>"
+      "feedback": "<specific detailed feedback>"
     }
   ],
   "skillsAssessment": {
@@ -294,7 +297,11 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
     final clean = raw.replaceAll(RegExp(r'```json|```'), '').trim();
 
     try {
-      return AIFeedback.fromJson(jsonDecode(clean) as Map<String, dynamic>);
+      return AIFeedback.fromJson(
+        jsonDecode(clean) as Map<String, dynamic>,
+        totalMarks: params.totalMarks,
+        passingMarks: params.passingMarks,
+      );
     } catch (e) {
       throw AnalysisException('Parse error: $e\n---\n$clean');
     }
@@ -406,22 +413,64 @@ class AIFeedback {
     required this.teacherNote,
   });
 
-  factory AIFeedback.fromJson(Map<String, dynamic> j) => AIFeedback(
-        overallScore:      (j['overallScore']   as num).toDouble(),
-        estimatedMarks:    (j['estimatedMarks'] as num).toDouble(),
-        grade:             j['grade']   as String,
-        passed:            j['passed']  as bool,
-        summary:           j['summary'] as String,
-        strengths:         List<String>.from(j['strengths']    ?? []),
-        improvements:      List<String>.from(j['improvements'] ?? []),
-        questionBreakdown: (j['questionBreakdown'] as List? ?? [])
-            .map((q) => QuestionFeedback.fromJson(q as Map<String, dynamic>))
-            .toList(),
-        skillsAssessment: SkillsAssessment.fromJson(
-            j['skillsAssessment'] as Map<String, dynamic>? ?? {}),
-        recommendedTopics: List<String>.from(j['recommendedTopics'] ?? []),
-        teacherNote:       j['teacherNote'] as String? ?? '',
-      );
+  factory AIFeedback.fromJson(Map<String, dynamic> j, {int? totalMarks, int? passingMarks}) {
+    final rawBreakdown = (j['questionBreakdown'] as List? ?? [])
+        .map((q) => QuestionFeedback.fromJson(q as Map<String, dynamic>))
+        .toList();
+
+    double calculatedAwarded = 0;
+    double calculatedMax = 0;
+    for (final q in rawBreakdown) {
+      calculatedAwarded += q.scoreAwarded;
+      calculatedMax += q.maxScore;
+    }
+
+    double overallScore = (j['overallScore'] as num?)?.toDouble() ?? 0.0;
+    double estimatedMarks = (j['estimatedMarks'] as num?)?.toDouble() ?? 0.0;
+    bool passed = j['passed'] as bool? ?? false;
+    String grade = j['grade'] as String? ?? 'F';
+
+    if (calculatedMax > 0) {
+      overallScore = (calculatedAwarded / calculatedMax) * 100.0;
+      if (totalMarks != null) {
+        estimatedMarks = (calculatedAwarded / calculatedMax) * totalMarks;
+      } else {
+        estimatedMarks = calculatedAwarded;
+      }
+      if (passingMarks != null) {
+        passed = estimatedMarks >= passingMarks;
+      } else {
+        passed = j['passed'] as bool? ?? (estimatedMarks >= 40.0);
+      }
+
+      if (overallScore >= 90.0) {
+        grade = 'A';
+      } else if (overallScore >= 80.0) {
+        grade = 'B';
+      } else if (overallScore >= 70.0) {
+        grade = 'C';
+      } else if (overallScore >= 60.0) {
+        grade = 'D';
+      } else {
+        grade = 'F';
+      }
+    }
+
+    return AIFeedback(
+      overallScore:      overallScore,
+      estimatedMarks:    estimatedMarks,
+      grade:             grade,
+      passed:            passed,
+      summary:           j['summary'] as String? ?? '',
+      strengths:         List<String>.from(j['strengths']    ?? []),
+      improvements:      List<String>.from(j['improvements'] ?? []),
+      questionBreakdown: rawBreakdown,
+      skillsAssessment: SkillsAssessment.fromJson(
+          j['skillsAssessment'] as Map<String, dynamic>? ?? {}),
+      recommendedTopics: List<String>.from(j['recommendedTopics'] ?? []),
+      teacherNote:       j['teacherNote'] as String? ?? '',
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'overallScore':      overallScore,
