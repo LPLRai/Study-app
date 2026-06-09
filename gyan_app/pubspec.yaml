@@ -56,10 +56,5 @@ flutter:
     - .env
     - assets/audio/ # white noise — rain.mp3 / forest.mp3 / cafe.mp3 / ocean.mp3 / fire.mp3
     - assets/avatars/ # profile avatars — avatar_1.png … avatar_10.png
-
-
-  # ── Offline font (optional — only if bundling Inder locally) ─────────
-  # fonts:
-  #   - family: Inder
-  #     fonts:
-  #       - asset: assets/fonts/Inder-Regular.ttf
+    - google_fonts/ # bundled Inder font — google_fonts uses this instead of
+                    # fetching at runtime (see GoogleFonts.config in main.dart)

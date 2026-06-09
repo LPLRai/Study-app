@@ -349,22 +349,37 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
+  /// Fast startup: only Firebase core + locally-cached data (SharedPreferences)
+  /// are awaited, so the first frame appears almost immediately. Every
+  /// network-bound task (Firestore sync, admin status, presence, push, groups)
+  /// runs in the background via [_initRemote] and refreshes the UI when ready —
+  /// this is what keeps cold start from hanging on slow network round-trips.
   Future<void> init() async {
-    await _initBackend();
-    await _load();
-    if (_remoteBackendReady) {
-      await _loadRemoteData();
-    }
-    await _loadActiveTimer();
+    await _initBackend();     // Firebase core only — needed for the auth gate
+    await _load();            // cached subjects/sessions/theme — instant UI data
+    await _loadActiveTimer(); // in-progress timer (local prefs, no network)
     _checkStreakReset();
     _scheduleMidnightRollover();
-    if (_remoteBackendReady) {
-      _subscribeGroups();
-      _firebaseService.ensureEmailIndex(); // make me findable by email
-      await _loadAdminStatus(); // load granted-admin flag for this account
-      _firebaseService.touchPresence(); // heartbeat for the active-users metric
-      PushService.instance.init(); // register for push notifications
-    }
+    notifyListeners();        // UI can render right now with cached data
+
+    // Fire-and-forget: do NOT await — keeps the first frame from blocking.
+    _initRemote();
+  }
+
+  /// Network-bound startup. Runs after the first frame so launch never waits on
+  /// it; calls notifyListeners() once the freshest data has synced.
+  Future<void> _initRemote() async {
+    if (!_remoteBackendReady) return;
+    try {
+      await _loadRemoteData();
+    } catch (_) {}
+    try {
+      await _loadAdminStatus();
+    } catch (_) {}
+    _subscribeGroups();
+    _firebaseService.ensureEmailIndex(); // make me findable by email
+    _firebaseService.touchPresence();    // heartbeat for the active-users metric
+    PushService.instance.init();         // register for push notifications
     notifyListeners();
   }
 

@@ -197,13 +197,22 @@ You are an expert academic evaluator. Your job is to analyze OCR text from stude
 Return ONLY a valid JSON object matching the schema the user provides.
 No markdown fences. No prose outside JSON. No trailing commas.
 
-GRADING STRICTNESS GUIDELINES:
+OCR ERROR HANDLING (IMPORTANT):
+The answer text comes from imperfect OCR and may contain misread characters, broken or merged words, missing punctuation, or jumbled math/science symbols. BEFORE grading, intelligently reconstruct what the student most likely intended to write, using subject context and surrounding words. NEVER penalize the student for OCR artifacts, spacing, formatting, or character-recognition mistakes — grade the underlying intended answer, not the raw OCR noise.
+
+COMPLETENESS RULE (CRITICAL):
+You MUST evaluate EVERY question present in the sheet. First identify ALL question markers (e.g. "Q1", "1.", "1)", "a)", "(i)", "Question 2", etc.), then output exactly one entry per question in "questionBreakdown" — in order. NEVER skip, merge, drop, or summarize away questions. If a question's answer is blank or unreadable, still include it with scoreAwarded 0 and feedback saying it appeared blank/unreadable. The number of entries in questionBreakdown MUST equal the number of questions detected.
+
+GRADING STRICTNESS GUIDELINES (apply to EVERY question's marks):
 1. "lenient": Focus heavily on conceptual understanding. Grant generous partial marks if the student has the correct core idea. Do not penalize for spelling, grammar, phrasing, or OCR reading errors.
 2. "moderate": Apply standard, balanced academic grading. Expect main points to be correct, but allow minor wording variations. Grant fair partial credit for partially correct answers.
-3. "strict": Grade rigorously and precisely. Check for exact key terms, formulas, steps, or definitions. Expect high accuracy and complete details for full marks.
+3. "strict": Grade rigorously and precisely. Check for exact key terms, formulas, steps, or definitions. Expect high accuracy and complete details for full marks; deduct for any missing or vague detail.
 
 CRITICAL SCORE ASSIGNMENT RULE:
 - Do NOT artificially cap or restrict the student's score or grade (e.g. limit to 60%). If the student answers everything correctly according to the strictness level, they should receive up to 100%. Evaluate the student's work fairly and objectively. Assign marks out of the total marks provided.
+
+OUTPUT BUDGET:
+- Keep every "feedback" string concise (1-2 sentences) so that ALL questions fit in the response without being cut off. Brevity per question matters less than covering every question.
 ''';
 
     final user = '''
@@ -219,15 +228,13 @@ Strictness   : ${params.strictness.toUpperCase()}
 ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.rubric != null ? 'Rubric:\n${params.rubric}\n' : ''}
 
 ### EVALUATION INSTRUCTIONS
-1. Analyze the OCR text. Identify individual student answers and match them to questions.
-2. Grade based on the Strictness level (${params.strictness.toUpperCase()}).
-3. For the overall score, do not artificially cap it; assign the fair percentage (0-100) based on performance.
-4. Calculate 'estimatedMarks' proportionally to 'overallScore' out of total ${params.totalMarks} marks.
-5. In 'questionBreakdown', detail each question. For 'feedback', clearly explain:
-   - What the student wrote.
-   - What was correct/incorrect.
-   - Specifically what they missed or how partial credit was calculated.
-6. Suggest highly specific subtopics or concepts for revision in 'recommendedTopics' (e.g. "Reactions of Mitochondria in Cellular Respiration" instead of just "Biology").
+1. First, reconstruct the OCR text into the student's intended answers (fixing obvious OCR errors), then identify EVERY question and match each answer to it.
+2. Grade strictly according to the Strictness level (${params.strictness.toUpperCase()}) — apply it to each individual question's partial credit, not just the overall score.
+3. 'questionBreakdown' MUST contain one entry for EVERY question detected, in order — do not skip or merge any. If N questions exist, output N entries.
+4. For the overall score, do not artificially cap it; assign the fair percentage (0-100) based on performance across ALL questions.
+5. Calculate 'estimatedMarks' proportionally to 'overallScore' out of total ${params.totalMarks} marks (it should equal the sum of all 'scoreAwarded' values).
+6. Keep each 'feedback' to 1-2 concise sentences (what was right/wrong + what was missed) so every question fits.
+7. Suggest highly specific subtopics or concepts for revision in 'recommendedTopics' (e.g. "Reactions of Mitochondria in Cellular Respiration" instead of just "Biology").
 
 ### RESPOND ONLY WITH THIS JSON SCHEMA
 {
@@ -267,7 +274,10 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
       body: jsonEncode({
         'model':       _groqModel,
         'temperature': 0.2,
-        'max_tokens':  3500,
+        // Large budget so multi-question sheets are never truncated mid-JSON
+        // (the old 3500 cap was cutting off the questionBreakdown array).
+        'max_tokens':  8000,
+        'response_format': {'type': 'json_object'},
         'messages': [
           {'role': 'system', 'content': system},
           {'role': 'user',   'content': user},

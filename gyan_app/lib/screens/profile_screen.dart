@@ -29,8 +29,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editMode = false;
 
-  // Matches the new nav-bar accent for a cohesive look.
-  static const _accent = Color(0xFF7C5CFF);
+  // Unified app accent (matches the theme accent everywhere).
+  static const _accent = Color(0xFF5865F2);
   static const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   late TextEditingController _nameCtrl;
