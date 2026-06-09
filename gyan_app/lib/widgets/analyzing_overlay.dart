@@ -98,13 +98,13 @@ class _AnalyzingOverlayState extends State<AnalyzingOverlay>
                             height: 64,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: const Color(0xFF6C63FF).withOpacity(0.15),
+                              color: const Color(0xFF5865F2).withOpacity(0.15),
                               border: Border.all(
-                                  color: const Color(0xFF6C63FF), width: 2),
+                                  color: const Color(0xFF5865F2), width: 2),
                             ),
                             child: const Icon(
                               Icons.psychology_rounded,
-                              color: Color(0xFF6C63FF),
+                              color: Color(0xFF5865F2),
                               size: 32,
                             ),
                           ),
@@ -161,7 +161,7 @@ class _AnalyzingOverlayState extends State<AnalyzingOverlay>
                     value: value,
                     minHeight: 6,
                     backgroundColor: const Color(0xFF2E3147),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF6C63FF)),
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFF5865F2)),
                   ),
                 ),
               ),
@@ -174,7 +174,7 @@ class _AnalyzingOverlayState extends State<AnalyzingOverlay>
                 builder: (_, v, __) => Text(
                   '${(v * 100).toInt()}%',
                   style: const TextStyle(
-                    color: Color(0xFF6C63FF),
+                    color: Color(0xFF5865F2),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -218,7 +218,7 @@ class _StepIndicators extends StatelessWidget {
         final active = _isActive(s);
 
         Color col = done
-            ? const Color(0xFF6C63FF)
+            ? const Color(0xFF5865F2)
             : active
                 ? Colors.white
                 : const Color(0xFF3D4159);
@@ -256,7 +256,7 @@ class _OrbitPainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     final dotPaint = Paint()
-      ..color = const Color(0xFF6C63FF)
+      ..color = const Color(0xFF5865F2)
       ..style = PaintingStyle.fill;
 
     // Outer orbit
@@ -270,7 +270,7 @@ class _OrbitPainter extends CustomPainter {
     final angle2 = 2 * pi * (1 - t * 1.6);
     canvas.drawCircle(
         Offset(cx + 36 * cos(angle2), cy + 36 * sin(angle2)), 4,
-        dotPaint..color = const Color(0xFF6C63FF).withOpacity(0.5));
+        dotPaint..color = const Color(0xFF5865F2).withOpacity(0.5));
   }
 
   @override

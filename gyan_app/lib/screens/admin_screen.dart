@@ -26,7 +26,7 @@ import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 
-const _accent = Color(0xFF7C5CFF);
+const _accent = Color(0xFF5865F2);
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
