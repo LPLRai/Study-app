@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GYAN - Guide Your Academic Needs</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo-icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+    :root {
+      --accent: #5865F2;
+      --accent-light: #6E7BF7;
+      --green: #57F287;
+      --yellow: #FFFF00;
+      --red: #ED4245;
+      --orange: #FF8C00;
+    }
+
+    /* ── DARK THEME (default) ─────────────────────────────── */
+    [data-theme="dark"] {
+      --bg: #131416;
+      --bg-deep: #0F1012;
+      --widget-bg: #1A1B1F;
+      --text-primary: #FFFFFF;
+      --text-muted: #8A8A92;
+      --divider: #1E1F23;
+      --card-border: rgba(255,255,255,0.06);
+      --nav-bg: rgba(15,16,18,0.88);
+      --phone-border: #2A2A30;
+      --phone-shadow: rgba(0,0,0,0.35);
+      --logo-fill: #FFFFFF;
+      --btn-secondary-bg: #1A1B1F;
+      --btn-secondary-hover: #242529;
+      /* mockup interior */
+      --mock-bg: #0F1012;
+      --mock-widget: #1A1B1F;
+      --mock-input: #1E1F23;
+      --mock-text: #FFFFFF;
+      --mock-text-muted: #8A8A92;
+      --mock-border: rgba(255,255,255,0.06);
+      --mock-notch: #000000;
+      --mock-label-grad: rgba(15,16,18,0.95);
+    }
+
+    /* ── LIGHT THEME ──────────────────────────────────────── */
+    [data-theme="light"] {
+      --bg: #F0F0F7;
+      --bg-deep: #E8E8F0;
+      --widget-bg: #FFFFFF;
+      --text-primary: #5865F2;
+      --text-muted: #68686E;
+      --divider: #DDDDE6;
+      --card-border: rgba(0,0,0,0.07);
+      --nav-bg: rgba(240,240,247,0.88);
+      --phone-border: #c8c8d4;
+      --phone-shadow: rgba(88,101,242,0.10);
+      --logo-fill: #5865F2;
+      --btn-secondary-bg: #FFFFFF;
+      --btn-secondary-hover: #E8E8F0;
+      /* mockup interior */
+      --mock-bg: #F0F0F7;
+      --mock-widget: #FFFFFF;
+      --mock-input: #E8E8F0;
+      --mock-text: #1A1A22;
+      --mock-text-muted: #68686E;
+      --mock-border: rgba(0,0,0,0.07);
+      --mock-notch: #1A1A22;
+      --mock-label-grad: rgba(240,240,247,0.95);
+    }
+
+    html { scroll-behavior: smooth }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      transition: background 0.35s, color 0.35s;
+    }
+
+    /* ── LOGO SVG ─────────────────────────────────────────── */
+    .logo-icon {
+      width: 36px; height: 36px;
+      fill: currentColor;
+      color: var(--text-primary);
+      transition: color 0.35s;
+    }
+    .logo-icon-sm { width: 28px; height: 28px; }
+    .hero-logo {
+      width: clamp(240px, 28vw, 340px);
+      height: auto;
+      fill: currentColor;
+      color: var(--text-primary);
+      transition: color 0.35s;
+      margin-bottom: 8px;
+    }
+
+    /* ── NAV ──────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--nav-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--divider);
+      transition: background 0.35s, border-color 0.35s;
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none; color: var(--text-primary);
+    }
+    .nav-logo span { font-size: 20px; font-weight: 800; letter-spacing: 1px; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: var(--text-muted); text-decoration: none; font-size: 14px;
+      font-weight: 500; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+    .nav-cta {
+      background: var(--accent) !important; color: #fff !important;
+      padding: 8px 20px; border-radius: 10px; font-weight: 600 !important;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .nav-cta:hover { background: var(--accent-light) !important; transform: translateY(-1px); }
+
+    /* ── THEME SWITCH ─────────────────────────────────────── */
+    .theme-switch-wrap {
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+    .theme-switch-wrap svg {
+      width: 16px; height: 16px;
+      color: var(--text-muted);
+      transition: color 0.3s, opacity 0.3s;
+    }
+    [data-theme="dark"] .theme-switch-wrap .icon-moon { color: var(--text-primary); opacity: 1; }
+    [data-theme="dark"] .theme-switch-wrap .icon-sun  { opacity: 0.3; }
+    [data-theme="light"] .theme-switch-wrap .icon-sun  { color: var(--accent); opacity: 1; }
+    [data-theme="light"] .theme-switch-wrap .icon-moon { opacity: 0.3; }
+    .theme-switch {
+      position: relative;
+      width: 44px; height: 24px;
+      background: var(--widget-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s, border-color 0.3s;
+      padding: 0; outline: none;
+      flex-shrink: 0;
+    }
+    .theme-switch:hover { border-color: var(--accent); }
+    .theme-switch-knob {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--text-primary);
+      transition: transform 0.3s ease, background 0.3s;
+    }
+    [data-theme="light"] .theme-switch-knob {
+      transform: translateX(20px);
+      background: var(--accent);
+    }
+
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before { display: none; }
+    .hero::after { display: none; }
+    .hero-inner {
+      max-width: 1200px; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+      align-items: center;
+    }
+    .hero-text { position: relative; z-index: 2; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(88,101,242,0.12);
+      border: 1px solid rgba(88,101,242,0.3);
+      border-radius: 20px; padding: 6px 16px;
+      font-size: 13px; font-weight: 600; color: var(--accent-light);
+      margin-bottom: 24px;
+    }
+    .hero-badge svg { width: 16px; height: 16px; }
+    .hero h1 {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 900; line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent) 0%, #8B5CF6 50%, var(--green) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero .slogan {
+      font-size: clamp(18px, 2.5vw, 24px);
+      color: var(--text-muted); font-weight: 500;
+      margin-bottom: 32px;
+    }
+    .hero p.desc {
+      font-size: 16px; color: var(--text-muted);
+      max-width: 480px; margin-bottom: 40px; line-height: 1.7;
+    }
+    .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #fff;
+      padding: 14px 28px; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(88,101,242,0.25);
+    }
+    .btn-primary:hover {
+      background: var(--accent-light);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(88,101,242,0.3);
+    }
+    .btn-primary svg { width: 20px; height: 20px; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--btn-secondary-bg); color: var(--text-primary);
+      padding: 14px 28px; border-radius: 14px;
+      font-size: 16px; font-weight: 600;
+      text-decoration: none; border: 1px solid var(--card-border);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      background: var(--btn-secondary-hover); transform: translateY(-2px);
+    }
+
+    /* ── PHONE MOCKUP ─────────────────────────────────────── */
+    .hero-visual { position: relative; display: flex; justify-content: center; }
+    .phone {
+      width: 280px; height: 580px;
+      background: var(--mock-bg);
+      border-radius: 36px;
+      border: 3px solid var(--phone-border);
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 2px 4px rgba(0,0,0,0.04),
+        0 6px 14px rgba(0,0,0,0.06),
+        0 16px 40px rgba(0,0,0,0.10),
+        0 32px 72px var(--phone-shadow);
+      transition: background 0.35s, border-color 0.35s, box-shadow 0.35s;
+    }
+    .phone-notch {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 28px;
+      background: var(--mock-notch); border-radius: 0 0 16px 16px; z-index: 5;
+    }
+    .phone-screen { padding: 40px 16px 16px; height: 100%; overflow: hidden; color: var(--mock-text); }
+
+    .mock-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .mock-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--mock-widget); border: 1.5px solid var(--mock-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .mock-greeting { flex: 1; color: var(--mock-text); }
+    .mock-greeting small { color: var(--mock-text-muted); font-size: 10px; display: block; }
+    .mock-greeting strong { font-size: 14px; }
+    .mock-bell {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--mock-widget); border: 1.5px solid var(--mock-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .mock-card {
+      background: var(--mock-widget);
+      border-radius: 14px;
+      border: 1px solid var(--mock-border);
+      padding: 14px;
+      margin-bottom: 10px;
+      color: var(--mock-text);
+    }
+    .mock-card-title {
+      font-size: 12px; font-weight: 700; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .streak-row { display: flex; justify-content: space-between; }
+    .streak-day { text-align: center; }
+    .streak-day span { font-size: 9px; color: var(--mock-text-muted); display: block; margin-bottom: 4px; }
+    .streak-dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .streak-dot.done { background: rgba(255,140,0,0.18); border: 1.5px solid var(--orange); color: var(--orange); }
+    .streak-dot.today { background: rgba(88,101,242,0.12); border: 1.5px solid var(--accent); }
+    .streak-dot.future { background: var(--mock-input); border: 1px solid var(--mock-border); }
+    .streak-dot.missed { background: rgba(237,66,69,0.1); border: 1px solid rgba(237,66,69,0.5); color: var(--red); font-size: 10px; }
+    .mock-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mock-stat {
+      background: var(--mock-widget); border-radius: 14px;
+      border: 1px solid var(--mock-border);
+      padding: 12px; color: var(--mock-text);
+    }
+    .mock-stat-icon {
+      width: 26px; height: 26px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; margin-bottom: 8px;
+    }
+    .mock-stat-val { font-size: 28px; font-weight: 800; line-height: 1; }
+    .mock-stat-label { font-size: 9px; color: var(--mock-text-muted); }
+    .mini-bars { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin-top: 6px; }
+    .mini-bar { width: 6px; border-radius: 3px; }
+
+    .phone-secondary {
+      position: absolute;
+      right: -40px; top: 60px;
+      transform: scale(0.85);
+      opacity: 0.7;
+    }
+
+    /* ── FEATURES ──────────────────────────────────────────── */
+    .features {
+      padding: 100px 24px;
+      background: var(--bg-deep);
+      transition: background 0.35s;
+    }
+    .section-inner { max-width: 1200px; margin: 0 auto; }
+    .section-header {
+      text-align: center; margin-bottom: 64px;
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 12px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+    }
+    .section-header h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800; margin-bottom: 16px;
+    }
+    .section-header p {
+      font-size: 16px; color: var(--text-muted); max-width: 560px; margin: 0 auto;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--widget-bg);
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      padding: 32px;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.35s, border-color 0.35s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px var(--phone-shadow);
+    }
+    .feature-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 20px; font-weight: 700; margin-bottom: 10px;
+    }
+    .feature-card p {
+      font-size: 14px; color: var(--text-muted); line-height: 1.7;
+    }
+
+    /* ── APP PREVIEW / SCREENSHOTS ────────────────────────── */
+    .preview {
+      padding: 100px 24px;
+      background: var(--bg);
+      transition: background 0.35s;
+    }
+    .preview-scroll {
+      display: flex; gap: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 64px;
+      padding: 16px 0;
+    }
+    .preview-phone {
+      width: 260px; height: 520px;
+      background: var(--bg);
+      border-radius: 32px;
+      border: 3px solid var(--phone-border);
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: transform 0.3s, background 0.35s, border-color 0.35s;
+    }
+    .preview-phone:hover { transform: scale(1.03); }
+    .preview-phone-screen {
+      padding: 36px 14px 14px;
+      height: 100%;
+      position: relative;
+      color: var(--mock-text);
+    }
+    .preview-phone-notch {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 100px; height: 24px;
+      background: var(--mock-notch); border-radius: 0 0 14px 14px;
+    }
+    .screen-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: none;
+      padding: 16px;
+      text-align: center;
+    }
+    .screen-label span {
+      font-size: 13px; font-weight: 700; color: #fff;
+      background: var(--accent);
+      padding: 6px 14px; border-radius: 8px;
+    }
+
+    .mock-timer-circle {
+      width: 140px; height: 140px; border-radius: 50%;
+      border: 4px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      margin: 24px auto 16px;
+      position: relative;
+    }
+    .mock-timer-circle::before {
+      content: '';
+      position: absolute; inset: -4px;
+      border-radius: 50%;
+      border: 4px solid transparent;
+      border-top-color: var(--green);
+      transform: rotate(-30deg);
+    }
+    .mock-timer-time { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .mock-timer-subject {
+      text-align: center;
+      font-size: 13px; font-weight: 600;
+      color: var(--accent);
+      background: rgba(88,101,242,0.12);
+      padding: 6px 16px; border-radius: 20px;
+      display: inline-block; margin: 0 auto;
+    }
+    .mock-timer-controls {
+      display: flex; justify-content: center; gap: 16px; margin-top: 16px;
+    }
+    .mock-timer-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .mock-ai-toggle {
+      display: flex; background: var(--mock-input); border-radius: 10px;
+      padding: 3px; margin-bottom: 14px;
+    }
+    .mock-ai-tab {
+      flex: 1; text-align: center; padding: 8px;
+      border-radius: 8px; font-size: 11px; font-weight: 600;
+      color: var(--mock-text-muted);
+    }
+    .mock-ai-tab.active {
+      background: var(--accent); color: #fff;
+    }
+    .mock-ai-card {
+      background: var(--mock-widget); border-radius: 12px;
+      border: 1px solid var(--mock-border);
+      padding: 14px; margin-bottom: 10px;
+    }
+    .mock-ai-q {
+      font-size: 11px; font-weight: 600; margin-bottom: 8px;
+    }
+    .mock-ai-option {
+      font-size: 10px; color: var(--mock-text-muted);
+      padding: 6px 10px; border-radius: 8px;
+      background: var(--mock-input); margin-bottom: 4px;
+    }
+    .mock-ai-option.correct {
+      background: rgba(87,242,135,0.12);
+      border: 1px solid rgba(87,242,135,0.3);
+      color: var(--green);
+    }
+
+    .mock-group-item {
+      background: var(--mock-widget); border-radius: 12px;
+      border: 1px solid var(--mock-border);
+      padding: 12px; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .mock-group-avatar {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .mock-group-info { flex: 1; }
+    .mock-group-name { font-size: 12px; font-weight: 700; }
+    .mock-group-meta { font-size: 9px; color: var(--mock-text-muted); }
+    .mock-group-badge {
+      font-size: 9px; font-weight: 700;
+      padding: 3px 8px; border-radius: 6px;
+    }
+
+    .mock-profile-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--mock-widget); border: 2px solid var(--mock-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; margin: 8px auto 8px;
+    }
+    .mock-profile-name {
+      text-align: center; font-size: 15px; font-weight: 700; margin-bottom: 2px;
+    }
+    .mock-profile-grade {
+      text-align: center; font-size: 10px; color: var(--mock-text-muted); margin-bottom: 14px;
+    }
+    .mock-profile-stat-row {
+      display: flex; gap: 8px; margin-bottom: 12px;
+    }
+    .mock-profile-stat {
+      flex: 1; background: var(--mock-widget); border-radius: 10px;
+      border: 1px solid var(--mock-border);
+      padding: 10px; text-align: center;
+    }
+    .mock-profile-stat-val { font-size: 18px; font-weight: 800; }
+    .mock-profile-stat-label { font-size: 8px; color: var(--mock-text-muted); }
+    .mock-profile-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 10px;
+      background: var(--mock-widget);
+      border: 1px solid var(--mock-border);
+      margin-bottom: 6px;
+    }
+    .mock-profile-item-icon { font-size: 14px; }
+    .mock-profile-item-text { font-size: 11px; font-weight: 500; }
+
+    /* ── STATS BANNER ─────────────────────────────────────── */
+    .stats-banner {
+      padding: 80px 24px;
+      background: linear-gradient(135deg, rgba(88,101,242,0.08) 0%, rgba(87,242,135,0.05) 100%);
+      border-top: 1px solid var(--divider);
+      border-bottom: 1px solid var(--divider);
+      transition: border-color 0.35s;
+    }
+    .stats-grid {
+      max-width: 900px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+      text-align: center;
+    }
+    .stat-item h3 {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-item p { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+
+    /* ── CTA / DOWNLOAD ───────────────────────────────────── */
+    .cta-section {
+      padding: 120px 24px;
+      text-align: center;
+      position: relative;
+    }
+    .cta-section::before { display: none; }
+    .cta-section h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 800; margin-bottom: 16px;
+      position: relative; z-index: 2;
+    }
+    .cta-section p {
+      font-size: 16px; color: var(--text-muted);
+      max-width: 500px; margin: 0 auto 40px;
+      position: relative; z-index: 2;
+    }
+    .cta-section .hero-actions {
+      justify-content: center;
+      position: relative; z-index: 2;
+    }
+
+    /* ── TERMS & CONDITIONS ────────────────────────────────── */
+    .terms-section {
+      padding: 80px 24px;
+      background: var(--bg-deep);
+      transition: background 0.35s;
+    }
+    .terms-section h2 {
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 800; margin-bottom: 40px;
+    }
+    .terms-content {
+      max-width: 800px;
+    }
+    .terms-content h3 {
+      font-size: 16px; font-weight: 700;
+      margin: 28px 0 8px; color: var(--text-primary);
+    }
+    .terms-content h3:first-child { margin-top: 0; }
+    .terms-content p {
+      font-size: 14px; color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    /* ── FOOTER ────────────────────────────────────────────── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--divider);
+      transition: border-color 0.35s;
+    }
+    .footer-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-brand {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .footer-brand span { font-weight: 700; font-size: 16px; }
+    .footer-links {
+      display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .footer-links a {
+      color: var(--text-muted); text-decoration: none;
+      font-size: 13px; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--text-primary); }
+    footer p { font-size: 13px; color: var(--text-muted); width: 100%; text-align: center; margin-top: 8px; }
+
+    /* ── MOBILE ────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; text-align: center; }
+      .hero-text { order: 0; }
+      .hero-visual { order: 1; }
+      .hero p.desc { margin-left: auto; margin-right: auto; }
+      .hero-actions { justify-content: center; }
+      .phone-secondary { display: none; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .nav-links-desktop { display: none; }
+      .preview-scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 16px 24px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+      .preview-phone { scroll-snap-align: center; }
+      .preview-phone:hover { transform: none; }
+    }
+    @media (min-width: 901px) {
+      .nav-links-mobile { display: none; }
+    }
+    @media (max-width: 480px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .phone { width: 240px; height: 500px; }
+      .phone .mock-card { padding: 10px; }
+      .phone .streak-dot { width: 22px; height: 22px; font-size: 10px; }
+      .phone .streak-day span { font-size: 8px; }
+      .phone .mock-stat-icon { width: 22px; height: 22px; font-size: 10px; margin-bottom: 6px; }
+      .phone .mock-stat-val { font-size: 22px; }
+      .phone .phone-screen { padding: 36px 12px 12px; }
+    }
+
+    /* ── ANIMATIONS ────────────────────────────────────────── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .phone-primary { animation: float 5s ease-in-out infinite; }
+
+    .fade-in {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    .nav-bottom-bar { display: none; }
+    @media (max-width: 900px) {
+      .nav-bottom-bar {
+        display: flex;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: var(--nav-bg);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid var(--divider);
+        z-index: 100;
+        padding: 8px 0;
+        justify-content: center; gap: 8px;
+        transition: background 0.35s, border-color 0.35s;
+      }
+      .nav-bottom-bar a {
+        color: var(--text-muted); text-decoration: none;
+        font-size: 11px; font-weight: 600;
+        padding: 6px 16px; border-radius: 8px;
+        transition: all 0.2s;
+      }
+      .nav-bottom-bar a:hover { color: var(--text-primary); background: var(--widget-bg); }
+      .cta-section, .preview, .features { padding-bottom: 120px; }
+      footer { padding-bottom: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SVG SYMBOL DEFINITIONS -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-gyan" viewBox="184 364 4594 2780">
+      <path fill-rule="nonzero" d="M2325.763,2964.209c-92.415,-19.456 -156.862,-51.071 -313.117,-153.823c-102.143,-67.487 -270.558,-152.607 -370.877,-188.478c-216.446,-77.215 -436.54,-108.831 -713.177,-102.752c-117.343,3.04 -122.814,2.432 -112.478,-7.904c13.376,-12.768 91.199,-32.223 200.639,-49.247c114.911,-17.632 418.908,-20.064 519.835,-3.648c193.342,31.615 331.357,78.431 556.315,187.87c182.399,89.375 233.47,103.967 360.541,104.575c124.031,0 151.999,-10.336 318.588,-120.383c170.846,-112.478 285.757,-171.455 450.524,-231.038c237.725,-85.727 429.244,-116.735 802.552,-130.718c402.492,-15.2 473.627,-26.144 589.146,-91.199c61.407,-34.656 83.296,-37.696 98.495,-15.2c30.4,46.208 -34.656,170.238 -118.559,226.782c-40.735,26.752 -89.983,47.424 -135.583,55.936c-15.808,3.04 -133.759,9.728 -261.438,15.2c-318.588,12.768 -429.244,21.28 -582.458,46.816c-136.191,21.888 -330.749,73.568 -398.236,105.791c-17.632,7.904 -33.439,14.591 -36.48,14.591c-9.12,0 -161.118,78.431 -210.365,108.831c-27.968,17.632 -56.544,35.264 -63.231,38.912c-10.944,6.688 -60.799,40.735 -133.151,91.807c-20.672,14.591 -76.607,46.816 -113.086,65.056c-24.319,12.16 -62.015,23.711 -101.535,32.223c-54.112,12.16 -178.142,12.16 -232.862,0l-0.001,0Z"/>
+      <path fill-rule="nonzero" d="M2444.931,2581.173c-266.301,-131.934 -520.443,-207.934 -830.52,-246.845c-99.103,-12.16 -473.019,-10.336 -574.555,3.04c-169.022,22.495 -351.421,60.191 -477.276,98.495c-155.647,47.424 -195.166,51.679 -243.198,27.36c-63.84,-32.223 -93.632,-83.296 -72.351,-122.206c23.711,-44.384 250.494,-118.559 510.107,-165.982c647.514,-118.559 1214.164,-4.257 1658,336.22c76.607,58.367 148.958,121.598 138.622,121.598c-3.04,0 -52.287,-23.103 -108.831,-51.679l0.001,-0.001Z"/>
+      <path fill-rule="nonzero" d="M2573.825,2587.862c-21.28,-35.872 -26.752,-317.373 -8.512,-416.475c26.144,-142.271 57.76,-241.374 116.735,-364.796c69.919,-145.919 141.662,-248.669 251.102,-360.541c186.046,-190.302 381.82,-307.037 614.074,-366.012c70.527,-17.632 164.159,-33.439 200.639,-33.439c22.495,0 25.536,1.216 21.888,10.944c-1.824,5.472 -10.336,37.088 -18.24,69.311c-13.983,57.152 -20.064,110.047 -33.439,278.461c-15.2,192.734 -61.407,324.061 -152.607,436.54c-58.975,72.351 -196.382,168.414 -355.068,248.669c-14.591,7.296 -68.703,36.48 -133.151,76.607c-6.688,4.257 -26.752,17.024 -44.992,28.576c-18.24,11.552 -40.128,24.928 -49.247,29.792c-65.056,35.264 -215.838,167.198 -268.733,235.294c-13.983,18.24 -26.752,32.223 -27.968,30.4c-4.257,-4.257 38.912,-93.024 65.664,-136.799c58.975,-93.632 131.934,-174.494 215.838,-238.941c39.52,-30.4 138.015,-94.847 247.453,-162.335c286.973,-176.926 384.86,-335.612 403.1,-652.378c4.863,-83.296 9.728,-79.039 -62.015,-57.152c-76.607,23.711 -183.007,70.527 -240.766,105.791c-92.415,57.152 -126.463,80.863 -182.399,125.855c-277.853,223.134 -483.355,610.426 -539.899,1015.35c-14.591,105.183 -14.591,104.575 -19.456,97.279l-0.001,0Z"/>
+      <path fill-rule="nonzero" d="M2466.818,2392.087c-97.279,-116.735 -179.358,-289.406 -215.23,-454.171c-12.16,-54.112 -13.376,-79.039 -13.376,-204.286c0,-125.247 1.824,-150.782 13.983,-206.718c27.968,-130.718 76.607,-257.789 143.487,-376.957c45.6,-80.863 77.823,-128.895 201.245,-296.093c126.463,-171.455 176.926,-248.061 220.093,-337.436c21.28,-44.384 38.304,-71.135 43.775,-71.135c18.24,0 100.927,122.814 151.999,224.35c57.152,113.695 110.655,299.741 126.463,439.58l4.863,46.816l-128.287,96.671l-6.688,-74.176c-8.512,-93.632 -28.576,-196.99 -51.679,-269.342c-24.319,-75.392 -68.703,-175.71 -79.039,-176.926c-4.863,-0.608 -35.264,38.912 -68.095,88.159c-32.831,49.247 -79.039,115.519 -102.143,147.135c-209.758,283.933 -305.821,513.147 -328.925,788.569c-13.983,169.63 11.552,342.301 83.904,560.57c18.24,54.72 32.223,100.927 31.008,102.143c-1.824,1.216 -13.376,-10.944 -27.36,-26.752l0.001,-0.001Z"/>
+      <path fill-rule="nonzero" d="M2187.749,2153.146c-23.103,-42.559 -122.206,-188.478 -157.47,-231.038c-59.583,-72.959 -176.926,-181.791 -247.453,-229.821c-119.775,-81.471 -245.022,-134.367 -383.644,-162.335c-80.863,-15.808 -151.39,-24.319 -159.902,-19.456c-3.04,1.824 7.296,30.4 23.711,63.231c26.144,54.112 53.503,138.015 46.208,144.703c-1.216,1.216 -22.495,-0.608 -46.816,-4.863l-43.775,-7.296l-20.064,-52.895c-24.928,-66.272 -66.88,-136.799 -113.695,-190.911c-20.064,-22.495 -35.872,-43.167 -35.872,-45.6c0,-9.12 109.439,-20.064 191.519,-20.064c223.134,1.216 445.659,84.512 637.786,239.549c125.247,100.927 245.022,283.325 304.605,463.899c22.495,67.487 24.319,88.767 4.863,52.895l-0.001,-0Z"/>
+      <path fill-rule="nonzero" d="M3307.674,2159.226c15.2,-16.416 124.031,-69.311 181.183,-87.551c91.199,-29.792 143.487,-36.48 277.853,-35.872c195.774,0.608 528.955,4.863 528.955,6.688c0,4.257 -85.119,55.936 -92.415,55.936c-4.863,0 -10.944,2.432 -13.983,5.472c-3.648,3.04 -27.968,10.336 -54.72,16.416c-42.559,9.12 -63.84,9.728 -182.399,4.863c-189.694,-7.904 -373.308,-6.688 -443.227,3.04c-32.831,4.257 -93.024,15.808 -132.543,25.536c-40.128,9.728 -74.176,17.632 -76,17.632c-1.824,0 1.216,-5.472 7.296,-12.16l-0,0.001Z"/>
+      <path fill-rule="nonzero" d="M1891.048,2101.466c-205.502,-100.927 -401.276,-165.375 -577.594,-189.694c-137.407,-18.848 -553.883,29.184 -583.675,37.696c-30.4,8.512 -58.975,15.2 -63.231,15.2c-15.2,0 29.184,-41.343 81.471,-76c161.118,-107.007 393.98,-134.975 637.786,-76.607c158.686,38.304 331.357,121.598 482.139,232.862c43.775,32.223 124.639,102.143 117.343,101.535c-1.824,-0.608 -43.775,-20.672 -94.239,-44.992l-0.001,0Z"/>
+      <path fill-rule="nonzero" d="M3944.852,1960.412c-10.944,-1.216 -20.064,-4.257 -20.064,-6.08c0,-1.824 9.12,-15.808 20.672,-31.615c29.868,-36.405 61.556,-117.666 78.001,-174.389c10.474,-36.125 8.362,-60.284 12.479,-51.961c6.24,12.624 -314.854,71.603 -319.086,69.487l10.336,-23.711c5.472,-12.768 14.591,-34.656 19.456,-48.032c5.472,-13.376 12.16,-27.36 15.2,-31.008c2.432,-3.648 30.4,-8.512 60.799,-10.336c67.487,-4.863 170.238,-27.36 226.782,-49.855c31.008,-12.768 41.951,-14.591 45.6,-9.12c2.432,4.257 6.688,28.576 8.512,54.112c7.904,87.551 -15.2,178.142 -68.095,268.733c-31.008,52.287 -28.576,51.679 -90.591,43.775Z"/>
+      <path fill-rule="nonzero" d="M1823.56,1497.121l-49.247,-35.872l13.983,-72.351c26.144,-133.151 34.656,-230.429 30.4,-357.5c-1.824,-63.231 -5.472,-130.11 -7.296,-148.35l-4.257,-32.831l23.711,3.648c34.047,5.472 137.407,58.367 196.382,100.319c91.199,65.664 231.646,218.878 231.646,252.926c0,7.296 -9.728,33.439 -21.28,57.76l-21.888,44.992l-27.36,-44.384c-15.2,-24.319 -45.6,-65.664 -67.487,-91.807c-48.032,-57.152 -144.095,-139.23 -163.551,-139.23c-4.257,0 -7.904,29.184 -10.336,86.943c-2.432,47.424 -9.728,120.383 -16.416,161.727c-15.808,96.671 -49.247,249.885 -54.112,249.885c-2.432,0 -26.144,-16.416 -52.895,-35.872l0.001,-0.002Z"/>
+    </symbol>
+    <symbol id="logo-gyan" viewBox="0 0 4961 3508">
+      <path fill-rule="nonzero" d="M1249.938,3340.963c-113.191,-13.223 -220.036,-68.761 -287.21,-148.63c-50.249,-60.298 -76.695,-121.654 -87.803,-203.639c-23.273,-177.721 69.819,-347.508 231.143,-420.501c127.473,-58.183 293.557,-57.654 409.922,0.529c40.199,20.099 90.976,55.538 113.191,78.811c15.339,16.397 15.339,16.926 5.289,25.918c-5.818,5.289 -32.265,30.678 -59.24,56.067l-48.133,46.546l-29.62,-24.331c-38.612,-31.207 -63.472,-43.901 -112.663,-56.596c-69.29,-17.455 -123.77,-12.165 -190.416,19.57c-123.241,58.711 -169.787,212.102 -104.2,341.161c37.554,74.579 131.175,125.886 230.085,126.415c33.323,0 106.315,-16.926 124.828,-29.091c12.165,-7.934 12.165,-8.992 12.165,-118.481c0,-95.737 1.058,-111.076 8.463,-113.72c4.76,-1.587 42.315,-3.174 84.629,-3.174l75.637,0l1.587,160.266c1.587,186.713 8.992,166.614 -70.877,206.283c-58.711,29.091 -121.654,48.133 -186.713,56.067c-52.364,6.347 -67.703,6.347 -120.068,0.529Z"/>
+      <path fill-rule="nonzero" d="M1996.79,3330.384l0,-283.508l-16.926,-26.447c-8.992,-14.281 -44.959,-72.464 -79.869,-129.059c-159.737,-260.763 -209.986,-343.806 -209.986,-349.095c0,-3.703 31.736,-5.289 98.381,-4.231l98.91,1.587l99.968,166.614c55.009,91.505 102.084,166.614 104.729,166.614c5.289,0 26.976,-34.91 133.291,-212.102c67.174,-112.134 71.406,-117.423 88.861,-120.596c21.157,-3.703 174.548,-4.231 174.548,-1.058c0,2.116 -151.275,251.243 -262.879,432.137l-43.901,71.406l0,287.739l-185.126,0Z"/>
+      <path fill-rule="nonzero" d="M2404.068,3328.268c0,-1.058 12.165,-27.504 26.976,-59.24c23.802,-51.306 250.714,-550.089 307.838,-677.562l22.215,-49.191l83.042,-1.058c46.017,-0.529 88.861,-1.058 95.208,-1.058c10.579,-0.529 22.744,23.802 113.72,226.912c135.407,301.491 210.515,467.047 235.375,517.824c11.108,23.273 20.099,42.843 20.099,43.901c0,0.529 -44.959,1.587 -99.439,1.587l-99.439,0l-71.935,-169.258l-363.905,0l-6.876,12.165c-4.231,6.347 -21.157,44.43 -38.083,84.629l-30.678,72.464l-97.323,0c-52.893,0 -96.795,-1.058 -96.795,-2.116Zm571.247,-314.186c0,-8.992 -115.307,-272.929 -120.068,-274.516c-3.174,-1.058 -95.737,204.697 -121.654,272.4c-2.116,4.76 23.802,6.347 119.539,6.347c67.174,0 122.183,-2.116 122.183,-4.231Z"/>
+      <path fill-rule="nonzero" d="M3387.881,3330.384c5.372,2.015 -0.894,-779.633 0.22,-790.917l152.112,-2.481l23.273,28.033c13.223,14.81 97.852,116.894 188.829,226.912c90.447,109.489 168.2,202.052 172.432,205.226c6.876,5.818 7.934,-22.744 7.934,-226.912l0,-233.259l185.126,0l0,793.398l-151.275,0l-187.771,-227.441c-143.341,-173.49 -189.887,-226.912 -197.821,-225.854c-10.579,1.058 -10.579,5.289 -12.165,227.441l-1.058,225.854l-179.837,0Z"/>
+      <path fill-rule="nonzero" d="M2345.885,2353.975c-80.398,-16.926 -136.464,-44.43 -272.4,-133.82c-88.861,-58.711 -235.375,-132.762 -322.649,-163.969c-188.3,-67.174 -379.773,-94.679 -620.437,-89.39c-102.084,2.645 -106.844,2.116 -97.852,-6.876c11.637,-11.108 79.34,-28.033 174.548,-42.843c99.968,-15.339 364.434,-17.455 452.237,-3.174c168.2,27.504 288.268,68.232 483.973,163.44c158.68,77.753 203.11,90.447 313.657,90.976c107.902,0 132.233,-8.992 277.16,-104.729c148.63,-97.852 248.598,-149.159 391.939,-200.994c206.812,-74.579 373.426,-101.555 698.19,-113.72c350.153,-13.223 412.038,-22.744 512.535,-79.34c53.422,-30.149 72.464,-32.794 85.687,-13.223c26.447,40.199 -30.149,148.101 -103.142,197.292c-35.438,23.273 -78.282,41.257 -117.952,48.662c-13.752,2.645 -116.365,8.463 -227.441,13.223c-277.16,11.108 -373.426,18.513 -506.717,40.728c-118.481,19.042 -287.739,64.001 -346.45,92.034c-15.339,6.876 -29.091,12.694 -31.736,12.694c-7.934,0 -140.167,68.232 -183.01,94.679c-24.331,15.339 -49.191,30.678 -55.009,33.852c-9.521,5.818 -52.893,35.438 -115.836,79.869c-17.984,12.694 -66.645,40.728 -98.381,56.596c-21.157,10.579 -53.951,20.628 -88.332,28.033c-47.075,10.579 -154.977,10.579 -202.581,0Z"/>
+      <path fill-rule="nonzero" d="M2449.556,2020.748c-231.672,-114.778 -452.766,-180.895 -722.521,-214.746c-86.216,-10.579 -411.509,-8.992 -499.841,2.645c-147.043,19.57 -305.723,52.364 -415.212,85.687c-135.407,41.257 -169.787,44.959 -211.573,23.802c-55.538,-28.033 -81.456,-72.464 -62.943,-106.315c20.628,-38.612 217.92,-103.142 443.774,-144.398c563.313,-103.142 1056.277,-3.703 1442.398,292.499c66.645,50.777 129.588,105.786 120.596,105.786c-2.645,0 -45.488,-20.099 -94.679,-44.959Z"/>
+      <path fill-rule="nonzero" d="M2561.689,2026.567c-18.513,-31.207 -23.273,-276.103 -7.405,-362.318c22.744,-123.77 50.249,-209.986 101.555,-317.359c60.827,-126.944 123.241,-216.333 218.449,-313.657c161.853,-165.556 332.169,-267.111 534.221,-318.417c61.356,-15.339 142.812,-29.091 174.548,-29.091c19.57,0 22.215,1.058 19.042,9.521c-1.587,4.76 -8.992,32.265 -15.868,60.298c-12.165,49.72 -17.455,95.737 -29.091,242.251c-13.223,167.671 -53.422,281.921 -132.762,379.773c-51.306,62.943 -170.845,146.514 -308.896,216.333c-12.694,6.347 -59.769,31.736 -115.836,66.645c-5.818,3.703 -23.273,14.81 -39.141,24.86c-15.868,10.05 -34.91,21.686 -42.843,25.918c-56.596,30.678 -187.771,145.456 -233.788,204.697c-12.165,15.868 -23.273,28.033 -24.331,26.447c-3.703,-3.703 33.852,-80.927 57.125,-119.01c51.306,-81.456 114.778,-151.803 187.771,-207.87c34.381,-26.447 120.068,-82.513 215.275,-141.225c249.656,-153.919 334.814,-291.97 350.682,-567.544c4.231,-72.464 8.463,-68.761 -53.951,-49.72c-66.645,20.628 -159.209,61.356 -209.457,92.034c-80.398,49.72 -110.018,70.348 -158.68,109.489c-241.722,194.118 -420.501,531.048 -469.692,883.316c-12.694,91.505 -12.694,90.976 -16.926,84.629Z"/>
+      <path fill-rule="nonzero" d="M2468.597,1856.25c-84.629,-101.555 -156.035,-251.772 -187.242,-395.112c-10.579,-47.075 -11.637,-68.761 -11.637,-177.721c0,-108.96 1.587,-131.175 12.165,-179.837c24.331,-113.72 66.645,-224.267 124.828,-327.938c39.67,-70.348 67.703,-112.134 175.076,-257.59c110.018,-149.159 153.919,-215.804 191.473,-293.557c18.513,-38.612 33.323,-61.885 38.083,-61.885c15.868,0 87.803,106.844 132.233,195.176c49.72,98.91 96.266,260.763 110.018,382.418l4.231,40.728l-111.605,84.1l-5.818,-64.53c-7.405,-81.456 -24.86,-171.374 -44.959,-234.317c-21.157,-65.588 -59.769,-152.861 -68.761,-153.919c-4.231,-0.529 -30.678,33.852 -59.24,76.695c-28.562,42.843 -68.761,100.497 -88.861,128.002c-182.482,247.011 -266.053,446.419 -286.152,686.025c-12.165,147.572 10.05,297.789 72.993,487.675c15.868,47.604 28.033,87.803 26.976,88.861c-1.587,1.058 -11.637,-9.521 -23.802,-23.273Z"/>
+      <path fill-rule="nonzero" d="M2225.818,1648.38c-20.099,-37.025 -106.315,-163.969 -136.993,-200.994c-51.835,-63.472 -153.919,-158.151 -215.275,-199.936c-104.2,-70.877 -213.16,-116.894 -333.756,-141.225c-70.348,-13.752 -131.704,-21.157 -139.109,-16.926c-2.645,1.587 6.347,26.447 20.628,55.009c22.744,47.075 46.546,120.068 40.199,125.886c-1.058,1.058 -19.57,-0.529 -40.728,-4.231l-38.083,-6.347l-17.455,-46.017c-21.686,-57.654 -58.183,-119.01 -98.91,-166.085c-17.455,-19.57 -31.207,-37.554 -31.207,-39.67c0,-7.934 95.208,-17.455 166.614,-17.455c194.118,1.058 387.707,73.522 554.85,208.399c108.96,87.803 213.16,246.482 264.995,403.575c19.57,58.711 21.157,77.224 4.231,46.017Z"/>
+      <path fill-rule="nonzero" d="M3200.11,1653.67c13.223,-14.281 107.902,-60.298 157.622,-76.166c79.34,-25.918 124.828,-31.736 241.722,-31.207c170.316,0.529 460.171,4.231 460.171,5.818c0,3.703 -74.05,48.662 -80.398,48.662c-4.231,0 -9.521,2.116 -12.165,4.76c-3.174,2.645 -24.331,8.992 -47.604,14.281c-37.025,7.934 -55.538,8.463 -158.68,4.231c-165.027,-6.876 -324.764,-5.818 -385.591,2.645c-28.562,3.703 -80.927,13.752 -115.307,22.215c-34.91,8.463 -64.53,15.339 -66.117,15.339c-1.587,0 1.058,-4.76 6.347,-10.579Z"/>
+      <path fill-rule="nonzero" d="M1967.699,1603.421c-178.779,-87.803 -349.095,-143.87 -502.485,-165.027c-119.539,-16.397 -481.857,25.389 -507.775,32.794c-26.447,7.405 -51.306,13.223 -55.009,13.223c-13.223,0 25.389,-35.967 70.877,-66.117c140.167,-93.092 342.748,-117.423 554.85,-66.645c138.051,33.323 288.268,105.786 419.443,202.581c38.083,28.033 108.431,88.861 102.084,88.332c-1.587,-0.529 -38.083,-17.984 -81.984,-39.141Z"/>
+      <path fill-rule="nonzero" d="M3754.431,1480.709c-9.521,-1.058 -17.455,-3.703 -17.455,-5.289c0,-1.587 7.934,-13.752 17.984,-27.504c25.984,-31.671 53.551,-102.365 67.858,-151.712c9.112,-31.427 7.275,-52.445 10.856,-45.204c5.429,10.982 -273.911,62.292 -277.593,60.451l8.992,-20.628c4.76,-11.108 12.694,-30.149 16.926,-41.786c4.76,-11.637 10.579,-23.802 13.223,-26.976c2.116,-3.174 26.447,-7.405 52.893,-8.992c58.711,-4.231 148.101,-23.802 197.292,-43.372c26.976,-11.108 36.496,-12.694 39.67,-7.934c2.116,3.703 5.818,24.86 7.405,47.075c6.876,76.166 -13.223,154.977 -59.24,233.788c-26.976,45.488 -24.86,44.959 -78.811,38.083Z"/>
+      <path fill-rule="nonzero" d="M1908.987,1077.663l-42.843,-31.207l12.165,-62.943c22.744,-115.836 30.149,-200.465 26.447,-311.012c-1.587,-55.009 -4.76,-113.191 -6.347,-129.059l-3.703,-28.562l20.628,3.174c29.62,4.76 119.539,50.777 170.845,87.274c79.34,57.125 201.523,190.416 201.523,220.036c0,6.347 -8.463,29.091 -18.513,50.249l-19.042,39.141l-23.802,-38.612c-13.223,-21.157 -39.67,-57.125 -58.711,-79.869c-41.786,-49.72 -125.357,-121.125 -142.283,-121.125c-3.703,0 -6.876,25.389 -8.992,75.637c-2.116,41.257 -8.463,104.729 -14.281,140.696c-13.752,84.1 -42.843,217.391 -47.075,217.391c-2.116,0 -22.744,-14.281 -46.017,-31.207Z"/>
+    </symbol>
+  </svg>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <svg class="logo-icon" viewBox="184 364 4594 2780" aria-label="GYAN"><use href="#icon-gyan"/></svg>
+        <span>GYAN</span>
+      </a>
+      <div class="nav-links nav-links-desktop">
+        <a href="#features">Features</a>
+        <a href="#preview">Preview</a>
+        <div class="theme-switch-wrap">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.82-9.23A9.06 9.06 0 0 0 12 3z"/></svg>
+          <button class="theme-switch" id="themeToggle" aria-label="Toggle theme">
+            <span class="theme-switch-knob"></span>
+          </button>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </div>
+        <a href="#download" class="nav-cta">Download</a>
+      </div>
+      <div class="nav-links nav-links-mobile">
+        <div class="theme-switch-wrap">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.82-9.23A9.06 9.06 0 0 0 12 3z"/></svg>
+          <button class="theme-switch" id="themeToggleMobile" aria-label="Toggle theme">
+            <span class="theme-switch-knob"></span>
+          </button>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile bottom bar -->
+  <div class="nav-bottom-bar">
+    <a href="#features">Features</a>
+    <a href="#preview">Preview</a>
+    <a href="#download">Download</a>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-text">
+        <svg class="hero-logo" viewBox="0 0 4961 3508" aria-label="GYAN"><use href="#logo-gyan"/></svg>
+        <p class="slogan">Guide Your Academic Needs</p>
+        <p class="desc">
+          Your all-in-one study companion. Track sessions, build streaks,
+          generate AI quizzes, study with friends, and reach your academic
+          goals with a beautiful, focused experience.
+        </p>
+        <div class="hero-actions">
+          <a href="#download" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 2H6.477C5.768 2 5.2 2.568 5.2 3.277v17.446C5.2 21.432 5.768 22 6.477 22h11.046c.709 0 1.277-.568 1.277-1.277V3.277C18.8 2.568 18.232 2 17.523 2zM12 20.5c-.553 0-1-.447-1-1s.447-1 1-1 1 .447 1 1-.447 1-1 1zM17 17H7V4h10v13z"/></svg>
+            Download for Android
+          </a>
+          <a href="#features" class="btn-secondary">
+            Learn More
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="phone phone-primary">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="mock-header">
+              <div class="mock-avatar">&#128100;</div>
+              <div class="mock-greeting">
+                <small>Good morning,</small>
+                <strong>Student &#128075;</strong>
+              </div>
+              <div class="mock-bell">&#128276;</div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-title">
+                Daily Streaks
+                <span style="margin-left:auto;background:rgba(255,140,0,0.15);color:#FF8C00;padding:2px 8px;border-radius:10px;font-size:10px;">&#128293; 5</span>
+              </div>
+              <div class="streak-row">
+                <div class="streak-day"><span>M</span><div class="streak-dot done">&#128293;</div></div>
+                <div class="streak-day"><span>T</span><div class="streak-dot done">&#128293;</div></div>
+                <div class="streak-day"><span>W</span><div class="streak-dot done">&#128293;</div></div>
+                <div class="streak-day"><span>T</span><div class="streak-dot done">&#128293;</div></div>
+                <div class="streak-day"><span>F</span><div class="streak-dot done">&#128293;</div></div>
+                <div class="streak-day"><span>S</span><div class="streak-dot today"></div></div>
+                <div class="streak-day"><span>S</span><div class="streak-dot future"></div></div>
+              </div>
+            </div>
+            <div class="mock-stats">
+              <div class="mock-stat">
+                <div class="mock-stat-icon" style="background:rgba(87,242,135,0.15);color:#57F287;">&#128218;</div>
+                <div class="mock-stat-val">3</div>
+                <div class="mock-stat-label">sessions today</div>
+              </div>
+              <div class="mock-stat">
+                <div class="mock-stat-icon" style="background:rgba(88,101,242,0.15);color:#5865F2;">&#128200;</div>
+                <div style="font-size:18px;font-weight:800;color:var(--mock-text);">2h 15m</div>
+                <div class="mock-stat-label">studied today</div>
+                <div class="mini-bars">
+                  <div class="mini-bar" style="height:8px;background:rgba(88,101,242,0.45);"></div>
+                  <div class="mini-bar" style="height:18px;background:rgba(88,101,242,0.45);"></div>
+                  <div class="mini-bar" style="height:12px;background:rgba(88,101,242,0.45);"></div>
+                  <div class="mini-bar" style="height:25px;background:rgba(88,101,242,0.45);"></div>
+                  <div class="mini-bar" style="height:6px;background:var(--mock-border);"></div>
+                  <div class="mini-bar" style="height:20px;background:rgba(88,101,242,0.45);"></div>
+                  <div class="mini-bar" style="height:30px;background:#5865F2;"></div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:10px;color:var(--mock-text-muted);margin-bottom:6px;">Recent Session</div>
+              <div class="mock-card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;">
+                <div style="width:3px;height:30px;background:#5865F2;border-radius:2px;"></div>
+                <div style="flex:1;">
+                  <div style="font-size:11px;font-weight:600;">Mathematics</div>
+                  <div style="font-size:9px;color:var(--mock-text-muted);">09:30 AM</div>
+                </div>
+                <span style="font-size:9px;color:#5865F2;background:rgba(88,101,242,0.12);padding:3px 8px;border-radius:10px;font-weight:600;">45 min</span>
+                <span style="color:#5865F2;font-size:16px;">&#9654;</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">Features</span>
+        <h2>Everything you need to study better</h2>
+        <p>GYAN brings together the tools that actually help you build consistent study habits and reach your goals.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(88,101,242,0.15);color:var(--accent);">&#9201;</div>
+          <h3>Focus Timer</h3>
+          <p>Per-subject Pomodoro timer with ambient sounds (rain, ocean, forest, cafe). Tracks time even when minimized with a lock-screen overlay.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(255,140,0,0.15);color:var(--orange);">&#128293;</div>
+          <h3>Daily Streaks</h3>
+          <p>Build and maintain study streaks to stay consistent. Visual weekly calendar shows your progress and keeps you motivated.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(87,242,135,0.15);color:var(--green);">&#129302;</div>
+          <h3>AI Quiz Generator</h3>
+          <p>Generate quizzes from any subject using AI. Test your knowledge with auto-generated questions and instant grading.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(237,66,69,0.15);color:var(--red);">&#128196;</div>
+          <h3>Answer Sheet Scanner</h3>
+          <p>Upload and scan answer sheets for instant AI analysis. Get detailed feedback on your performance and areas to improve.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(155,89,182,0.15);color:#9B59B6;">&#128101;</div>
+          <h3>Study Groups</h3>
+          <p>Join or create study groups with friends. Collaborate, share progress, and keep each other accountable.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon" style="background:rgba(26,188,156,0.15);color:#1ABC9C;">&#128202;</div>
+          <h3>Statistics & Insights</h3>
+          <p>Detailed analytics on your study patterns. Track total hours, sessions per subject, and weekly trends at a glance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APP PREVIEW -->
+  <section class="preview" id="preview">
+    <div class="section-inner">
+      <div class="section-header">
+        <span class="section-label">App Preview</span>
+        <h2>Beautiful, focused design</h2>
+        <p>Dark and light themes with a clean interface designed to keep you in the zone.</p>
+      </div>
+      <div class="preview-scroll">
+        <!-- Screen 1: Timer -->
+        <div class="preview-phone">
+          <div class="preview-phone-screen">
+            <div class="preview-phone-notch"></div>
+            <div style="padding-top:8px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span style="font-size:16px;color:var(--accent);">&#9201;</span>
+                <span style="font-size:14px;font-weight:700;">Focus Timer</span>
+              </div>
+              <div style="text-align:center;margin-top:4px;">
+                <div class="mock-timer-subject">Mathematics</div>
+              </div>
+              <div class="mock-timer-circle">
+                <div class="mock-timer-time">23:45</div>
+              </div>
+              <div class="mock-timer-controls">
+                <div class="mock-timer-btn" style="background:var(--mock-widget);border:1px solid var(--mock-border);">&#9208;</div>
+                <div class="mock-timer-btn" style="background:var(--accent);color:#fff;">&#9654;</div>
+                <div class="mock-timer-btn" style="background:var(--mock-widget);border:1px solid var(--mock-border);">&#8635;</div>
+              </div>
+              <div style="margin-top:16px;">
+                <div style="font-size:10px;color:var(--mock-text-muted);margin-bottom:6px;">White Noise</div>
+                <div style="display:flex;gap:8px;">
+                  <div style="background:rgba(88,101,242,0.12);border:1px solid rgba(88,101,242,0.3);border-radius:8px;padding:6px 10px;font-size:9px;font-weight:600;color:var(--accent);">&#127754; Rain</div>
+                  <div style="background:var(--mock-widget);border:1px solid var(--mock-border);border-radius:8px;padding:6px 10px;font-size:9px;color:var(--mock-text-muted);">&#127757; Ocean</div>
+                  <div style="background:var(--mock-widget);border:1px solid var(--mock-border);border-radius:8px;padding:6px 10px;font-size:9px;color:var(--mock-text-muted);">&#127795; Forest</div>
+                </div>
+              </div>
+            </div>
+            <div class="screen-label"><span>Timer</span></div>
+          </div>
+        </div>
+        <!-- Screen 2: AI Features -->
+        <div class="preview-phone">
+          <div class="preview-phone-screen">
+            <div class="preview-phone-notch"></div>
+            <div style="padding-top:8px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span style="font-size:16px;color:var(--accent);">&#10024;</span>
+                <span style="font-size:14px;font-weight:700;">AI Features</span>
+              </div>
+              <div class="mock-ai-toggle">
+                <div class="mock-ai-tab active">Quiz</div>
+                <div class="mock-ai-tab">Scan</div>
+              </div>
+              <div class="mock-ai-card">
+                <div class="mock-ai-q">Q1. What is the derivative of x&#178;?</div>
+                <div class="mock-ai-option correct">A) 2x &#10004;</div>
+                <div class="mock-ai-option">B) x&#178;</div>
+                <div class="mock-ai-option">C) 2</div>
+                <div class="mock-ai-option">D) x</div>
+              </div>
+              <div class="mock-ai-card">
+                <div class="mock-ai-q">Q2. Solve: 3x + 7 = 22</div>
+                <div class="mock-ai-option">A) x = 3</div>
+                <div class="mock-ai-option correct">B) x = 5 &#10004;</div>
+                <div class="mock-ai-option">C) x = 7</div>
+                <div class="mock-ai-option">D) x = 15</div>
+              </div>
+              <div style="text-align:center;margin-top:10px;">
+                <div style="font-size:11px;color:var(--green);font-weight:700;">Score: 2/2 &#127881;</div>
+              </div>
+            </div>
+            <div class="screen-label"><span>AI Features</span></div>
+          </div>
+        </div>
+        <!-- Screen 3: Groups -->
+        <div class="preview-phone">
+          <div class="preview-phone-screen">
+            <div class="preview-phone-notch"></div>
+            <div style="padding-top:8px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span style="font-size:16px;color:var(--accent);">&#128101;</span>
+                <span style="font-size:14px;font-weight:700;">Study Groups</span>
+              </div>
+              <div class="mock-group-item">
+                <div class="mock-group-avatar" style="background:rgba(88,101,242,0.15);">&#128218;</div>
+                <div class="mock-group-info">
+                  <div class="mock-group-name">Math Warriors</div>
+                  <div class="mock-group-meta">5 members &middot; 12h studied</div>
+                </div>
+                <div class="mock-group-badge" style="background:rgba(87,242,135,0.12);color:var(--green);">Active</div>
+              </div>
+              <div class="mock-group-item">
+                <div class="mock-group-avatar" style="background:rgba(237,66,69,0.15);">&#9883;</div>
+                <div class="mock-group-info">
+                  <div class="mock-group-name">Physics Lab</div>
+                  <div class="mock-group-meta">3 members &middot; 8h studied</div>
+                </div>
+                <div class="mock-group-badge" style="background:rgba(88,101,242,0.12);color:var(--accent);">New</div>
+              </div>
+              <div class="mock-group-item">
+                <div class="mock-group-avatar" style="background:rgba(255,140,0,0.15);">&#127793;</div>
+                <div class="mock-group-info">
+                  <div class="mock-group-name">Bio Study Circle</div>
+                  <div class="mock-group-meta">7 members &middot; 20h studied</div>
+                </div>
+                <div class="mock-group-badge" style="background:rgba(255,140,0,0.12);color:var(--orange);">&#128293; Hot</div>
+              </div>
+              <div class="mock-group-item">
+                <div class="mock-group-avatar" style="background:rgba(155,89,182,0.15);">&#128172;</div>
+                <div class="mock-group-info">
+                  <div class="mock-group-name">English Literature</div>
+                  <div class="mock-group-meta">4 members &middot; 6h studied</div>
+                </div>
+                <div class="mock-group-badge" style="background:rgba(87,242,135,0.12);color:var(--green);">Active</div>
+              </div>
+            </div>
+            <div class="screen-label"><span>Groups</span></div>
+          </div>
+        </div>
+        <!-- Screen 4: Profile -->
+        <div class="preview-phone">
+          <div class="preview-phone-screen">
+            <div class="preview-phone-notch"></div>
+            <div style="padding-top:8px;">
+              <div class="mock-profile-avatar">&#128100;</div>
+              <div class="mock-profile-name">Student Name</div>
+              <div class="mock-profile-grade">Grade 11 &middot; Science</div>
+              <div class="mock-profile-stat-row">
+                <div class="mock-profile-stat">
+                  <div class="mock-profile-stat-val" style="color:var(--orange);">12</div>
+                  <div class="mock-profile-stat-label">Day Streak</div>
+                </div>
+                <div class="mock-profile-stat">
+                  <div class="mock-profile-stat-val" style="color:var(--green);">47</div>
+                  <div class="mock-profile-stat-label">Sessions</div>
+                </div>
+                <div class="mock-profile-stat">
+                  <div class="mock-profile-stat-val" style="color:var(--accent);">38h</div>
+                  <div class="mock-profile-stat-label">Total Time</div>
+                </div>
+              </div>
+              <div class="mock-profile-item">
+                <span class="mock-profile-item-icon">&#127891;</span>
+                <span class="mock-profile-item-text">Grade / Education Level</span>
+              </div>
+              <div class="mock-profile-item">
+                <span class="mock-profile-item-icon">&#127919;</span>
+                <span class="mock-profile-item-text">Study Goal: Improve Grades</span>
+              </div>
+              <div class="mock-profile-item">
+                <span class="mock-profile-item-icon">&#9200;</span>
+                <span class="mock-profile-item-text">Daily Target: 3 Hours</span>
+              </div>
+              <div class="mock-profile-item">
+                <span class="mock-profile-item-icon">&#127769;</span>
+                <span class="mock-profile-item-text">Theme: Auto</span>
+              </div>
+            </div>
+            <div class="screen-label"><span>Profile</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BANNER -->
+  <section class="stats-banner">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <h3>6</h3>
+        <p>Core Features</p>
+      </div>
+      <div class="stat-item">
+        <h3>AI</h3>
+        <p>Powered Quizzes</p>
+      </div>
+      <div class="stat-item">
+        <h3>5</h3>
+        <p>Ambient Sounds</p>
+      </div>
+      <div class="stat-item">
+        <h3>&#8734;</h3>
+        <p>Study Sessions</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA / DOWNLOAD -->
+  <section class="cta-section" id="download">
+    <h2>Start studying smarter today</h2>
+    <p>Download GYAN and join students who are building better study habits, one session at a time.</p>
+    <div class="hero-actions">
+      <a href="#" class="btn-primary" id="download-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 010 1.732l-2.807 1.626L15.206 12l2.492-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302-8.635-8.635z"/>
+        </svg>
+        Download for Android
+      </a>
+    </div>
+    <p style="margin-top:24px;font-size:13px;color:var(--text-muted);">
+      Available on Android &middot; Free to use
+    </p>
+  </section>
+
+  <!-- TERMS & CONDITIONS -->
+  <section class="terms-section" id="terms">
+    <div class="section-inner">
+      <h2>Terms &amp; Conditions</h2>
+      <div class="terms-content">
+        <h3>1. Acceptance of Terms</h3>
+        <p>By downloading, installing, or using the GYAN application ("App"), you agree to be bound by these Terms &amp; Conditions. If you do not agree to these terms, please do not use the App.</p>
+
+        <h3>2. Description of Service</h3>
+        <p>GYAN is a study companion application that provides focus timers, streak tracking, AI-powered quiz generation, answer sheet scanning, study groups, and performance analytics. The App is provided free of charge on Android devices.</p>
+
+        <h3>3. User Accounts</h3>
+        <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must provide accurate information when creating your account and keep it up to date.</p>
+
+        <h3>4. AI Features</h3>
+        <p>The AI Quiz Generator and Answer Sheet Scanner use artificial intelligence to generate content and analyze responses. While we strive for accuracy, AI-generated content may contain errors. These features are intended as study aids and should not be relied upon as the sole source of academic assessment.</p>
+
+        <h3>5. User Content</h3>
+        <p>You retain ownership of any content you create or upload within the App, including study notes, quiz responses, and group messages. By using the App, you grant GYAN a limited license to process this content solely to provide the service.</p>
+
+        <h3>6. Privacy &amp; Data</h3>
+        <p>We collect usage data such as study session durations, streak information, and app preferences to provide and improve the service. We do not sell your personal data to third parties. Study data is stored securely and can be deleted upon request.</p>
+
+        <h3>7. Study Groups</h3>
+        <p>When participating in study groups, you agree to interact respectfully with other users. GYAN reserves the right to remove users who engage in harassment, spam, or other disruptive behavior within groups.</p>
+
+        <h3>8. Prohibited Use</h3>
+        <p>You may not use the App to: (a) violate any applicable laws or regulations; (b) distribute harmful, offensive, or misleading content; (c) attempt to reverse-engineer, modify, or tamper with the App; (d) use automated systems to access the service in an unauthorized manner.</p>
+
+        <h3>9. Limitation of Liability</h3>
+        <p>GYAN is provided "as is" without warranties of any kind. We are not liable for any academic outcomes, data loss, or damages arising from your use of the App. The App is a study tool and does not guarantee academic performance.</p>
+
+        <h3>10. Changes to Terms</h3>
+        <p>We may update these Terms &amp; Conditions from time to time. Continued use of the App after changes are posted constitutes acceptance of the revised terms. We will notify users of significant changes through the App.</p>
+
+        <h3>11. Contact</h3>
+        <p>If you have questions about these Terms &amp; Conditions, please contact us through the App's feedback feature or at our support channels.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <svg class="logo-icon logo-icon-sm" viewBox="184 364 4594 2780" aria-label="GYAN"><use href="#icon-gyan"/></svg>
+        <span>GYAN</span>
+      </div>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#preview">Preview</a>
+        <a href="#terms">Terms &amp; Conditions</a>
+        <a href="#download">Download</a>
+      </div>
+      <p>&copy; 2026 GYAN &mdash; Guide Your Academic Needs. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Theme toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('gyan-theme', next);
+    }
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    document.getElementById('themeToggleMobile').addEventListener('click', toggleTheme);
+
+    // Restore saved theme
+    const saved = localStorage.getItem('gyan-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+
+    // Fade-in observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
