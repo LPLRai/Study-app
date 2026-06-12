@@ -27,6 +27,8 @@ import '../constants/app_colors.dart';
 import '../models/study_session_model.dart';
 import '../models/subject_model.dart';
 import '../providers/app_provider.dart';
+import '../services/focus_lock_store.dart';
+import '../services/focus_monitor.dart';
 import '../widgets/white_noise_widget.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,13 +39,16 @@ import '../widgets/white_noise_widget.dart';
 class _OverlayHelper {
   static const String _keyEndTime = 'timer_overlay_end_time';
   static const String _keySubjectName = 'timer_overlay_subject';
+  static const String _keyTotal = 'timer_overlay_total';
 
   /// Call when timer starts running so the overlay can count down independently.
-  static Future<void> saveEndTime(int remainingSecs, String subjectName) async {
+  static Future<void> saveEndTime(
+      int remainingSecs, int totalSecs, String subjectName) async {
     final prefs = await SharedPreferences.getInstance();
     final endTime = DateTime.now().add(Duration(seconds: remainingSecs));
     await prefs.setString(_keyEndTime, endTime.toIso8601String());
     await prefs.setString(_keySubjectName, subjectName);
+    await prefs.setInt(_keyTotal, totalSecs);
   }
 
   /// Call when timer is paused / stopped / complete.
@@ -51,6 +56,7 @@ class _OverlayHelper {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyEndTime);
     await prefs.remove(_keySubjectName);
+    await prefs.remove(_keyTotal);
   }
 
   /// Returns seconds remaining based on the stored end time, or null if none.
@@ -63,10 +69,10 @@ class _OverlayHelper {
     return remaining > 0 ? remaining : 0;
   }
 
-  // ── Overlay window calls (uncomment after adding flutter_overlay_window) ──
+  // ── Overlay window calls ──────────────────────────────────────────────────
   static Future<void> showOverlay() async {
-    final granted = await FlutterOverlayWindow.isPermissionGranted();
-    if (!granted) await FlutterOverlayWindow.requestPermission();
+    if (!await FlutterOverlayWindow.isPermissionGranted()) return;
+    if (await FlutterOverlayWindow.isActive()) return;
     await FlutterOverlayWindow.showOverlay(
       height: WindowSize.fullCover,
       width: WindowSize.matchParent,
@@ -74,6 +80,8 @@ class _OverlayHelper {
       flag: OverlayFlag.defaultFlag,
       visibility: NotificationVisibility.visibilityPublic,
     );
+    // The overlay reloads the end time / lists itself on a short poll, so a
+    // re-shown cached engine refreshes within a couple of seconds.
   }
 
   static Future<void> closeOverlay() async {
@@ -195,54 +203,65 @@ class _TimerScreenState extends State<TimerScreen>
     }
   }
 
+  // True between "left the app with the timer running" and the next resume.
+  // _onAppResumed must NOT touch the timer outside a lock session — that was
+  // the bug where a paused timer got reset just by leaving and reopening.
+  bool _lockSessionActive = false;
+
   Future<void> _onAppPaused() async {
+    // The lock only ever appears while the timer is running; when the timer is
+    // stopped or paused this returns immediately, so it can't show up elsewhere.
     if (!_isRunning) return;
 
     // Save the expected end time so we can recalculate on resume
     await _OverlayHelper.saveEndTime(
       _remainingSecs,
+      _phaseTotalSecs,
       context.read<AppProvider>().selectedSubject?.name ?? '',
     );
+    _lockSessionActive = true;
 
     // Stop the in-app ticker (the stored end-time handles background elapsed)
     _ticker?.cancel();
     setState(() => _isRunning = false);
 
-    // Show the lock overlay (Android only — no-op until package is added)
+    // Reset the overlay⇄main channel (start locked, drop any stale command),
+    // show the lock, and start guarding the foreground: an allowed app makes
+    // the lock invisible, anything else brings it back full-screen.
+    await FocusLockStore.clearChannel();
     await _OverlayHelper.showOverlay();
+    FocusMonitor.instance.start();
   }
 
   Future<void> _onAppResumed() async {
-    // Close overlay if it was open
+    // Back in GYAN — stop guarding, close the lock, and clear the channel.
+    FocusMonitor.instance.stop();
     await _OverlayHelper.closeOverlay();
+    await FocusLockStore.clearChannel();
 
-    // Check if the user pressed "Exit" in the overlay (clears the stored key)
+    // Only a lock session may touch the timer state. If the timer was paused
+    // or idle when the app was left, leave everything exactly as it was.
+    if (!_lockSessionActive) return;
+    _lockSessionActive = false;
+
+    // The timer KEEPS RUNNING across the lock (Exit just unlocks the screen —
+    // only the in-app pause/reset buttons stop a session). Restore the
+    // accurate remaining time from the stored wall-clock end time.
     final remaining = await _OverlayHelper.getRemainingFromStore();
-
-    if (remaining == null) {
-      // Overlay "Exit" was pressed — stop timer and save session
-      if (_sessionStart != null) {
-        final elapsed = _phase == TimerPhase.focus
-            ? math.max(0, _phaseTotalSecs - _remainingSecs)
-            : 0;
-        if (elapsed > 0) _saveSession(elapsed);
-      }
-      setState(() {
-        _isRunning = false;
-        _remainingSecs = _phaseDuration;
-        _sessionStart = null;
-      });
-      if (mounted) _syncActiveTimer(context.read<AppProvider>());
-      return;
-    }
-
-    // Still running — restore the accurate remaining time and resume
+    await _OverlayHelper.clearEndTime();
+    if (!mounted) return;
+    // Land the user on the timer screen, where the clock is still ticking.
+    context.read<AppProvider>().switchTab(1);
     setState(() {
-      _remainingSecs = remaining;
+      if (remaining != null) _remainingSecs = remaining;
       _isRunning = true;
     });
-    await _OverlayHelper.clearEndTime();
-    _startTicker();
+    if (_remainingSecs <= 0) {
+      _onPhaseComplete(); // finished while away: ding + advance to next phase
+    } else {
+      _startTicker();
+    }
+    _syncActiveTimer(context.read<AppProvider>());
   }
 
   // ── Configurable durations (admins can change these via the Admin Panel;
@@ -388,7 +407,7 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   // ── Timer controls ────────────────────────────────────────────────────────
-  void _play() {
+  Future<void> _play() async {
     final prov = context.read<AppProvider>();
     // Require a subject before the timer can run.
     if (prov.selectedSubject == null) {
@@ -405,12 +424,58 @@ class _TimerScreenState extends State<TimerScreen>
       _showSubjectOverlay(context, prov); // help the user add one right away
       return;
     }
+    // If a permission settings page was opened, don't start this press — the
+    // timer starting now would trigger the lock over the settings screen.
+    if (await _openedPermissionSettings()) return;
+    if (!mounted) return;
     if (_phase == TimerPhase.focus && _sessionStart == null) {
       _sessionStart = DateTime.now();
     }
     setState(() => _isRunning = true);
     _syncActiveTimer(prov);
     _startTicker();
+  }
+
+  // Focus Lock needs two permissions: "display over other apps" (the lock
+  // window itself) and "usage access" (detecting the foreground app so the
+  // lock returns over non-allowed apps). Each is asked at most once per app
+  // run, and declining never blocks the timer — the lock just degrades.
+  static bool _askedOverlayPermission = false;
+  static bool _askedUsagePermission = false;
+
+  /// Returns true if a system settings page was opened for a missing
+  /// permission (the user grants it, comes back, presses play again).
+  Future<bool> _openedPermissionSettings() async {
+    if (!await FlutterOverlayWindow.isPermissionGranted() &&
+        !_askedOverlayPermission) {
+      _askedOverlayPermission = true;
+      _toastInfo(
+          'Allow “Display over other apps” so Focus Lock can guard your session, then press play again');
+      await FlutterOverlayWindow.requestPermission();
+      return true;
+    }
+    if (!await FocusMonitor.instance.hasPermission() &&
+        !_askedUsagePermission) {
+      _askedUsagePermission = true;
+      _toastInfo(
+          'Turn on “GYAN Focus Lock” under Accessibility so the lock can block other apps, then press play again');
+      await FocusMonitor.instance.requestPermission();
+      return true;
+    }
+    return false;
+  }
+
+  void _toastInfo(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.blue,
+        duration: const Duration(seconds: 5),
+        content: Text(msg,
+            style: GoogleFonts.inder(color: Colors.white, fontSize: 13)),
+      ));
   }
 
   void _startTicker() {
@@ -883,6 +948,7 @@ class _TimerScreenState extends State<TimerScreen>
                         const SizedBox(height: 16),
                       ]),
                 ),
+                const SizedBox(height: 16),
               ]), // close inner Column
             ), // close SingleChildScrollView
           ), // close Expanded

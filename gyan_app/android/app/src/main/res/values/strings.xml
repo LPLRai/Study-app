@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_accessibility_desc">Lets Focus Lock see which app is open so it can keep apps that aren\'t on your allowed list blocked during a study session. It does not read your screen content.</string>
+</resources>

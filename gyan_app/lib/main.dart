@@ -18,6 +18,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
+  // The overlay isolate has its own GoogleFonts config; use the bundled Inder.
+  GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const OverlayEntryApp());
 }
 
@@ -37,6 +39,7 @@ Future<void> main() async {
   // (AppProvider.init() initialises Firebase). Notification-type messages are
   // shown by the OS automatically when the app isn't in the foreground.
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   runApp(
     ChangeNotifierProvider.value(
       value: appProvider,
