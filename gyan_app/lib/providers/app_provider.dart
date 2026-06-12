@@ -12,8 +12,11 @@ import '../models/user_model.dart';
 import '../models/subject_model.dart';
 import '../models/study_session_model.dart';
 import '../models/group_model.dart';
+import 'package:installed_apps/installed_apps.dart';
+
 import '../services/firebase_service.dart';
 import '../services/push_service.dart';
+import '../services/focus_lock_store.dart';
 import '../theme/app_theme.dart';
 import '../config/admin_config.dart';
 
@@ -49,6 +52,7 @@ class AppProvider extends ChangeNotifier {
   // Root admins come from AdminConfig (verified email); granted admins are
   // loaded from Firestore at init.
   bool _grantedAdmin = false;
+
 
   // Real-time group backend
   StreamSubscription? _groupsSub;
@@ -111,6 +115,26 @@ class AppProvider extends ChangeNotifier {
   int? get overrideBestStreak => _ovrBestStreak;
   int? get overrideSessions => _ovrSessions;
   int? get overrideStudyMinutes => _ovrStudyMinutes;
+
+  // ── Focus Lock ──────────────────────────────────────────────────────────────
+  // Builds the catalog of installed apps (name + package + icon) so the lock
+  // overlay can offer an add/remove picker with real app logos. Runs in the
+  // background on startup; stored as a cache file (icons are too big for prefs).
+  Future<void> refreshAppCatalog() async {
+    try {
+      final apps = await InstalledApps.getInstalledApps(true, true);
+      final catalog = apps
+          .where((a) => a.packageName != 'com.example.gyan_app')
+          .map((a) => AllowedApp(
+                package: a.packageName,
+                name: a.name,
+                iconB64: a.icon != null ? base64Encode(a.icon!) : '',
+              ))
+          .toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      await FocusLockStore.saveCatalog(catalog);
+    } catch (_) {}
+  }
 
   SubjectModel? get selectedSubject {
     if (_selectedSubjectId == null) {
@@ -364,6 +388,7 @@ class AppProvider extends ChangeNotifier {
 
     // Fire-and-forget: do NOT await — keeps the first frame from blocking.
     _initRemote();
+    refreshAppCatalog(); // build the installed-apps catalog for the lock overlay
   }
 
   /// Network-bound startup. Runs after the first frame so launch never waits on
@@ -816,6 +841,7 @@ class AppProvider extends ChangeNotifier {
     _ovrBestStreak = p.getInt('ovr_best');
     _ovrSessions = p.getInt('ovr_sessions');
     _ovrStudyMinutes = p.getInt('ovr_minutes');
+
 
     // ── Load study-profile fields written by GetStartedPage ──
     _onboardingComplete = p.getBool('onboarding_complete') ?? false;
