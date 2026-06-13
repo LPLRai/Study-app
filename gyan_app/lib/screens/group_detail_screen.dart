@@ -103,6 +103,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           .groupStream(widget.groupId)
           .first
           .timeout(const Duration(seconds: 10));
+      List<String> memberUids = [];
       if (g != null) {
         _name = (g['name'] as String?) ?? widget.groupName;
         _description = (g['description'] as String?) ?? widget.description;
@@ -110,12 +111,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         _isOwner = myUid != null && myUid == _ownerUid;
         _isPublic = (g['isPublic'] as bool?) ?? true;
         _groupSubjects = List<String>.from(g['subjects'] ?? []);
+        memberUids = List<String>.from(g['memberUids'] ?? []);
       }
       final raw = await prov
           .groupMembersStream(widget.groupId)
           .first
           .timeout(const Duration(seconds: 10));
-      _members = _buildMembers(raw, prov, myUid);
+      
+      final List<Map<String, dynamic>> rawMutable = List<Map<String, dynamic>>.from(raw);
+      final Set<String> existingUids = rawMutable.map((m) => m['uid'] as String?).whereType<String>().toSet();
+
+      for (final uid in memberUids) {
+        if (!existingUids.contains(uid)) {
+          final profile = await prov.fetchUserProfile(uid).timeout(const Duration(seconds: 3), onTimeout: () => null);
+          rawMutable.add({
+            'uid': uid,
+            'name': profile?['name'] ?? 'User',
+            'status': 'idle',
+            'studying': false,
+            'dailySeconds': 0,
+            'weekSeconds': 0,
+            'totalSeconds': 0,
+            'baseline': 0,
+            'joinedAt': null,
+          });
+        }
+      }
+
+      _members = _buildMembers(rawMutable, prov, myUid);
     } catch (_) {/* keep whatever we have; just stop the spinner */}
     if (mounted) setState(() => _loading = false);
   }
