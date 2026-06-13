@@ -91,6 +91,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // My total-seconds at the moment I joined this group (the "baseline").
   // Stored once after _loadOnce so build() can compute my current delta live.
   int _myBaseline = 0;
+  // Whether the baseline has been loaded from Firestore yet.
+  bool _baselineLoaded = false;
 
   // Live stream that patches other members' status / time fields in real-time
   // so their glow / studying indicator updates without a manual refresh.
@@ -102,8 +104,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Push our latest stats to Firestore first so the initial fetch is fresh.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppProvider>().forcePublishToGroups();
+    });
     _loadOnce();
-    _startMembersStream();
     _startRebuildTimer();
   }
 
@@ -118,11 +124,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     _rebuildTimer?.cancel();
     _rebuildTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      // Rebuild if any member is currently studying.
-      final anyStudying = _members.any((m) => m.studying);
-      if (anyStudying) {
-        setState(() {});
-      }
+      // Always rebuild so "me" stays live every second (timer ticking).
+      setState(() {});
     });
   }
 
@@ -137,7 +140,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       bool changed = false;
       for (final raw in rawList) {
         final uid = raw['uid'] as String?;
-        if (uid == null || uid == myUid) continue; // skip self — computed live
+        if (uid == null) continue;
+
+        // Update MY baseline from Firestore whenever it arrives.
+        if (uid == myUid) {
+          final newBaseline = (raw['baseline'] as num?)?.toInt() ?? 0;
+          final myAllTime = prov.totalSecondsAllTime;
+          final resolvedBaseline = (newBaseline > myAllTime) ? 0 : newBaseline;
+          if (newBaseline > myAllTime) {
+            // Self-heal baseline in Firestore
+            FirebaseFirestore.instance
+                .collection('study_groups')
+                .doc(widget.groupId)
+                .collection('members')
+                .doc(myUid)
+                .update({'baseline': 0});
+          }
+          if (!_baselineLoaded || _myBaseline != resolvedBaseline) {
+            _myBaseline = resolvedBaseline;
+            _baselineLoaded = true;
+            changed = true;
+          }
+          continue; // "me" is always re-derived live in build()
+        }
+
         final idx = _members.indexWhere((m) => m.uid == uid);
         if (idx == -1) continue; // not in snapshot yet; _loadOnce handles it
         final existing = _members[idx];
@@ -192,6 +218,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   Future<void> _loadOnce() async {
     final prov = context.read<AppProvider>();
     final myUid = prov.currentUid;
+    // Push current stats to Firestore before fetching so pull-to-refresh
+    // always returns fresh data (without waiting for the next publish cycle).
+    prov.forcePublishToGroups();
+    // Small delay to let Firestore write land before we read.
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     try {
       final gSnap = await FirebaseFirestore.instance
           .collection('study_groups')
@@ -263,9 +295,39 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         }
       }
 
+      // Update _myBaseline from the actual Firestore member doc so the
+      // "since joining" filter is always based on the correct join snapshot.
+      if (myUid != null) {
+        final myDoc = rawMutable.firstWhere(
+          (m) => m['uid'] == myUid,
+          orElse: () => <String, dynamic>{},
+        );
+        if (myDoc.isNotEmpty) {
+          final baseline = (myDoc['baseline'] as num?)?.toInt() ?? 0;
+          final myAllTime = prov.totalSecondsAllTime;
+          final resolvedBaseline = (baseline > myAllTime) ? 0 : baseline;
+          if (baseline > myAllTime) {
+            // Self-heal baseline in Firestore
+            FirebaseFirestore.instance
+                .collection('study_groups')
+                .doc(widget.groupId)
+                .collection('members')
+                .doc(myUid)
+                .update({'baseline': 0});
+          }
+          if (!_baselineLoaded || _myBaseline != resolvedBaseline) {
+            _myBaseline = resolvedBaseline;
+            _baselineLoaded = true;
+          }
+        }
+      }
+
       _members = _buildMembers(rawMutable, prov, myUid);
     } catch (_) {/* keep whatever we have; just stop the spinner */}
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+      _startMembersStream();
+    }
   }
 
   List<_MemberView> _buildMembers(
@@ -280,10 +342,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
       final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
 
-      // Store my baseline once so build() can recompute live on every frame.
-      if (isMe) _myBaseline = baseline;
-
       final overallAllTime = isMe ? prov.totalSecondsAllTime : total;
+      
+      // Self-heal corrupted baseline (if overallAllTime is less than baseline, baseline is invalid/out-of-sync)
+      final effectiveBaseline = (baseline > overallAllTime) ? 0 : baseline;
+
+      // Store my baseline once so build() can recompute live on every frame.
+      if (isMe) _myBaseline = effectiveBaseline;
 
       final overallDaily = isMe
           ? prov.todayStudiedSeconds
@@ -294,17 +359,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           : ((m['weekSeconds'] as num?)?.toInt() ?? 0);
 
       // Daily time studied after joining the group
-      final dailyFiltered = (baseline >= overallAllTime - overallDaily)
-          ? math.max(0, overallAllTime - baseline)
+      final dailyFiltered = (effectiveBaseline >= overallAllTime - overallDaily)
+          ? math.max(0, overallAllTime - effectiveBaseline)
           : overallDaily;
 
       // Weekly time studied after joining the group
-      final weekFiltered = (baseline >= overallAllTime - overallWeek)
-          ? math.max(0, overallAllTime - baseline)
+      final weekFiltered = (effectiveBaseline >= overallAllTime - overallWeek)
+          ? math.max(0, overallAllTime - effectiveBaseline)
           : overallWeek;
 
       // All-time time studied after joining the group
-      final allTimeFiltered = math.max(0, overallAllTime - baseline);
+      final allTimeFiltered = math.max(0, overallAllTime - effectiveBaseline);
 
       final status = isMe
           ? prov.studyStatus
@@ -921,13 +986,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         final overallAllTime = prov.totalSecondsAllTime;
         final overallDaily   = prov.todayStudiedSeconds;
         final overallWeek    = prov.secondsInRange(weekStart, endBound);
-        final dailyFiltered  = (_myBaseline >= overallAllTime - overallDaily)
-            ? math.max(0, overallAllTime - _myBaseline)
+        
+        // Self-heal corrupted baseline
+        final myEffectiveBaseline = (_myBaseline > overallAllTime) ? 0 : _myBaseline;
+        
+        final dailyFiltered  = (myEffectiveBaseline >= overallAllTime - overallDaily)
+            ? math.max(0, overallAllTime - myEffectiveBaseline)
             : overallDaily;
-        final weekFiltered   = (_myBaseline >= overallAllTime - overallWeek)
-            ? math.max(0, overallAllTime - _myBaseline)
+        final weekFiltered   = (myEffectiveBaseline >= overallAllTime - overallWeek)
+            ? math.max(0, overallAllTime - myEffectiveBaseline)
             : overallWeek;
-        final allTimeFiltered = math.max(0, overallAllTime - _myBaseline);
+        final allTimeFiltered = math.max(0, overallAllTime - myEffectiveBaseline);
         return _MemberView(
           uid:     m.uid,
           name:    m.name,
