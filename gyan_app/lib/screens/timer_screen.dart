@@ -40,15 +40,19 @@ class _OverlayHelper {
   static const String _keyEndTime = 'timer_overlay_end_time';
   static const String _keySubjectName = 'timer_overlay_subject';
   static const String _keyTotal = 'timer_overlay_total';
+  static const String _keyPhase = 'timer_overlay_phase';
 
   /// Call when timer starts running so the overlay can count down independently.
-  static Future<void> saveEndTime(
-      int remainingSecs, int totalSecs, String subjectName) async {
+  /// [phaseLabel] is "Pomodoro" / "Short Break" / "Long Break" so the overlay
+  /// can show what's running (otherwise a break looks like a stopped timer).
+  static Future<void> saveEndTime(int remainingSecs, int totalSecs,
+      String subjectName, String phaseLabel) async {
     final prefs = await SharedPreferences.getInstance();
     final endTime = DateTime.now().add(Duration(seconds: remainingSecs));
     await prefs.setString(_keyEndTime, endTime.toIso8601String());
     await prefs.setString(_keySubjectName, subjectName);
     await prefs.setInt(_keyTotal, totalSecs);
+    await prefs.setString(_keyPhase, phaseLabel);
   }
 
   /// Call when timer is paused / stopped / complete.
@@ -57,16 +61,18 @@ class _OverlayHelper {
     await prefs.remove(_keyEndTime);
     await prefs.remove(_keySubjectName);
     await prefs.remove(_keyTotal);
+    await prefs.remove(_keyPhase);
   }
 
-  /// Returns seconds remaining based on the stored end time, or null if none.
-  static Future<int?> getRemainingFromStore() async {
+  /// Seconds remaining against the stored phase end time, or null if none.
+  /// May be NEGATIVE: a negative value means the phase finished while the app
+  /// was away, and its magnitude is how far into later phases we now are — the
+  /// timer screen uses that to credit every session that completed in between.
+  static Future<int?> getRawRemainingFromStore() async {
     final prefs = await SharedPreferences.getInstance();
     final endStr = prefs.getString(_keyEndTime);
     if (endStr == null) return null;
-    final remaining =
-        DateTime.parse(endStr).difference(DateTime.now()).inSeconds;
-    return remaining > 0 ? remaining : 0;
+    return DateTime.parse(endStr).difference(DateTime.now()).inSeconds;
   }
 
   // ── Overlay window calls ──────────────────────────────────────────────────
@@ -74,7 +80,10 @@ class _OverlayHelper {
     if (!await FlutterOverlayWindow.isPermissionGranted()) return;
     if (await FlutterOverlayWindow.isActive()) return;
     await FlutterOverlayWindow.showOverlay(
-      height: WindowSize.fullCover,
+      // matchParent (the real screen), NOT fullCover: fullCover sizes the window
+      // to screenHeight() which double-counts the system bars, making the lock
+      // taller than the panel so it renders above the top of the screen.
+      height: WindowSize.matchParent,
       width: WindowSize.matchParent,
       alignment: OverlayAlignment.center,
       flag: OverlayFlag.defaultFlag,
@@ -154,11 +163,31 @@ class _TimerScreenState extends State<TimerScreen>
     // Start from the configured focus length (admins can change it).
     _remainingSecs = context.read<AppProvider>().focusSecs;
     _phaseTotalSecs = _remainingSecs;
-    // Clear any stale overlay end-time left over from a previous hard kill.
-    _OverlayHelper.clearEndTime();
     // Restore an in-progress timer (paused) after a cold start / hard kill, so
     // the countdown isn't lost and doesn't reset.
     _restoreActiveTimer();
+    // If the app was recreated while a Focus Lock session was running, credit
+    // any sessions that finished in the meantime before clearing the end time.
+    _reconcileColdStartIfLocked();
+  }
+
+  // A stored overlay end time only exists while the timer is actively running
+  // and the app is backgrounded. If we find one on a fresh start, the activity
+  // was recreated mid-lock — reconcile the elapsed time so completed focus
+  // sessions still count, then restore paused (the user resumes manually).
+  Future<void> _reconcileColdStartIfLocked() async {
+    final raw = await _OverlayHelper.getRawRemainingFromStore();
+    await _OverlayHelper.clearEndTime();
+    if (raw == null || !mounted || _loadedSubjectId == null) return;
+    setState(() {
+      if (raw <= 0) {
+        _fastForward(-raw); // credit every focus session finished while gone
+      } else {
+        _remainingSecs = raw;
+      }
+      _isRunning = false; // always restore paused on a cold start
+    });
+    _syncActiveTimer(context.read<AppProvider>());
   }
 
   // Reads the persisted timer state from the provider and restores it (paused).
@@ -187,6 +216,7 @@ class _TimerScreenState extends State<TimerScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
+    _lockSync?.cancel();
     _OverlayHelper.clearEndTime();
     super.dispose();
   }
@@ -208,6 +238,101 @@ class _TimerScreenState extends State<TimerScreen>
   // the bug where a paused timer got reset just by leaving and reopening.
   bool _lockSessionActive = false;
 
+  // While the app is minimised in a Focus Lock, the in-app ticker is stopped,
+  // so we drive live progress (study time + group rankings) from this timer
+  // instead, recomputed from the wall-clock phase-end so it stays accurate even
+  // if background timers are throttled.
+  Timer? _lockSync;
+  DateTime? _phaseEndAt; // wall-clock end of the phase running when we minimised
+  DateTime _lastLockPublish = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _startLockSync() {
+    _lockSync?.cancel();
+    _lastLockPublish = DateTime.fromMillisecondsSinceEpoch(0);
+    // Tick every second so phase changes (and their chime) land on time in the
+    // overlay; the group/Firestore push below is throttled separately.
+    _lockSync =
+        Timer.periodic(const Duration(seconds: 1), (_) => _lockEngineTick());
+    _lockEngineTick(); // run once immediately so "studying" shows fast
+  }
+
+  // The timer keeps RUNNING while the app is minimised in a Focus Lock. Since
+  // the in-app ticker is stopped, this drives the clock from the wall-clock
+  // phase-end: it rolls the phase over when it finishes (recording the focus
+  // session + chiming), tells the overlay about the new phase so the break
+  // actually counts down there, and periodically pushes study time + group
+  // rankings. Recomputing from the wall clock keeps it accurate even if the OS
+  // throttles background timers.
+  void _lockEngineTick() {
+    if (!mounted) return;
+    final prov = context.read<AppProvider>();
+    final subject = prov.selectedSubject;
+    final now = DateTime.now();
+
+    // 1) Roll forward through any phase(s) that ended while minimised. We chime
+    //    once for the net transition (so a catch-up after a stalled tick doesn't
+    //    fire a burst of dings) and refresh the overlay's phase + countdown.
+    var advanced = false;
+    var guard = 0;
+    while (_phaseEndAt != null && !now.isBefore(_phaseEndAt!) && guard++ < 16) {
+      final prevEnd = _phaseEndAt!;
+      _advancePhase(silent: true); // record finished focus + set up next phase
+      _phaseEndAt = prevEnd.add(Duration(seconds: _phaseTotalSecs));
+      advanced = true;
+    }
+    if (advanced) {
+      _playPhaseEntrySound(); // one chime for the phase we just entered
+      if (subject != null && _phaseEndAt != null) {
+        final rem = math.max(0, _phaseEndAt!.difference(now).inSeconds);
+        // The overlay reads these to show the new phase's label, colour and
+        // countdown instead of sitting frozen at 00:00.
+        _OverlayHelper.saveEndTime(
+            rem, _phaseTotalSecs, subject.name, _phaseLabel);
+      }
+    }
+
+    // 2) Throttled live push — keep study time + group rankings advancing.
+    if (subject != null && now.difference(_lastLockPublish).inSeconds >= 20) {
+      _lastLockPublish = now;
+      final remaining = _phaseEndAt == null
+          ? 0
+          : math.max(0, _phaseEndAt!.difference(now).inSeconds);
+      final elapsed = _phase == TimerPhase.focus
+          ? math.min(_phaseTotalSecs, math.max(0, _phaseTotalSecs - remaining))
+          : 0;
+      final status = _phase == TimerPhase.focus
+          ? 'studying'
+          : (_phase == TimerPhase.shortBreak ? 'short_break' : 'long_break');
+      prov.pushLiveProgress(
+        subjectId: subject.id,
+        subjectName: subject.name,
+        colorIndex: subject.colorIndex,
+        remainingSecs: remaining,
+        phaseIndex: _phase.index,
+        currentCycle: _currentCycle,
+        sessionStart: _sessionStart,
+        elapsedSeconds: elapsed,
+        status: status,
+      );
+    }
+  }
+
+  // Chime for the phase we just ENTERED (mirrors the foreground transitions).
+  void _playPhaseEntrySound() {
+    switch (_phase) {
+      case TimerPhase.shortBreak:
+        _playNotificationSound('audio/focus_end.mp3');
+        break;
+      case TimerPhase.longBreak:
+        _playNotificationSound('audio/focus_end.mp3');
+        _playNotificationSound('audio/long_break_start.mp3');
+        break;
+      case TimerPhase.focus:
+        _playNotificationSound('audio/break_end.mp3');
+        break;
+    }
+  }
+
   Future<void> _onAppPaused() async {
     // The lock only ever appears while the timer is running; when the timer is
     // stopped or paused this returns immediately, so it can't show up elsewhere.
@@ -218,8 +343,12 @@ class _TimerScreenState extends State<TimerScreen>
       _remainingSecs,
       _phaseTotalSecs,
       context.read<AppProvider>().selectedSubject?.name ?? '',
+      _phaseLabel,
     );
     _lockSessionActive = true;
+    // Remember when the running phase ends so the background sync can recompute
+    // live progress from the wall clock.
+    _phaseEndAt = DateTime.now().add(Duration(seconds: _remainingSecs));
 
     // Stop the in-app ticker (the stored end-time handles background elapsed)
     _ticker?.cancel();
@@ -231,10 +360,15 @@ class _TimerScreenState extends State<TimerScreen>
     await FocusLockStore.clearChannel();
     await _OverlayHelper.showOverlay();
     FocusMonitor.instance.start();
+    // Keep study time + group rankings advancing while we're minimised.
+    _startLockSync();
   }
 
   Future<void> _onAppResumed() async {
-    // Back in GYAN — stop guarding, close the lock, and clear the channel.
+    // Back in GYAN — stop the background sync, stop guarding, close the lock.
+    _lockSync?.cancel();
+    _lockSync = null;
+    _phaseEndAt = null;
     FocusMonitor.instance.stop();
     await _OverlayHelper.closeOverlay();
     await FocusLockStore.clearChannel();
@@ -245,23 +379,33 @@ class _TimerScreenState extends State<TimerScreen>
     _lockSessionActive = false;
 
     // The timer KEEPS RUNNING across the lock (Exit just unlocks the screen —
-    // only the in-app pause/reset buttons stop a session). Restore the
-    // accurate remaining time from the stored wall-clock end time.
-    final remaining = await _OverlayHelper.getRemainingFromStore();
+    // only the in-app pause/reset buttons stop a session). Reconcile against the
+    // stored wall-clock end time so the countdown is accurate AND every focus
+    // session that completed while away is credited to the stats.
+    final raw = await _OverlayHelper.getRawRemainingFromStore();
     await _OverlayHelper.clearEndTime();
     if (!mounted) return;
     // Land the user on the timer screen, where the clock is still ticking.
     context.read<AppProvider>().switchTab(1);
-    setState(() {
-      if (remaining != null) _remainingSecs = remaining;
-      _isRunning = true;
-    });
-    if (_remainingSecs <= 0) {
-      _onPhaseComplete(); // finished while away: ding + advance to next phase
+
+    if (raw == null) {
+      // No stored end time (shouldn't happen during a lock) — just resume.
+      setState(() => _isRunning = true);
+    } else if (raw > 0) {
+      // Still inside the same phase — restore the accurate remaining time.
+      setState(() {
+        _remainingSecs = raw;
+        _isRunning = true;
+      });
     } else {
-      _startTicker();
+      // The phase (and maybe later ones) finished while away — credit them.
+      final endedFocus = _phase == TimerPhase.focus;
+      setState(() => _fastForward(-raw));
+      // Acknowledge the most recent transition with a single chime.
+      if (endedFocus) _playNotificationSound('audio/focus_end.mp3');
     }
     _syncActiveTimer(context.read<AppProvider>());
+    if (_isRunning) _startTicker();
   }
 
   // ── Configurable durations (admins can change these via the Admin Panel;
@@ -524,55 +668,96 @@ class _TimerScreenState extends State<TimerScreen>
   void _onPhaseComplete() {
     _ticker?.cancel();
     _OverlayHelper.clearEndTime();
-
-    if (_phase == TimerPhase.focus) {
-      _playNotificationSound('audio/focus_end.mp3');
-      if (_sessionStart != null) {
-        _saveSession(_phaseTotalSecs); // the focus length just completed
-        _sessionStart = null;
-      }
-      if (_currentCycle < _totalCycles) {
-        setState(() {
-          _phase = TimerPhase.shortBreak;
-          _phaseTotalSecs = _shortBreakSecs;
-          _remainingSecs = _phaseTotalSecs;
-          _isRunning = true;
-        });
-      } else {
-        _playNotificationSound('audio/long_break_start.mp3');
-        setState(() {
-          _phase = TimerPhase.longBreak;
-          _phaseTotalSecs = _longBreakSecs;
-          _remainingSecs = _phaseTotalSecs;
-          _isRunning = true;
-        });
-      }
-    } else if (_phase == TimerPhase.shortBreak) {
-      _playNotificationSound('audio/break_end.mp3');
-      setState(() {
-        _phase = TimerPhase.focus;
-        _currentCycle++;
-        _phaseTotalSecs = _focusSecs;
-        _remainingSecs = _phaseTotalSecs;
-        _sessionStart = DateTime.now();
-        _isRunning = true;
-      });
-    } else {
-      _playNotificationSound('audio/break_end.mp3');
-      setState(() {
-        _phase = TimerPhase.focus;
-        _currentCycle = 1;
-        _phaseTotalSecs = _focusSecs;
-        _remainingSecs = _phaseTotalSecs;
-        _sessionStart = DateTime.now();
-        _isRunning = true;
-      });
-    }
+    setState(() {
+      _advancePhase(silent: false); // chime + record the finished focus session
+      _isRunning = true;
+    });
     _syncActiveTimer(context.read<AppProvider>());
     _startTicker();
   }
 
-  void _saveSession(int durationSecs) {
+  // Move from the phase that just finished to the next one: record the focus
+  // session if a focus just ended, then set up the next phase's length/cycle.
+  // This is the single source of truth for phase transitions — used both by the
+  // live ticker (silent:false → plays the chime) and by the resume/cold-start
+  // reconciler that replays phases which elapsed while the app was away
+  // (silent:true → no chime). It never starts the ticker; the caller does.
+  // Returns true when it just closed a FULL Pomodoro set (a long break ended),
+  // which the reconciler uses to stop crediting further sessions for one absence.
+  bool _advancePhase({required bool silent}) {
+    if (_phase == TimerPhase.focus) {
+      if (!silent) _playNotificationSound('audio/focus_end.mp3');
+      if (_sessionStart != null) {
+        // A full focus phase finished — always counts, even if it's a short
+        // (admin-configured) focus under the legacy 10-minute threshold.
+        _saveSession(_phaseTotalSecs, completed: true);
+        _sessionStart = null;
+      }
+      if (_currentCycle < _totalCycles) {
+        _phase = TimerPhase.shortBreak;
+        _phaseTotalSecs = _shortBreakSecs;
+      } else {
+        if (!silent) _playNotificationSound('audio/long_break_start.mp3');
+        _phase = TimerPhase.longBreak;
+        _phaseTotalSecs = _longBreakSecs;
+      }
+      _remainingSecs = _phaseTotalSecs;
+      return false;
+    } else if (_phase == TimerPhase.shortBreak) {
+      if (!silent) _playNotificationSound('audio/break_end.mp3');
+      _phase = TimerPhase.focus;
+      _currentCycle++;
+      _phaseTotalSecs = _focusSecs;
+      _remainingSecs = _phaseTotalSecs;
+      _sessionStart = DateTime.now();
+      return false;
+    } else {
+      if (!silent) _playNotificationSound('audio/break_end.mp3');
+      _phase = TimerPhase.focus;
+      _currentCycle = 1;
+      _phaseTotalSecs = _focusSecs;
+      _remainingSecs = _phaseTotalSecs;
+      _sessionStart = DateTime.now();
+      return true; // a full Pomodoro set just completed
+    }
+  }
+
+  // Fast-forward the timer to "now" after the current phase already ended while
+  // the app was backgrounded in a Focus Lock. [overshoot] is how many seconds
+  // passed beyond the current phase's end. We close out the finished phase and
+  // each later phase the overshoot fully covers, crediting every completed focus
+  // session, then land inside the phase the user is actually in. Caps at one
+  // full set so a very long absence can't keep inventing sessions. Sets state
+  // fields directly; call inside setState. Never starts the ticker.
+  void _fastForward(int overshoot) {
+    if (_advancePhase(silent: true)) {
+      _idleAfterSet(); // a full set finished right at the boundary
+      return;
+    }
+    var guard = 0;
+    while (overshoot >= _remainingSecs && _remainingSecs > 0 && guard++ < 64) {
+      overshoot -= _remainingSecs;
+      if (_advancePhase(silent: true)) {
+        _idleAfterSet(); // credited one full set — stop for this absence
+        return;
+      }
+    }
+    _remainingSecs = math.max(1, _remainingSecs - overshoot);
+    _isRunning = true; // still mid-phase — keep running
+  }
+
+  // A whole Pomodoro set elapsed while away: the sessions are already credited
+  // and _advancePhase left us on a fresh focus — sit idle & paused so the user
+  // starts the next set deliberately (rather than auto-running endless sets).
+  void _idleAfterSet() {
+    _sessionStart = null;
+    _isRunning = false;
+  }
+
+  // [completed] = a full focus phase finished (vs a manual/partial stop). A
+  // completed phase always counts toward stats even if the configured focus is
+  // under 10 minutes; a partial stop keeps the legacy ≥10-minute rule.
+  void _saveSession(int durationSecs, {bool completed = false}) {
     if (_sessionStart == null) return;
     final prov = context.read<AppProvider>();
     final subject = prov.selectedSubject;
@@ -586,6 +771,7 @@ class _TimerScreenState extends State<TimerScreen>
       durationSeconds: durationSecs, // keep precise seconds
       startTime: _sessionStart!,
       endTime: DateTime.now(),
+      completed: completed,
     ));
   }
 

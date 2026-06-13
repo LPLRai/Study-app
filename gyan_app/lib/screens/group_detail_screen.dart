@@ -79,6 +79,73 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late String _ownerUid = widget.ownerUid;
   bool _isOwner = false;
 
+  // One-time snapshot of the group + members, captured when the screen opens.
+  // The view then stays STATIC (no live stream) — re-opening the group, or an
+  // owner edit / removal, refetches. This keeps the leaderboard from jumping
+  // around in real time while you're reading it.
+  List<_MemberView> _members = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOnce();
+  }
+
+  Future<void> _loadOnce() async {
+    final prov = context.read<AppProvider>();
+    final myUid = prov.currentUid;
+    try {
+      final g = await prov
+          .groupStream(widget.groupId)
+          .first
+          .timeout(const Duration(seconds: 10));
+      if (g != null) {
+        _name = (g['name'] as String?) ?? widget.groupName;
+        _description = (g['description'] as String?) ?? widget.description;
+        _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
+        _isOwner = myUid != null && myUid == _ownerUid;
+      }
+      final raw = await prov
+          .groupMembersStream(widget.groupId)
+          .first
+          .timeout(const Duration(seconds: 10));
+      _members = _buildMembers(raw, prov, myUid);
+    } catch (_) {/* keep whatever we have; just stop the spinner */}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  List<_MemberView> _buildMembers(
+      List<Map<String, dynamic>> raw, AppProvider prov, String? myUid) {
+    return raw.map((m) {
+      final uid = m['uid'] as String?;
+      final isMe = uid != null && uid == myUid;
+      final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
+      final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
+      final daily = isMe
+          ? prov.todayStudiedSeconds
+          : (m['dailySeconds'] as num?)?.toInt() ?? 0;
+      final week = (m['weekSeconds'] as num?)?.toInt() ?? 0;
+      final allTime = isMe
+          ? math.max(0, prov.totalSecondsAllTime - baseline)
+          : math.max(0, total - baseline);
+      final status = isMe
+          ? prov.studyStatus
+          : ((m['status'] as String?) ??
+              ((m['studying'] as bool? ?? false) ? 'studying' : 'idle'));
+      return _MemberView(
+        uid: uid ?? '',
+        name: (m['name'] as String?) ?? 'User',
+        isMe: isMe,
+        status: status,
+        daily: daily,
+        weekly: week,
+        allTime: allTime,
+        joined: (m['joinedAt'] as Timestamp?)?.toDate(),
+      );
+    }).toList();
+  }
+
   // ── Formatting helpers ──────────────────────────────────────────────────────
   String _fmt(int seconds) {
     if (seconds <= 0) return '0m';
@@ -237,6 +304,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         widget.groupId, name, descCtrl.text.trim());
                     if (!sheetCtx.mounted) return;
                     Navigator.pop(sheetCtx);
+                    // Reflect the edit immediately on the static screen.
+                    if (mounted) {
+                      setState(() {
+                        _name = name;
+                        _description = descCtrl.text.trim();
+                      });
+                    }
                     _toast('Group updated');
                   },
                   child: Container(
@@ -495,72 +569,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         'Remove Member', 'Remove $memberName from "$_name"?', 'Remove');
     if (!ok) return;
     await prov.kickMember(widget.groupId, memberUid);
+    // Drop them from the static snapshot right away.
+    if (mounted) setState(() => _members.removeWhere((m) => m.uid == memberUid));
     _toast('$memberName removed');
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(builder: (context, prov, _) {
-      final t = prov.appTheme;
-      final myUid = prov.currentUid;
-      final panelWidth =
-          math.min(310.0, MediaQuery.of(context).size.width * 0.88);
+    final prov = context.read<AppProvider>();
+    final t = prov.appTheme;
+    final panelWidth =
+        math.min(310.0, MediaQuery.of(context).size.width * 0.88);
+    // Snapshot taken on open — re-sorted locally when the range toggle changes.
+    final members = List<_MemberView>.of(_members)
+      ..sort((a, b) => b.timeFor(_range).compareTo(a.timeFor(_range)));
+    final myRank = members.indexWhere((m) => m.isMe) + 1;
+    final loading = _loading;
 
-      return Scaffold(
-        backgroundColor: t.background,
-        body: SafeArea(
-          child: StreamBuilder<Map<String, dynamic>?>(
-            stream: prov.groupStream(widget.groupId),
-            builder: (context, gSnap) {
-              // Refresh cached live fields (fall back to constructor values).
-              final g = gSnap.data;
-              _name = (g?['name'] as String?) ?? widget.groupName;
-              _description =
-                  (g?['description'] as String?) ?? widget.description;
-              _ownerUid = (g?['ownerUid'] as String?) ?? widget.ownerUid;
-              _isOwner = myUid != null && myUid == _ownerUid;
-
-              return StreamBuilder<List<Map<String, dynamic>>>(
-                stream: prov.groupMembersStream(widget.groupId),
-                builder: (context, snap) {
-                  final raw = snap.data ?? const [];
-                  final members = raw.map((m) {
-                    final uid = m['uid'] as String?;
-                    final isMe = uid != null && uid == myUid;
-                    final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
-                    final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
-                    final daily = isMe
-                        ? prov.todayStudiedSeconds
-                        : (m['dailySeconds'] as num?)?.toInt() ?? 0;
-                    final week = (m['weekSeconds'] as num?)?.toInt() ?? 0;
-                    final allTime = isMe
-                        ? math.max(0, prov.totalSecondsAllTime - baseline)
-                        : math.max(0, total - baseline);
-                    final status = isMe
-                        ? prov.studyStatus
-                        : ((m['status'] as String?) ??
-                            ((m['studying'] as bool? ?? false)
-                                ? 'studying'
-                                : 'idle'));
-                    return _MemberView(
-                      uid: uid ?? '',
-                      name: (m['name'] as String?) ?? 'User',
-                      isMe: isMe,
-                      status: status,
-                      daily: daily,
-                      weekly: week,
-                      allTime: allTime,
-                      joined: (m['joinedAt'] as Timestamp?)?.toDate(),
-                    );
-                  }).toList()
-                    ..sort((a, b) =>
-                        b.timeFor(_range).compareTo(a.timeFor(_range)));
-
-                  final myRank = members.indexWhere((m) => m.isMe) + 1;
-                  final loading =
-                      snap.connectionState == ConnectionState.waiting;
-
+    return Scaffold(
+      backgroundColor: t.background,
+      body: SafeArea(
+        child: Builder(
+          builder: (context) {
                   return Stack(
                     fit: StackFit.expand,
                     children: [
@@ -629,12 +660,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     ],
                   );
                 },
-              );
-            },
-          ),
-        ),
-      );
-    });
+              ),
+            ),
+          );
   }
 
   // ── Top bar ─────────────────────────────────────────────────────────────────

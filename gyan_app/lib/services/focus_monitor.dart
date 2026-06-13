@@ -65,6 +65,16 @@ class FocusMonitor {
     _graceUntil = DateTime.fromMillisecondsSinceEpoch(0);
     _lastMove = '';
     _resetForeground(); // drop any stale foreground so we begin LOCKED
+    // The plugin shows the window with a built-in negative Y offset (it parks it
+    // above the status bar), so the freshly-shown lock starts clipped off the
+    // top of the screen. On the launcher the foreground can read null, so the
+    // locked-path moveOverlay below may never run — snap the window to the top
+    // explicitly once the overlay has had a moment to attach.
+    Future.delayed(const Duration(milliseconds: 350), () async {
+      try {
+        await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
+      } catch (_) {}
+    });
     _timer = Timer.periodic(const Duration(milliseconds: 500), (_) => _tick());
   }
 
