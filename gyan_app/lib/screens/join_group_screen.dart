@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,9 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   final Set<String> _joiningIds = {};
   String _searchQuery = '';
 
+  List<Map<String, dynamic>>? _publicGroups;
+  bool _loading = false;
+
   @override
   void initState() {
     super.initState();
@@ -26,12 +30,45 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         _searchQuery = _searchCtrl.text.trim();
       });
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadPublicGroups();
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPublicGroups() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('study_groups')
+          .where('isPublic', isEqualTo: true)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      final list = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      if (mounted) {
+        setState(() {
+          _publicGroups = list;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _publicGroups ??= [];
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -163,237 +200,244 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
             // ── Group List ───────────────────────────────────────────────────
             Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: prov.publicGroupsStream(),
-                builder: (ctx, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(
+              child: _loading && _publicGroups == null
+                  ? const Center(
                       child: CircularProgressIndicator(color: AppColors.blue),
-                    );
-                  }
+                    )
+                  : RefreshIndicator(
+                      color: AppColors.blue,
+                      onRefresh: _loadPublicGroups,
+                      child: Builder(
+                        builder: (context) {
+                          final allPublicGroups = _publicGroups ?? [];
+                          final myJoinedGroupIds = prov.myGroupIds;
 
-                  final allPublicGroups = snap.data ?? [];
-                  final myJoinedGroupIds = prov.myGroupIds;
+                          // Filter:
+                          // 1. Not joined yet
+                          // 2. Name matches search query
+                          // 3. Has any of the selected subjects (if selected)
+                          final filteredGroups = allPublicGroups.where((g) {
+                            final gid = g['id'] as String? ?? '';
+                            if (myJoinedGroupIds.contains(gid)) return false;
 
-                  // Filter:
-                  // 1. Not joined yet
-                  // 2. Name matches search query
-                  // 3. Has any of the selected subjects (if selected)
-                  final filteredGroups = allPublicGroups.where((g) {
-                    final gid = g['id'] as String? ?? '';
-                    if (myJoinedGroupIds.contains(gid)) return false;
+                            final name = (g['name'] as String? ?? '').toLowerCase();
+                            if (_searchQuery.isNotEmpty && !name.contains(_searchQuery.toLowerCase())) {
+                              return false;
+                            }
 
-                    final name = (g['name'] as String? ?? '').toLowerCase();
-                    if (_searchQuery.isNotEmpty && !name.contains(_searchQuery.toLowerCase())) {
-                      return false;
-                    }
+                            if (_selectedSubjects.isNotEmpty) {
+                              final groupSubjects = List<String>.from(g['subjects'] ?? []);
+                              final matches = _selectedSubjects.any((selected) =>
+                                  groupSubjects.any((gs) => gs.toLowerCase() == selected.toLowerCase()));
+                              if (!matches) return false;
+                            }
 
-                    if (_selectedSubjects.isNotEmpty) {
-                      final groupSubjects = List<String>.from(g['subjects'] ?? []);
-                      final matches = _selectedSubjects.any((selected) =>
-                          groupSubjects.any((gs) => gs.toLowerCase() == selected.toLowerCase()));
-                      if (!matches) return false;
-                    }
+                            return true;
+                          }).toList();
 
-                    return true;
-                  }).toList();
-
-                  if (filteredGroups.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.groups_outlined, color: t.textMuted, size: 48),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No matching groups found',
-                            style: GoogleFonts.inder(
-                              color: t.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Try changing your search terms or filters',
-                            style: GoogleFonts.inder(
-                              color: t.textMuted,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    itemCount: filteredGroups.length,
-                    itemBuilder: (ctx, index) {
-                      final g = filteredGroups[index];
-                      final id = g['id'] as String;
-                      final name = g['name'] as String? ?? 'Study Group';
-                      final desc = g['description'] as String? ?? '';
-                      final ownerName = g['ownerName'] as String? ?? 'User';
-                      final memberUids = List<String>.from(g['memberUids'] ?? []);
-                      final memberCount = memberUids.length;
-                      final groupSubjects = List<String>.from(g['subjects'] ?? []);
-                      final isJoining = _joiningIds.contains(id);
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: t.widgetBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: t.cardBorder),
-                          boxShadow: t.widgetShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: GoogleFonts.inder(
-                                          color: t.textPrimary,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                          if (filteredGroups.isEmpty) {
+                            return SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Container(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                alignment: Alignment.center,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.groups_outlined, color: t.textMuted, size: 48),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No matching groups found',
+                                      style: GoogleFonts.inder(
+                                        color: t.textPrimary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      const SizedBox(height: 4),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Try changing your search terms or filters',
+                                      style: GoogleFonts.inder(
+                                        color: t.textMuted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            itemCount: filteredGroups.length,
+                            itemBuilder: (ctx, index) {
+                              final g = filteredGroups[index];
+                              final id = g['id'] as String;
+                              final name = g['name'] as String? ?? 'Study Group';
+                              final desc = g['description'] as String? ?? '';
+                              final ownerName = g['ownerName'] as String? ?? 'User';
+                              final memberUids = List<String>.from(g['memberUids'] ?? []);
+                              final memberCount = memberUids.length;
+                              final groupSubjects = List<String>.from(g['subjects'] ?? []);
+                              final isJoining = _joiningIds.contains(id);
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: t.widgetBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: t.cardBorder),
+                                  boxShadow: t.widgetShadow,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                name,
+                                                style: GoogleFonts.inder(
+                                                  color: t.textPrimary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'By $ownerName • $memberCount member${memberCount == 1 ? '' : 's'}',
+                                                style: GoogleFonts.inder(
+                                                  color: t.textMuted,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // ── Join Button ──────────────────────────────
+                                        GestureDetector(
+                                          onTap: isJoining
+                                              ? null
+                                              : () async {
+                                                  setState(() => _joiningIds.add(id));
+                                                  try {
+                                                    await prov.joinGroupRemote(id);
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          behavior: SnackBarBehavior.floating,
+                                                          backgroundColor: AppColors.blue,
+                                                          content: Text(
+                                                            'Joined "$name"!',
+                                                            style: GoogleFonts.inder(
+                                                              color: Colors.white,
+                                                              fontSize: 13,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          behavior: SnackBarBehavior.floating,
+                                                          backgroundColor: AppColors.red,
+                                                          content: Text(
+                                                            'Failed to join group.',
+                                                            style: GoogleFonts.inder(
+                                                              color: Colors.white,
+                                                              fontSize: 13,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  } finally {
+                                                    if (mounted) {
+                                                      setState(() => _joiningIds.remove(id));
+                                                    }
+                                                  }
+                                                },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.blue.withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: AppColors.blue),
+                                            ),
+                                            child: isJoining
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child: CircularProgressIndicator(
+                                                      color: AppColors.blue,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : Text(
+                                                    'Join',
+                                                    style: GoogleFonts.inder(
+                                                      color: AppColors.blue,
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (desc.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
                                       Text(
-                                        'By $ownerName • $memberCount member${memberCount == 1 ? '' : 's'}',
+                                        desc,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inder(
                                           color: t.textMuted,
-                                          fontSize: 12,
+                                          fontSize: 13,
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // ── Join Button ──────────────────────────────
-                                GestureDetector(
-                                  onTap: isJoining
-                                      ? null
-                                      : () async {
-                                          setState(() => _joiningIds.add(id));
-                                          try {
-                                            await prov.joinGroupRemote(id);
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  behavior: SnackBarBehavior.floating,
-                                                  backgroundColor: AppColors.blue,
-                                                  content: Text(
-                                                    'Joined "$name"!',
-                                                    style: GoogleFonts.inder(
-                                                      color: Colors.white,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  behavior: SnackBarBehavior.floating,
-                                                  backgroundColor: AppColors.red,
-                                                  content: Text(
-                                                    'Failed to join group.',
-                                                    style: GoogleFonts.inder(
-                                                      color: Colors.white,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } finally {
-                                            if (mounted) {
-                                              setState(() => _joiningIds.remove(id));
-                                            }
-                                          }
-                                        },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.blue.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.blue),
-                                    ),
-                                    child: isJoining
-                                        ? const SizedBox(
-                                            width: 14,
-                                            height: 14,
-                                            child: CircularProgressIndicator(
-                                              color: AppColors.blue,
-                                              strokeWidth: 2,
+                                    if (groupSubjects.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: groupSubjects.map((sub) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.blue.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(6),
                                             ),
-                                          )
-                                        : Text(
-                                            'Join',
-                                            style: GoogleFonts.inder(
-                                              color: AppColors.blue,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                            child: Text(
+                                              sub,
+                                              style: GoogleFonts.inder(
+                                                color: AppColors.blue,
+                                                fontSize: 11,
+                                              ),
                                             ),
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (desc.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              Text(
-                                desc,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inder(
-                                  color: t.textMuted,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                            if (groupSubjects.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: groupSubjects.map((sub) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.blue.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      sub,
-                                      style: GoogleFonts.inder(
-                                        color: AppColors.blue,
-                                        fontSize: 11,
+                                          );
+                                        }).toList(),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
