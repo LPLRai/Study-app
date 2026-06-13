@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_provider.dart';
+import '../constants/subjects.dart';
 import 'auth_screen.dart';
 import '../services/firebase_service.dart';
 
@@ -60,11 +61,7 @@ class _GetStartedPageState extends State<GetStartedPage>
     'Improve Grades', 'Build Consistency',
     'Prepare for Exams', 'Learn Faster',
   ];
-  static const _subjects = [
-    'Mathematics', 'Physics', 'Chemistry', 'Biology',
-    'English', 'Nepali', 'Social Studies',
-    'Computer Science', 'Accounts', 'Economics', 'History',
-  ];
+  static const _subjects = kDefaultSubjects;
 
   @override
   void initState() {

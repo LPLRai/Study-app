@@ -17,6 +17,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
+import '../constants/subjects.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -78,6 +79,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late String _description = widget.description;
   late String _ownerUid = widget.ownerUid;
   bool _isOwner = false;
+  bool _isPublic = true;
+  List<String> _groupSubjects = [];
 
   // One-time snapshot of the group + members, captured when the screen opens.
   // The view then stays STATIC (no live stream) — re-opening the group, or an
@@ -105,6 +108,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         _description = (g['description'] as String?) ?? widget.description;
         _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
         _isOwner = myUid != null && myUid == _ownerUid;
+        _isPublic = (g['isPublic'] as bool?) ?? true;
+        _groupSubjects = List<String>.from(g['subjects'] ?? []);
       }
       final raw = await prov
           .groupMembersStream(widget.groupId)
@@ -248,86 +253,213 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void _showEditGroup(AppProvider prov, AppThemeData t) {
     final nameCtrl = TextEditingController(text: _name);
     final descCtrl = TextEditingController(text: _description);
+    bool localIsPublic = _isPublic;
+    final Set<String> localSubjects = Set<String>.from(_groupSubjects);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: t.background,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetCtx) => Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sheetHeader(t, Icons.edit_rounded, 'Edit Group',
-                    'Update name & description', sheetCtx),
-                const SizedBox(height: 18),
-                Text('Group Name',
-                    style: GoogleFonts.inder(
-                        color: t.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: nameCtrl,
-                  style: GoogleFonts.inder(color: t.textPrimary),
-                  textCapitalization: TextCapitalization.words,
-                  decoration: _fieldDecoration(t, 'Group name'),
-                ),
-                const SizedBox(height: 14),
-                Text('Description',
-                    style: GoogleFonts.inder(
-                        color: t.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: descCtrl,
-                  style: GoogleFonts.inder(color: t.textPrimary),
-                  maxLines: 3,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: _fieldDecoration(t, 'What is this group about?'),
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () async {
-                    final name = nameCtrl.text.trim();
-                    if (name.isEmpty) {
-                      _toast('Group name cannot be empty', error: true);
-                      return;
-                    }
-                    await prov.updateGroupInfo(
-                        widget.groupId, name, descCtrl.text.trim());
-                    if (!sheetCtx.mounted) return;
-                    Navigator.pop(sheetCtx);
-                    // Reflect the edit immediately on the static screen.
-                    if (mounted) {
-                      setState(() {
-                        _name = name;
-                        _description = descCtrl.text.trim();
-                      });
-                    }
-                    _toast('Group updated');
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    decoration: BoxDecoration(
-                        color: AppColors.blue,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Text('Save Changes',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inder(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600)),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sheetHeader(t, Icons.edit_rounded, 'Edit Group',
+                      'Update group information', sheetCtx),
+                  const SizedBox(height: 18),
+                  Text('Group Name',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    style: GoogleFonts.inder(color: t.textPrimary),
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _fieldDecoration(t, 'Group name'),
                   ),
-                ),
-              ]),
+                  const SizedBox(height: 14),
+                  Text('Description',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: descCtrl,
+                    style: GoogleFonts.inder(color: t.textPrimary),
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: _fieldDecoration(t, 'What is this group about?'),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Group Type Toggle ──────────────────────────────
+                  Text('Group Type',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => localIsPublic = true),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: localIsPublic ? AppColors.green.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(color: localIsPublic ? AppColors.green : t.cardBorder),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.public_rounded,
+                                size: 16, color: localIsPublic ? AppColors.green : t.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Public',
+                                style: GoogleFonts.inder(
+                                    color: localIsPublic ? AppColors.green : t.textMuted,
+                                    fontSize: 13,
+                                    fontWeight: localIsPublic ? FontWeight.w700 : FontWeight.normal)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => localIsPublic = false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !localIsPublic ? AppColors.red.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(color: !localIsPublic ? AppColors.red : t.cardBorder),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.lock_rounded,
+                                size: 16, color: !localIsPublic ? AppColors.red : t.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Private',
+                                style: GoogleFonts.inder(
+                                    color: !localIsPublic ? AppColors.red : t.textMuted,
+                                    fontSize: 13,
+                                    fontWeight: !localIsPublic ? FontWeight.w700 : FontWeight.normal)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    localIsPublic
+                        ? 'Anyone can find and join this group.'
+                        : 'Only invited members can join.',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Subjects Picker ────────────────────────────────
+                  Text('What are you planning to study?',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: kDefaultSubjects.map((sub) {
+                      final isSelected = localSubjects.contains(sub);
+                      return GestureDetector(
+                        onTap: () {
+                          setSheetState(() {
+                            if (isSelected) {
+                              localSubjects.remove(sub);
+                            } else {
+                              localSubjects.add(sub);
+                            }
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.blue.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(
+                              color: isSelected ? AppColors.blue : t.cardBorder,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            sub,
+                            style: GoogleFonts.inder(
+                              color: isSelected ? AppColors.blue : t.textMuted,
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  GestureDetector(
+                    onTap: () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) {
+                        _toast('Group name cannot be empty', error: true);
+                        return;
+                      }
+                      await prov.updateGroupInfo(
+                        widget.groupId,
+                        name,
+                        descCtrl.text.trim(),
+                        isPublic: localIsPublic,
+                        subjects: localSubjects.toList(),
+                      );
+                      if (!sheetCtx.mounted) return;
+                      Navigator.pop(sheetCtx);
+                      // Reflect the edit immediately on the static screen.
+                      if (mounted) {
+                        setState(() {
+                          _name = name;
+                          _description = descCtrl.text.trim();
+                          _isPublic = localIsPublic;
+                          _groupSubjects = localSubjects.toList();
+                        });
+                      }
+                      _toast('Group updated');
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                          color: AppColors.blue,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Text('Save Changes',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inder(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ]),
+          ),
         ),
       ),
     );
@@ -846,15 +978,61 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               // Stat pills
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
-                child: Row(children: [
-                  _statPill(Icons.people_alt_rounded,
-                      '${members.length} members', AppColors.blue, t),
-                  const SizedBox(width: 8),
-                  if (studyingCount > 0)
-                    _statPill(Icons.bolt_rounded, '$studyingCount studying',
-                        _orange, t),
-                ]),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _statPill(Icons.people_alt_rounded,
+                        '${members.length} members', AppColors.blue, t),
+                    _statPill(
+                        _isPublic ? Icons.public_rounded : Icons.lock_rounded,
+                        _isPublic ? 'Public' : 'Private',
+                        _isPublic ? AppColors.green : AppColors.red,
+                        t),
+                    if (studyingCount > 0)
+                      _statPill(Icons.bolt_rounded, '$studyingCount studying',
+                          _orange, t),
+                  ],
+                ),
               ),
+
+              if (_groupSubjects.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Planning to Study',
+                          style: GoogleFonts.inder(
+                              color: t.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _groupSubjects.map((sub) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              sub,
+                              style: GoogleFonts.inder(
+                                color: AppColors.blue,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               Divider(color: t.divider, height: 1, indent: 16, endIndent: 16),
 
