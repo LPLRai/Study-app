@@ -29,6 +29,7 @@ import '../services/focus_lock_store.dart';
 const _bg = Color(0xFF202225);
 const _bg2 = Color(0xFF000000);
 const _gold = Color(0xFFD3AD7F);
+const _breakGreen = Color(0xFF57F287); // break-phase accent (ring + label)
 const _danger = Color(0xFFED4245);
 const _avatarColors = [
   Color(0xFF5865F2), Color(0xFF57F287), Color(0xFFFF8C00),
@@ -57,6 +58,7 @@ class _OverlayScreenState extends State<_OverlayScreen>
   int _remainingSecs = 0;
   int _totalSecs = 1;
   String _subjectName = '';
+  String _phase = 'Pomodoro'; // Pomodoro | Short Break | Long Break
   List<AllowedApp> _allowed = [];
   List<AllowedApp> _catalog = [];
   bool _managing = false;
@@ -67,6 +69,7 @@ class _OverlayScreenState extends State<_OverlayScreen>
   static const String _kEnd = 'timer_overlay_end_time';
   static const String _kSubject = 'timer_overlay_subject';
   static const String _kTotal = 'timer_overlay_total';
+  static const String _kPhase = 'timer_overlay_phase';
 
   @override
   void initState() {
@@ -125,6 +128,7 @@ class _OverlayScreenState extends State<_OverlayScreen>
     final endStr = prefs.getString(_kEnd);
     _subjectName = prefs.getString(_kSubject) ?? '';
     _totalSecs = prefs.getInt(_kTotal) ?? 1;
+    _phase = prefs.getString(_kPhase) ?? 'Pomodoro';
     _allowed = await FocusLockStore.loadApps();
     _catalog = await FocusLockStore.loadCatalog();
     _endTime = (endStr != null) ? DateTime.tryParse(endStr) : null;
@@ -142,8 +146,11 @@ class _OverlayScreenState extends State<_OverlayScreen>
     final mode = await FocusLockStore.readMode();
     await _setHidden(mode == 'hidden');
     // Every ~2s re-read end time + lists (covers a re-shown cached engine and
-    // newly-allowed apps) without hammering the disk.
-    if (_pollCount++ % 4 == 0) await _load();
+    // newly-allowed apps) without hammering the disk. When the countdown has
+    // hit zero, reload every tick instead so the next phase (e.g. the break the
+    // main isolate just rolled into) shows up promptly rather than sitting at
+    // 00:00.
+    if (_pollCount++ % 4 == 0 || _remainingSecs <= 0) await _load();
   }
 
   // ── Actions → written to the file channel for the main isolate ──────────────
@@ -172,10 +179,15 @@ class _OverlayScreenState extends State<_OverlayScreen>
   // ── Build ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Remember the full height (dp) while the window is full, so _setHidden can
-    // grow back to exactly this after a 1px hidden phase.
-    final h = MediaQuery.sizeOf(context).height;
-    if (h > 400) _fullH = h;
+    // Remember the full height (dp) so _setHidden can grow the lock back to it
+    // after the bubble phase. Use the REAL panel height (physical / dpr), NOT
+    // MediaQuery: this overlay window is laid out taller than the screen (the
+    // plugin's fullCover over-counts the system bars), so MediaQuery reports
+    // that inflated height — resizing back to it is exactly what pushed the
+    // lock above the top of the screen. physicalSize is the true panel height.
+    final view = View.of(context);
+    final realH = view.physicalSize.height / view.devicePixelRatio;
+    if (realH > 400) _fullH = realH;
 
     // Hidden: the small floating timer bubble (window itself is bubble-sized).
     if (_hidden) return _bubbleView();
@@ -243,9 +255,14 @@ class _OverlayScreenState extends State<_OverlayScreen>
   Widget _lockView() {
     final progress =
         _totalSecs <= 0 ? 0.0 : (_remainingSecs / _totalSecs).clamp(0.0, 1.0);
+    // During a break the timer keeps running but it's NOT focus time — show the
+    // phase clearly (green) so a break doesn't look like a stopped timer.
+    final isBreak = _phase != 'Pomodoro';
+    final accent = isBreak ? _breakGreen : _gold;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
       child: Column(children: [
+        // ── Fixed header: the timer never scrolls, so it always stays put ──
         const SizedBox(height: 14),
         _badge(),
         const SizedBox(height: 28),
@@ -255,7 +272,7 @@ class _OverlayScreenState extends State<_OverlayScreen>
           width: 184,
           height: 184,
           child: CustomPaint(
-            painter: _RingPainter(progress),
+            painter: _RingPainter(progress, accent),
             child: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(_time,
@@ -264,28 +281,38 @@ class _OverlayScreenState extends State<_OverlayScreen>
                         fontSize: 46,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1)),
-                if (_subjectName.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(_subjectName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inder(color: _gold, fontSize: 12)),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Text(
+                      // Break → "Short Break"/"Long Break"; focus → the subject.
+                      isBreak
+                          ? _phase
+                          : (_subjectName.isEmpty ? 'Focus' : _subjectName),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inder(
+                          color: accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
               ]),
             ),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 26),
 
-        Text('Only your allowed apps can be opened\nwhile the timer is running.',
+        Text(
+            isBreak
+                ? 'Break time — only your allowed apps\ncan be opened until it ends.'
+                : 'Only your allowed apps can be opened\nwhile the timer is running.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inder(
                 color: Colors.white70, fontSize: 14, height: 1.4)),
-        const SizedBox(height: 26),
+        const SizedBox(height: 22),
 
-        // Allowed apps grid
-        Flexible(
+        // ── Only the allowed apps scroll, filling the space up to the pinned
+        //    buttons — a long list never pushes the timer or buttons off screen.
+        Expanded(
           child: _allowed.isEmpty
               ? Center(
                   child: Text(
@@ -304,7 +331,7 @@ class _OverlayScreenState extends State<_OverlayScreen>
                   ),
                 ),
         ),
-        const Spacer(),
+        const SizedBox(height: 16),
 
         // Manage
         GestureDetector(
@@ -515,7 +542,8 @@ class _OverlayScreenState extends State<_OverlayScreen>
 
 class _RingPainter extends CustomPainter {
   final double progress;
-  const _RingPainter(this.progress);
+  final Color color;
+  const _RingPainter(this.progress, this.color);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -535,7 +563,7 @@ class _RingPainter extends CustomPainter {
         2 * math.pi * progress,
         false,
         Paint()
-          ..color = _gold
+          ..color = color
           ..style = PaintingStyle.stroke
           ..strokeWidth = 9
           ..strokeCap = StrokeCap.round,
@@ -544,5 +572,6 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.color != color;
 }

@@ -197,7 +197,7 @@ class AppProvider extends ChangeNotifier {
 
     for (final s in _sessions.reversed) {
       if (result.length >= 4) break;
-      if (s.durationMinutes < 1) continue;
+      if (!_countsAsSession(s)) continue;
       if (!isToday(s.startTime)) continue;
       final key = s.subjectName.toLowerCase().trim();
       if (seen.contains(key)) continue;
@@ -315,12 +315,16 @@ class AppProvider extends ChangeNotifier {
       .where((s) => !s.startTime.isBefore(start) && s.startTime.isBefore(end))
       .fold(0, (sum, s) => sum + s.durationSeconds);
 
-  // A "session" counts once it has ≥1 min of focus; includes the live session
-  // so the count updates in real time while studying.
+  // A "session" counts once it has ≥1 min of focus (or is a completed focus
+  // phase of any length); includes the live session so the count updates in
+  // real time while studying.
+  bool _countsAsSession(StudySessionModel s) =>
+      s.durationMinutes >= 1 || s.completed;
+
   int sessionsInRange(DateTime start, DateTime end) {
     bool inRange(DateTime d) => !d.isBefore(start) && d.isBefore(end);
     var c = _sessions
-        .where((s) => s.durationMinutes >= 1 && inRange(s.startTime))
+        .where((s) => _countsAsSession(s) && inRange(s.startTime))
         .length;
     final live = _liveSession;
     if (live != null && live.durationMinutes >= 1 && inRange(live.startTime)) {
@@ -329,12 +333,13 @@ class AppProvider extends ChangeNotifier {
     return c;
   }
 
-  /// Session counts per subject name (≥1 min, incl. live) within [start, end).
+  /// Session counts per subject name (≥1 min or completed, incl. live) within
+  /// [start, end).
   Map<String, int> subjectSessionCounts(DateTime start, DateTime end) {
     bool inRange(DateTime d) => !d.isBefore(start) && d.isBefore(end);
     final m = <String, int>{};
     for (final s in _sessions) {
-      if (s.durationMinutes < 1 || !inRange(s.startTime)) continue;
+      if (!_countsAsSession(s) || !inRange(s.startTime)) continue;
       m[s.subjectName] = (m[s.subjectName] ?? 0) + 1;
     }
     final live = _liveSession;
@@ -1065,10 +1070,46 @@ class AppProvider extends ChangeNotifier {
         l == null ? null : '${l.subjectId}:${l.durationMinutes}';
     final before = key(_liveSession);
     _rebuildLiveFromActive();
+    // Notify every tick so the donut / activity / live time render in real time.
+    notifyListeners();
+    // Group leaderboards only need a Firestore write when the visible minute (or
+    // subject) changes — keep those ≈ once per minute to limit traffic.
     if (key(_liveSession) != before) {
-      notifyListeners();
-      _publishToGroups(); // keep group leaderboards live (≈ once per minute)
+      _publishToGroups();
     }
+  }
+
+  /// Live study push for the Focus Lock background sync (app minimised): keeps
+  /// the in-progress session + group rankings advancing while you study from
+  /// OUTSIDE GYAN. Mirrors [saveActiveTimer] but forces the group [status] (the
+  /// background path can't read the timer's running flag) and always
+  /// republishes — the caller (a slow background timer) controls the cadence.
+  void pushLiveProgress({
+    required String subjectId,
+    required String subjectName,
+    required int colorIndex,
+    required int remainingSecs,
+    required int phaseIndex,
+    required int currentCycle,
+    required DateTime? sessionStart,
+    required int elapsedSeconds,
+    required String status,
+  }) {
+    _activeTimer = {
+      'subjectId': subjectId,
+      'subjectName': subjectName,
+      'colorIndex': colorIndex,
+      'remainingSecs': remainingSecs,
+      'phaseIndex': phaseIndex,
+      'currentCycle': currentCycle,
+      'sessionStartMs': sessionStart?.millisecondsSinceEpoch,
+      'elapsedSeconds': elapsedSeconds,
+    };
+    _persistActiveTimer();
+    _rebuildLiveFromActive();
+    _studyStatus = status;
+    notifyListeners();
+    _publishToGroups();
   }
 
   void clearActiveTimer() {
