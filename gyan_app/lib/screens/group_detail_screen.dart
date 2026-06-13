@@ -121,8 +121,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       final List<Map<String, dynamic>> rawMutable = List<Map<String, dynamic>>.from(raw);
       final Set<String> existingUids = rawMutable.map((m) => m['uid'] as String?).whereType<String>().toSet();
 
+      // Self-healing database repair: if current user is missing from members subcollection, write it
+      if (myUid != null && memberUids.contains(myUid) && !existingUids.contains(myUid)) {
+        await prov.joinGroupRemote(widget.groupId);
+        try {
+          final freshRaw = await prov
+              .groupMembersStream(widget.groupId)
+              .first
+              .timeout(const Duration(seconds: 5));
+          rawMutable.clear();
+          rawMutable.addAll(freshRaw);
+          existingUids.clear();
+          existingUids.addAll(rawMutable.map((m) => m['uid'] as String?).whereType<String>());
+        } catch (_) {}
+      }
+
       for (final uid in memberUids) {
         if (!existingUids.contains(uid)) {
+          final isMe = uid == myUid;
           final profile = await prov.fetchUserProfile(uid).timeout(const Duration(seconds: 3), onTimeout: () => null);
           rawMutable.add({
             'uid': uid,
@@ -131,8 +147,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             'studying': false,
             'dailySeconds': 0,
             'weekSeconds': 0,
-            'totalSeconds': 0,
-            'baseline': 0,
+            'totalSeconds': isMe ? prov.totalSecondsAllTime : 0,
+            'baseline': isMe ? prov.totalSecondsAllTime : 0,
             'joinedAt': null,
           });
         }
@@ -145,30 +161,52 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   List<_MemberView> _buildMembers(
       List<Map<String, dynamic>> raw, AppProvider prov, String? myUid) {
+    final now = DateTime.now();
+    final weekStart = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final endBound = now.add(const Duration(seconds: 1));
+
     return raw.map((m) {
       final uid = m['uid'] as String?;
       final isMe = uid != null && uid == myUid;
       final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
       final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
-      final daily = isMe
+
+      final overallAllTime = isMe ? prov.totalSecondsAllTime : total;
+
+      final overallDaily = isMe
           ? prov.todayStudiedSeconds
-          : (m['dailySeconds'] as num?)?.toInt() ?? 0;
-      final week = (m['weekSeconds'] as num?)?.toInt() ?? 0;
-      final allTime = isMe
-          ? math.max(0, prov.totalSecondsAllTime - baseline)
-          : math.max(0, total - baseline);
+          : ((m['dailySeconds'] as num?)?.toInt() ?? 0);
+
+      final overallWeek = isMe
+          ? prov.secondsInRange(weekStart, endBound)
+          : ((m['weekSeconds'] as num?)?.toInt() ?? 0);
+
+      // Daily time studied after joining the group
+      final dailyFiltered = (baseline >= overallAllTime - overallDaily)
+          ? math.max(0, overallAllTime - baseline)
+          : overallDaily;
+
+      // Weekly time studied after joining the group
+      final weekFiltered = (baseline >= overallAllTime - overallWeek)
+          ? math.max(0, overallAllTime - baseline)
+          : overallWeek;
+
+      // All-time time studied after joining the group
+      final allTimeFiltered = math.max(0, overallAllTime - baseline);
+
       final status = isMe
           ? prov.studyStatus
           : ((m['status'] as String?) ??
               ((m['studying'] as bool? ?? false) ? 'studying' : 'idle'));
+
       return _MemberView(
         uid: uid ?? '',
         name: (m['name'] as String?) ?? 'User',
         isMe: isMe,
         status: status,
-        daily: daily,
-        weekly: week,
-        allTime: allTime,
+        daily: dailyFiltered,
+        weekly: weekFiltered,
+        allTime: allTimeFiltered,
         joined: (m['joinedAt'] as Timestamp?)?.toDate(),
       );
     }).toList();
@@ -491,19 +529,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // ── Member profile popup (everyone) ─────────────────────────────────────────
   Future<void> _showMemberProfile(
       AppProvider prov, AppThemeData t, _MemberView m, int rank) async {
+    // 1. Refresh once upon opening
+    await _loadOnce();
+
+    _MemberView activeMember = m;
+    final index = _members.indexWhere((x) => x.uid == m.uid);
+    if (index != -1) {
+      activeMember = _members[index];
+    }
+
     // Load the member's profile exactly once, then cache it — the popup shows
     // static data and never reloads while it is open.
-    Map<String, dynamic>? profile = _profileCache[m.uid];
+    Map<String, dynamic>? profile = _profileCache[activeMember.uid];
     if (profile == null) {
       profile = await prov
-          .fetchUserProfile(m.uid)
+          .fetchUserProfile(activeMember.uid)
           .timeout(const Duration(seconds: 6), onTimeout: () => null);
       if (!mounted) return;
-      if (profile != null) _profileCache[m.uid] = profile;
+      if (profile != null) _profileCache[activeMember.uid] = profile;
     }
     if (!mounted) return;
 
-    final vis = _statusVisual(m.status, t);
+    final vis = _statusVisual(activeMember.status, t);
     final grade = (profile?['grade'] as String?)?.trim() ?? '';
     final goal = (profile?['studyGoal'] as String?)?.trim() ?? '';
     final time = (profile?['studyTime'] as String?)?.trim() ?? '';
@@ -515,7 +562,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         strong.isNotEmpty ||
         weak.isNotEmpty;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       backgroundColor: t.background,
       isScrollControlled: true,
@@ -544,13 +591,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   const SizedBox(height: 16),
                   // Header: avatar + name + rank/status
                   Row(children: [
-                    _avatar(t, m, vis.color, size: 54),
+                    _avatar(t, activeMember, vis.color, size: 54),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m.isMe ? '${m.name} (You)' : m.name,
+                            Text(activeMember.isMe ? '${activeMember.name} (You)' : activeMember.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inder(
@@ -585,12 +632,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   // Studied-time stat cards
                   Row(children: [
                     Expanded(
-                        child: _statCard(t, 'Today', _fmt(m.daily),
+                        child: _statCard(t, 'Today', _fmt(activeMember.daily),
                             Icons.today_rounded)),
                     const SizedBox(width: 10),
                     Expanded(
                         child: _statCard(t, 'Total studied',
-                            _fmt(m.allTime), Icons.timelapse_rounded)),
+                            _fmt(activeMember.allTime), Icons.timelapse_rounded)),
                   ]),
                   const SizedBox(height: 10),
                   // Profile details — pre-loaded once, rendered statically.
@@ -623,19 +670,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         size: 13, color: t.textMuted),
                     const SizedBox(width: 6),
                     Text(
-                        m.joined != null
-                            ? 'Joined ${_date(m.joined!)}'
+                        activeMember.joined != null
+                            ? 'Joined ${_date(activeMember.joined!)}'
                             : 'Member',
                         style: GoogleFonts.inder(
                             color: t.textMuted, fontSize: 12)),
                     const Spacer(),
-                    if (!m.isMe)
+                    if (!activeMember.isMe)
                       GestureDetector(
                         onTap: () async {
-                          await prov.sendStudyReminder(m.uid);
+                          await prov.sendStudyReminder(activeMember.uid);
                           if (!sheetCtx.mounted) return;
                           Navigator.pop(sheetCtx);
-                          _toast('Reminder sent to ${m.name} 🔔');
+                          _toast('Reminder sent to ${activeMember.name} 🔔');
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -668,6 +715,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         );
       },
     );
+
+    // 2. Refresh again when they click off (dismiss)
+    _loadOnce();
   }
 
   // ── Confirm dialog ──────────────────────────────────────────────────────────
@@ -758,24 +808,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               ? const Center(
                                   child: CircularProgressIndicator(
                                       color: AppColors.blue))
-                              : SingleChildScrollView(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      16, 12, 16, 100),
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _leaderboardCard(t, members, myRank),
-                                        const SizedBox(height: 20),
-                                        Text('Members',
-                                            style: GoogleFonts.inder(
-                                                color: t.textPrimary,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold)),
+                              : RefreshIndicator(
+                                  color: AppColors.blue,
+                                  onRefresh: _loadOnce,
+                                  child: SingleChildScrollView(
+                                    physics: const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 12, 16, 100),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _leaderboardCard(t, members, myRank),
+                                          const SizedBox(height: 20),
+                                          Text('Members',
+                                              style: GoogleFonts.inder(
+                                                  color: t.textPrimary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 12),
                                         _membersGrid(t, members, prov),
                                       ]),
                                 ),
+                              ),
                         ),
                       ]),
 
@@ -1435,94 +1490,104 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final time = m.timeFor(_range);
     const maxBarH = 105.0;
     final barH = (time / maxTime * maxBarH).clamp(34.0, maxBarH);
+    final prov = context.read<AppProvider>();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-        if (rank == 1)
-          const Text('👑', style: TextStyle(fontSize: 24))
-        else
-          const SizedBox(height: 24),
-        const SizedBox(height: 4),
-        _avatar(t, m, color, size: rank == 1 ? 56 : 46),
-        const SizedBox(height: 6),
-        Text(m.isMe ? 'You' : m.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inder(
-                color: m.isMe ? AppColors.blue : t.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 2),
-        Text(_fmt(time),
-            style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
-        const SizedBox(height: 8),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-          height: barH,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [color, color.withOpacity(0.55)],
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-          ),
-          alignment: Alignment.topCenter,
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('$rank',
+    return GestureDetector(
+      onTap: () => _showMemberProfile(prov, t, m, rank),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+          if (rank == 1)
+            const Text('👑', style: TextStyle(fontSize: 24))
+          else
+            const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          _avatar(t, m, color, size: rank == 1 ? 56 : 46),
+          const SizedBox(height: 6),
+          Text(m.isMe ? 'You' : m.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: GoogleFonts.inder(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
-        ),
-      ]),
+                  color: m.isMe ? AppColors.blue : t.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(_fmt(time),
+              style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
+          const SizedBox(height: 8),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            height: barH,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [color, color.withOpacity(0.55)],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+            ),
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('$rank',
+                style: GoogleFonts.inder(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ]),
+      ),
     );
   }
 
   Widget _yourRankRow(AppThemeData t, _MemberView m, int rank) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.blue.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.blue, width: 1.4),
-      ),
-      child: Row(children: [
-        const Icon(Icons.subdirectory_arrow_right_rounded,
-            color: AppColors.blue, size: 20),
-        const SizedBox(width: 6),
-        SizedBox(
-          width: 34,
-          child: Text('#$rank',
-              style: GoogleFonts.inder(
-                  color: AppColors.blue,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold)),
+    final prov = context.read<AppProvider>();
+    return GestureDetector(
+      onTap: () => _showMemberProfile(prov, t, m, rank),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.blue.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.blue, width: 1.4),
         ),
-        _avatar(t, m, AppColors.blue, size: 36),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text('You',
+        child: Row(children: [
+          const Icon(Icons.subdirectory_arrow_right_rounded,
+              color: AppColors.blue, size: 20),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 34,
+            child: Text('#$rank',
+                style: GoogleFonts.inder(
+                    color: AppColors.blue,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold)),
+          ),
+          _avatar(t, m, AppColors.blue, size: 36),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('You',
+                style: GoogleFonts.inder(
+                    color: t.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ),
+          if (m.studying)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.bolt_rounded, color: _orange, size: 18),
+            ),
+          Text(_fmt(m.timeFor(_range)),
               style: GoogleFonts.inder(
                   color: t.textPrimary,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600)),
-        ),
-        if (m.studying)
-          const Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Icon(Icons.bolt_rounded, color: _orange, size: 18),
-          ),
-        Text(_fmt(m.timeFor(_range)),
-            style: GoogleFonts.inder(
-                color: t.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
-      ]),
+        ]),
+      ),
     );
   }
 

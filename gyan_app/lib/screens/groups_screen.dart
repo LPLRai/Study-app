@@ -7,8 +7,17 @@ import '../providers/app_provider.dart';
 import 'group_detail_screen.dart';
 import 'join_group_screen.dart';
 
-class GroupsScreen extends StatelessWidget {
+class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
+
+  @override
+  State<GroupsScreen> createState() => _GroupsScreenState();
+}
+
+class _GroupsScreenState extends State<GroupsScreen> {
+  List<Map<String, dynamic>>? _groups;
+  bool _loading = false;
+  int _lastTabIndex = -1;
 
   void _toast(BuildContext ctx, String msg, {bool error = false}) {
     ScaffoldMessenger.of(ctx)
@@ -19,6 +28,29 @@ class GroupsScreen extends StatelessWidget {
         content: Text(msg,
             style: GoogleFonts.inder(color: Colors.white, fontSize: 13)),
       ));
+  }
+
+  Future<void> _loadGroups(AppProvider prov) async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final list = await prov.myGroupsStream().first.timeout(const Duration(seconds: 8));
+      if (mounted) {
+        setState(() {
+          _groups = list;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _groups ??= [];
+          _loading = false;
+        });
+      }
+    }
   }
 
   void _showCreateSheet(BuildContext ctx, AppProvider prov) {
@@ -212,6 +244,7 @@ class GroupsScreen extends StatelessWidget {
                         Navigator.pop(sheetCtx);
                         if (res == 'ok') {
                           _toast(ctx, 'Group "$name" created!');
+                          _loadGroups(prov); // Refresh the list!
                         } else if (res == 'limit') {
                           _toast(ctx,
                               "You've reached the limit of 5 groups",
@@ -251,34 +284,45 @@ class GroupsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(builder: (ctx, prov, _) {
-      final t = prov.appTheme;
-      return SafeArea(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Stack(alignment: Alignment.center, children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  onTap: () => prov.switchTab(0),
-                  child: Icon(Icons.chevron_left_rounded,
-                      color: t.textPrimary, size: 28),
-                ),
+    final prov = context.watch<AppProvider>();
+    final currentTab = prov.currentTabIndex;
+
+    // Refresh groups when coming to the tab (index 3)
+    if (currentTab == 3 && _lastTabIndex != 3) {
+      _groups = null; // reset to show spinner
+      _loadGroups(prov);
+    }
+    _lastTabIndex = currentTab;
+
+    final t = prov.appTheme;
+    final groups = _groups ?? const [];
+    final loading = _loading || _groups == null;
+
+    return SafeArea(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: Stack(alignment: Alignment.center, children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: () => prov.switchTab(0),
+                child: Icon(Icons.chevron_left_rounded,
+                    color: t.textPrimary, size: 28),
               ),
-              Text('Groups',
-                  style: GoogleFonts.inder(
-                      color: t.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-            ]),
-          ),
-          Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: prov.myGroupsStream(),
-              builder: (context, snap) {
-                final groups = snap.data ?? const [];
-                return SingleChildScrollView(
+            ),
+            Text('Groups',
+                style: GoogleFonts.inder(
+                    color: t.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
+          ]),
+        ),
+        Expanded(
+          child: loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.blue))
+              : SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,14 +331,7 @@ class GroupsScreen extends StatelessWidget {
                             style: GoogleFonts.inder(
                                 color: t.textMuted, fontSize: 14)),
                         const SizedBox(height: 10),
-                        if (snap.connectionState == ConnectionState.waiting)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                                child: CircularProgressIndicator(
-                                    color: AppColors.blue)),
-                          )
-                        else if (groups.isEmpty)
+                        if (groups.isEmpty)
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(24),
@@ -331,14 +368,14 @@ class GroupsScreen extends StatelessWidget {
                         else
                           ...groups.map((g) => Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
-                                child: _groupTile(ctx, t, g),
+                                child: _groupTile(context, t, g),
                               )),
                         const SizedBox(height: 14),
 
                         // ── Create a Group button ────────────────────────
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: () => _showCreateSheet(ctx, prov),
+                          onTap: () => _showCreateSheet(context, prov),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -378,10 +415,13 @@ class GroupsScreen extends StatelessWidget {
                         // ── Join Group button ────────────────────────────
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: () => Navigator.of(ctx).push(
-                            MaterialPageRoute(
-                                builder: (_) => const JoinGroupScreen()),
-                          ),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const JoinGroupScreen()),
+                            );
+                            _loadGroups(prov);
+                          },
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -418,13 +458,10 @@ class GroupsScreen extends StatelessWidget {
                           ),
                         ),
                       ]),
-                );
-              },
-            ),
-          ),
-        ]),
-      );
-    });
+                ),
+        ),
+      ]),
+    );
   }
 
   Widget _groupTile(BuildContext ctx, t, Map<String, dynamic> g) {
@@ -434,13 +471,17 @@ class GroupsScreen extends StatelessWidget {
     final memberCount = (g['memberUids'] as List?)?.length ?? 1;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(ctx).push(MaterialPageRoute(
-          builder: (_) => GroupDetailScreen(
-                groupId: g['id'] as String,
-                groupName: name,
-                ownerUid: ownerUid,
-                description: description,
-              ))),
+      onTap: () async {
+        await Navigator.of(ctx).push(MaterialPageRoute(
+            builder: (_) => GroupDetailScreen(
+                  groupId: g['id'] as String,
+                  groupName: name,
+                  ownerUid: ownerUid,
+                  description: description,
+                )));
+        final prov = ctx.read<AppProvider>();
+        _loadGroups(prov);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
