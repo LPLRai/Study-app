@@ -10,6 +10,7 @@
 //   • Members: info panel to view everyone and leave the group.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -82,17 +83,83 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   bool _isPublic = true;
   List<String> _groupSubjects = [];
 
-  // One-time snapshot of the group + members, captured when the screen opens.
-  // The view then stays STATIC (no live stream) — re-opening the group, or an
-  // owner edit / removal, refetches. This keeps the leaderboard from jumping
-  // around in real time while you're reading it.
+  // Static snapshot of member profiles. "me" is re-derived live on every
+  // build() from the provider so the timer always shows the correct time.
   List<_MemberView> _members = [];
   bool _loading = true;
+
+  // My total-seconds at the moment I joined this group (the "baseline").
+  // Stored once after _loadOnce so build() can compute my current delta live.
+  int _myBaseline = 0;
+
+  // Live stream that patches other members' status / time fields in real-time
+  // so their glow / studying indicator updates without a manual refresh.
+  StreamSubscription<List<Map<String, dynamic>>>? _membersSub;
 
   @override
   void initState() {
     super.initState();
     _loadOnce();
+    _startMembersStream();
+  }
+
+  @override
+  void dispose() {
+    _membersSub?.cancel();
+    super.dispose();
+  }
+
+  /// Subscribes to the Firestore members subcollection and live-patches
+  /// other members' status and time fields so their glow updates in real-time.
+  void _startMembersStream() {
+    final prov = context.read<AppProvider>();
+    final myUid = prov.currentUid;
+    _membersSub?.cancel();
+    _membersSub = prov.groupMembersStream(widget.groupId).listen((rawList) {
+      if (!mounted) return;
+      bool changed = false;
+      for (final raw in rawList) {
+        final uid = raw['uid'] as String?;
+        if (uid == null || uid == myUid) continue; // skip self — computed live
+        final idx = _members.indexWhere((m) => m.uid == uid);
+        if (idx == -1) continue; // not in snapshot yet; _loadOnce handles it
+        final existing = _members[idx];
+
+        final newStatus = (raw['status'] as String?) ??
+            ((raw['studying'] as bool? ?? false) ? 'studying' : 'idle');
+        final rawTotal   = (raw['totalSeconds']  as num?)?.toInt() ?? 0;
+        final rawBaseline = (raw['baseline']     as num?)?.toInt() ?? 0;
+        final rawDaily   = (raw['dailySeconds']  as num?)?.toInt() ?? 0;
+        final rawWeekly  = (raw['weekSeconds']   as num?)?.toInt() ?? 0;
+
+        final allTimeFiltered = math.max(0, rawTotal - rawBaseline);
+        final dailyFiltered = (rawBaseline >= rawTotal - rawDaily)
+            ? math.max(0, rawTotal - rawBaseline)
+            : rawDaily;
+        final weekFiltered = (rawBaseline >= rawTotal - rawWeekly)
+            ? math.max(0, rawTotal - rawBaseline)
+            : rawWeekly;
+
+        // Only rebuild if something actually changed.
+        if (existing.status == newStatus &&
+            existing.daily   == dailyFiltered &&
+            existing.weekly  == weekFiltered &&
+            existing.allTime == allTimeFiltered) continue;
+
+        _members[idx] = _MemberView(
+          uid:     existing.uid,
+          name:    existing.name,
+          isMe:    false,
+          status:  newStatus,
+          daily:   dailyFiltered,
+          weekly:  weekFiltered,
+          allTime: allTimeFiltered,
+          joined:  existing.joined,
+        );
+        changed = true;
+      }
+      if (changed) setState(() {});
+    });
   }
 
   Future<void> _loadOnce() async {
@@ -170,6 +237,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       final isMe = uid != null && uid == myUid;
       final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
       final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
+
+      // Store my baseline once so build() can recompute live on every frame.
+      if (isMe) _myBaseline = baseline;
 
       final overallAllTime = isMe ? prov.totalSecondsAllTime : total;
 
@@ -782,13 +852,44 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // ── Build ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final prov = context.read<AppProvider>();
+    // watch() so that provider changes (timer ticks, studyStatus, etc.) trigger
+    // a rebuild and "me" always shows the current live time/status.
+    final prov = context.watch<AppProvider>();
     final t = prov.appTheme;
     final panelWidth =
         math.min(310.0, MediaQuery.of(context).size.width * 0.88);
-    // Snapshot taken on open — re-sorted locally when the range toggle changes.
-    final members = List<_MemberView>.of(_members)
+
+    // Recompute "me" live on every frame so the timer updates without a refresh.
+    final now = DateTime.now();
+    final weekStart =
+        DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final endBound = now.add(const Duration(seconds: 1));
+
+    final members = _members.map((m) {
+      if (!m.isMe) return m;
+      final overallAllTime = prov.totalSecondsAllTime;
+      final overallDaily   = prov.todayStudiedSeconds;
+      final overallWeek    = prov.secondsInRange(weekStart, endBound);
+      final dailyFiltered  = (_myBaseline >= overallAllTime - overallDaily)
+          ? math.max(0, overallAllTime - _myBaseline)
+          : overallDaily;
+      final weekFiltered   = (_myBaseline >= overallAllTime - overallWeek)
+          ? math.max(0, overallAllTime - _myBaseline)
+          : overallWeek;
+      final allTimeFiltered = math.max(0, overallAllTime - _myBaseline);
+      return _MemberView(
+        uid:     m.uid,
+        name:    m.name,
+        isMe:    true,
+        status:  prov.studyStatus,
+        daily:   dailyFiltered,
+        weekly:  weekFiltered,
+        allTime: allTimeFiltered,
+        joined:  m.joined,
+      );
+    }).toList()
       ..sort((a, b) => b.timeFor(_range).compareTo(a.timeFor(_range)));
+
     final myRank = members.indexWhere((m) => m.isMe) + 1;
     final loading = _loading;
 
