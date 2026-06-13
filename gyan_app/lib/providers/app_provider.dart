@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants/avatars.dart';
 import '../models/user_model.dart';
@@ -57,6 +58,7 @@ class AppProvider extends ChangeNotifier {
   // Real-time group backend
   StreamSubscription? _groupsSub;
   List<String> _myGroupIds = [];
+  List<String> get myGroupIds => _myGroupIds;
   // studying | paused | short_break | long_break | idle — shown to group members
   String _studyStatus = 'idle';
   String get studyStatus => _studyStatus;
@@ -457,25 +459,65 @@ class AppProvider extends ChangeNotifier {
   Stream<Map<String, dynamic>?> groupStream(String groupId) =>
       _firebaseService.groupStream(groupId);
   Future<void> updateGroupInfo(
-          String groupId, String name, String description) =>
-      _firebaseService.updateGroupInfo(groupId, name.trim(), description.trim());
+    String groupId,
+    String name,
+    String description, {
+    bool isPublic = true,
+    List<String> subjects = const [],
+  }) =>
+      _firebaseService.updateGroupInfo(
+        groupId,
+        name.trim(),
+        description.trim(),
+        isPublic: isPublic,
+        subjects: subjects,
+      );
   Future<Map<String, dynamic>?> fetchUserProfile(String uid) =>
       _firebaseService.fetchUserProfile(uid);
   Future<void> sendStudyReminder(String toUid) =>
       _firebaseService.sendStudyReminder(toUid);
 
   /// Creates a group (max 5 owned). Returns 'ok', 'limit', or 'error'.
-  Future<String> createGroupRemote(String name, {String description = ''}) async {
+  Future<String> createGroupRemote(
+    String name, {
+    String description = '',
+    bool isPublic = true,
+    List<String> subjects = const [],
+  }) async {
     if (!_remoteBackendReady) return 'error';
     try {
       if (!isAdmin && await _firebaseService.ownedGroupCount() >= 5) {
         return 'limit';
       }
-      await _firebaseService.createGroup(name.trim(), totalSecondsAllTime, description: description);
+      await _firebaseService.createGroup(
+        name.trim(),
+        totalSecondsAllTime,
+        description: description,
+        isPublic: isPublic,
+        subjects: subjects,
+      );
       return 'ok';
     } catch (_) {
       return 'error';
     }
+  }
+
+  /// Directly joins a public group.
+  Future<void> joinGroupRemote(String groupId) async {
+    if (!_remoteBackendReady) return;
+    try {
+      await _firebaseService.joinGroup(groupId, totalSecondsAllTime);
+      _publishToGroups();
+    } catch (_) {}
+  }
+
+  /// Stream of all public study groups.
+  Stream<List<Map<String, dynamic>>> publicGroupsStream() {
+    return FirebaseFirestore.instance
+        .collection('study_groups')
+        .where('isPublic', isEqualTo: true)
+        .snapshots()
+        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
   }
 
   Future<String> inviteByEmail(

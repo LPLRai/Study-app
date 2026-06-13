@@ -216,7 +216,11 @@ class FirebaseService {
   }
 
   /// Creates a group with the current user as owner + first member.
-  Future<String> createGroup(String name, int myTotalSeconds, {String description = ''}) async {
+  Future<String> createGroup(String name, int myTotalSeconds, {
+    String description = '',
+    bool isPublic = true,
+    List<String> subjects = const [],
+  }) async {
     final uid = currentUser!.uid;
     final myName = await _myName();
     final ref = await _groups.add({
@@ -225,6 +229,8 @@ class FirebaseService {
       'ownerUid': uid,
       'ownerName': myName,
       'memberUids': [uid],
+      'isPublic': isPublic,
+      'subjects': subjects,
       'createdAt': FieldValue.serverTimestamp(),
     });
     await ref.collection('members').doc(uid).set({
@@ -388,13 +394,40 @@ class FirebaseService {
         (d) => d.exists ? {'id': d.id, ...?d.data()} : null);
   }
 
-  /// Owner edits the group's name + description.
+  /// Owner edits the group's name, description, type, and subjects.
   Future<void> updateGroupInfo(
-      String groupId, String name, String description) async {
+    String groupId,
+    String name,
+    String description, {
+    bool isPublic = true,
+    List<String> subjects = const [],
+  }) async {
     await _groups.doc(groupId).update({
       'name': name,
       'description': description,
+      'isPublic': isPublic,
+      'subjects': subjects,
     });
+  }
+
+  /// Directly joins a public group.
+  Future<void> joinGroup(String groupId, int myTotalSeconds) async {
+    final uid = currentUser!.uid;
+    final myName = await _myName();
+    await _groups.doc(groupId).update({
+      'memberUids': FieldValue.arrayUnion([uid])
+    });
+    await _groups.doc(groupId).collection('members').doc(uid).set({
+      'name': myName,
+      'joinedAt': FieldValue.serverTimestamp(),
+      'baseline': myTotalSeconds,
+      'dailySeconds': 0,
+      'dailyDate': _todayKey,
+      'weekSeconds': 0,
+      'totalSeconds': myTotalSeconds,
+      'studying': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   /// Reads another user's public profile (the `user` map on their doc) so the
