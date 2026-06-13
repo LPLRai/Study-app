@@ -96,17 +96,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // so their glow / studying indicator updates without a manual refresh.
   StreamSubscription<List<Map<String, dynamic>>>? _membersSub;
 
+  // Local timer that ticks every second to update other members' running study times in real-time.
+  Timer? _rebuildTimer;
+
   @override
   void initState() {
     super.initState();
     _loadOnce();
     _startMembersStream();
+    _startRebuildTimer();
   }
 
   @override
   void dispose() {
     _membersSub?.cancel();
+    _rebuildTimer?.cancel();
     super.dispose();
+  }
+
+  void _startRebuildTimer() {
+    _rebuildTimer?.cancel();
+    _rebuildTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      // Rebuild if any member is currently studying.
+      final anyStudying = _members.any((m) => m.studying);
+      if (anyStudying) {
+        setState(() {});
+      }
+    });
   }
 
   /// Subscribes to the Firestore members subcollection and live-patches
@@ -140,11 +157,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ? math.max(0, rawTotal - rawBaseline)
             : rawWeekly;
 
+        final updatedAtRaw = raw['updatedAt'];
+        DateTime? newUpdatedAt;
+        if (updatedAtRaw is Timestamp) {
+          newUpdatedAt = updatedAtRaw.toDate();
+        } else if (updatedAtRaw is DateTime) {
+          newUpdatedAt = updatedAtRaw;
+        }
+
         // Only rebuild if something actually changed.
         if (existing.status == newStatus &&
             existing.daily   == dailyFiltered &&
             existing.weekly  == weekFiltered &&
-            existing.allTime == allTimeFiltered) continue;
+            existing.allTime == allTimeFiltered &&
+            existing.updatedAt == newUpdatedAt) continue;
 
         _members[idx] = _MemberView(
           uid:     existing.uid,
@@ -155,6 +181,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           weekly:  weekFiltered,
           allTime: allTimeFiltered,
           joined:  existing.joined,
+          updatedAt: newUpdatedAt,
         );
         changed = true;
       }
@@ -166,25 +193,35 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final prov = context.read<AppProvider>();
     final myUid = prov.currentUid;
     try {
-      final g = await prov
-          .groupStream(widget.groupId)
-          .first
+      final gSnap = await FirebaseFirestore.instance
+          .collection('study_groups')
+          .doc(widget.groupId)
+          .get()
           .timeout(const Duration(seconds: 10));
       List<String> memberUids = [];
-      if (g != null) {
-        _name = (g['name'] as String?) ?? widget.groupName;
-        _description = (g['description'] as String?) ?? widget.description;
-        _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
-        _isOwner = myUid != null && myUid == _ownerUid;
-        _isPublic = (g['isPublic'] as bool?) ?? true;
-        _groupSubjects = List<String>.from(g['subjects'] ?? []);
-        memberUids = List<String>.from(g['memberUids'] ?? []);
+      if (gSnap.exists) {
+        final g = gSnap.data();
+        if (g != null) {
+          _name = (g['name'] as String?) ?? widget.groupName;
+          _description = (g['description'] as String?) ?? widget.description;
+          _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
+          _isOwner = myUid != null && myUid == _ownerUid;
+          _isPublic = (g['isPublic'] as bool?) ?? true;
+          _groupSubjects = List<String>.from(g['subjects'] ?? []);
+          memberUids = List<String>.from(g['memberUids'] ?? []);
+        }
       }
-      final raw = await prov
-          .groupMembersStream(widget.groupId)
-          .first
+
+      final rawSnap = await FirebaseFirestore.instance
+          .collection('study_groups')
+          .doc(widget.groupId)
+          .collection('members')
+          .get()
           .timeout(const Duration(seconds: 10));
       
+      final List<Map<String, dynamic>> raw = rawSnap.docs
+          .map((d) => {'uid': d.id, ...d.data()})
+          .toList();
       final List<Map<String, dynamic>> rawMutable = List<Map<String, dynamic>>.from(raw);
       final Set<String> existingUids = rawMutable.map((m) => m['uid'] as String?).whereType<String>().toSet();
 
@@ -192,10 +229,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       if (myUid != null && memberUids.contains(myUid) && !existingUids.contains(myUid)) {
         await prov.joinGroupRemote(widget.groupId);
         try {
-          final freshRaw = await prov
-              .groupMembersStream(widget.groupId)
-              .first
+          final freshRawSnap = await FirebaseFirestore.instance
+              .collection('study_groups')
+              .doc(widget.groupId)
+              .collection('members')
+              .get()
               .timeout(const Duration(seconds: 5));
+          final freshRaw = freshRawSnap.docs
+              .map((d) => {'uid': d.id, ...d.data()})
+              .toList();
           rawMutable.clear();
           rawMutable.addAll(freshRaw);
           existingUids.clear();
@@ -269,6 +311,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           : ((m['status'] as String?) ??
               ((m['studying'] as bool? ?? false) ? 'studying' : 'idle'));
 
+      final updatedAtRaw = m['updatedAt'];
+      DateTime? updatedAt;
+      if (updatedAtRaw is Timestamp) {
+        updatedAt = updatedAtRaw.toDate();
+      } else if (updatedAtRaw is DateTime) {
+        updatedAt = updatedAtRaw;
+      }
+
       return _MemberView(
         uid: uid ?? '',
         name: (m['name'] as String?) ?? 'User',
@@ -278,6 +328,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         weekly: weekFiltered,
         allTime: allTimeFiltered,
         joined: (m['joinedAt'] as Timestamp?)?.toDate(),
+        updatedAt: updatedAt,
       );
     }).toList();
   }
@@ -866,27 +917,49 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final endBound = now.add(const Duration(seconds: 1));
 
     final members = _members.map((m) {
-      if (!m.isMe) return m;
-      final overallAllTime = prov.totalSecondsAllTime;
-      final overallDaily   = prov.todayStudiedSeconds;
-      final overallWeek    = prov.secondsInRange(weekStart, endBound);
-      final dailyFiltered  = (_myBaseline >= overallAllTime - overallDaily)
-          ? math.max(0, overallAllTime - _myBaseline)
-          : overallDaily;
-      final weekFiltered   = (_myBaseline >= overallAllTime - overallWeek)
-          ? math.max(0, overallAllTime - _myBaseline)
-          : overallWeek;
-      final allTimeFiltered = math.max(0, overallAllTime - _myBaseline);
-      return _MemberView(
-        uid:     m.uid,
-        name:    m.name,
-        isMe:    true,
-        status:  prov.studyStatus,
-        daily:   dailyFiltered,
-        weekly:  weekFiltered,
-        allTime: allTimeFiltered,
-        joined:  m.joined,
-      );
+      if (m.isMe) {
+        final overallAllTime = prov.totalSecondsAllTime;
+        final overallDaily   = prov.todayStudiedSeconds;
+        final overallWeek    = prov.secondsInRange(weekStart, endBound);
+        final dailyFiltered  = (_myBaseline >= overallAllTime - overallDaily)
+            ? math.max(0, overallAllTime - _myBaseline)
+            : overallDaily;
+        final weekFiltered   = (_myBaseline >= overallAllTime - overallWeek)
+            ? math.max(0, overallAllTime - _myBaseline)
+            : overallWeek;
+        final allTimeFiltered = math.max(0, overallAllTime - _myBaseline);
+        return _MemberView(
+          uid:     m.uid,
+          name:    m.name,
+          isMe:    true,
+          status:  prov.studyStatus,
+          daily:   dailyFiltered,
+          weekly:  weekFiltered,
+          allTime: allTimeFiltered,
+          joined:  m.joined,
+          updatedAt: m.updatedAt,
+        );
+      } else {
+        // Friend is studying: calculate live elapsed seconds since last Firestore publish (updatedAt)
+        int extra = 0;
+        if (m.studying && m.updatedAt != null) {
+          final diff = DateTime.now().difference(m.updatedAt!).inSeconds;
+          if (diff > 0) {
+            extra = diff;
+          }
+        }
+        return _MemberView(
+          uid:     m.uid,
+          name:    m.name,
+          isMe:    false,
+          status:  m.status,
+          daily:   m.daily + extra,
+          weekly:  m.weekly + extra,
+          allTime: m.allTime + extra,
+          joined:  m.joined,
+          updatedAt: m.updatedAt,
+        );
+      }
     }).toList()
       ..sort((a, b) => b.timeFor(_range).compareTo(a.timeFor(_range)));
 
@@ -1855,6 +1928,7 @@ class _MemberView {
   final int weekly;
   final int allTime;
   final DateTime? joined;
+  final DateTime? updatedAt;
 
   const _MemberView({
     required this.uid,
@@ -1865,6 +1939,7 @@ class _MemberView {
     required this.weekly,
     required this.allTime,
     required this.joined,
+    this.updatedAt,
   });
 
   bool get studying => status == 'studying';
