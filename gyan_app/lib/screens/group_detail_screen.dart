@@ -10,6 +10,7 @@
 //   • Members: info panel to view everyone and leave the group.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
+import '../constants/subjects.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -78,70 +80,320 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late String _description = widget.description;
   late String _ownerUid = widget.ownerUid;
   bool _isOwner = false;
+  bool _isPublic = true;
+  List<String> _groupSubjects = [];
 
-  // One-time snapshot of the group + members, captured when the screen opens.
-  // The view then stays STATIC (no live stream) — re-opening the group, or an
-  // owner edit / removal, refetches. This keeps the leaderboard from jumping
-  // around in real time while you're reading it.
+  // Static snapshot of member profiles. "me" is re-derived live on every
+  // build() from the provider so the timer always shows the correct time.
   List<_MemberView> _members = [];
   bool _loading = true;
+
+  // My total-seconds at the moment I joined this group (the "baseline").
+  // Stored once after _loadOnce so build() can compute my current delta live.
+  int _myBaseline = 0;
+  // Whether the baseline has been loaded from Firestore yet.
+  bool _baselineLoaded = false;
+
+  // Live stream that patches other members' status / time fields in real-time
+  // so their glow / studying indicator updates without a manual refresh.
+  StreamSubscription<List<Map<String, dynamic>>>? _membersSub;
+
+  // Local timer that ticks every second to update other members' running study times in real-time.
+  Timer? _rebuildTimer;
 
   @override
   void initState() {
     super.initState();
+    // Push our latest stats to Firestore first so the initial fetch is fresh.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppProvider>().forcePublishToGroups();
+    });
     _loadOnce();
+    _startRebuildTimer();
+  }
+
+  @override
+  void dispose() {
+    _membersSub?.cancel();
+    _rebuildTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startRebuildTimer() {
+    _rebuildTimer?.cancel();
+    _rebuildTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      // Always rebuild so "me" stays live every second (timer ticking).
+      setState(() {});
+    });
+  }
+
+  /// Subscribes to the Firestore members subcollection and live-patches
+  /// other members' status and time fields so their glow updates in real-time.
+  void _startMembersStream() {
+    final prov = context.read<AppProvider>();
+    final myUid = prov.currentUid;
+    _membersSub?.cancel();
+    _membersSub = prov.groupMembersStream(widget.groupId).listen((rawList) {
+      if (!mounted) return;
+      bool changed = false;
+      for (final raw in rawList) {
+        final uid = raw['uid'] as String?;
+        if (uid == null) continue;
+
+        // Update MY baseline from Firestore whenever it arrives.
+        if (uid == myUid) {
+          final newBaseline = (raw['baseline'] as num?)?.toInt() ?? 0;
+          final myAllTime = prov.totalSecondsAllTime;
+          final resolvedBaseline = (newBaseline > myAllTime) ? 0 : newBaseline;
+          if (newBaseline > myAllTime) {
+            // Self-heal baseline in Firestore
+            FirebaseFirestore.instance
+                .collection('study_groups')
+                .doc(widget.groupId)
+                .collection('members')
+                .doc(myUid)
+                .update({'baseline': 0});
+          }
+          if (!_baselineLoaded || _myBaseline != resolvedBaseline) {
+            _myBaseline = resolvedBaseline;
+            _baselineLoaded = true;
+            changed = true;
+          }
+          continue; // "me" is always re-derived live in build()
+        }
+
+        final idx = _members.indexWhere((m) => m.uid == uid);
+        if (idx == -1) continue; // not in snapshot yet; _loadOnce handles it
+        final existing = _members[idx];
+
+        final newStatus = (raw['status'] as String?) ??
+            ((raw['studying'] as bool? ?? false) ? 'studying' : 'idle');
+        final rawTotal   = (raw['totalSeconds']  as num?)?.toInt() ?? 0;
+        final rawBaseline = (raw['baseline']     as num?)?.toInt() ?? 0;
+        final rawDaily   = (raw['dailySeconds']  as num?)?.toInt() ?? 0;
+        final rawWeekly  = (raw['weekSeconds']   as num?)?.toInt() ?? 0;
+
+        final allTimeFiltered = math.max(0, rawTotal - rawBaseline);
+        final dailyFiltered = (rawBaseline >= rawTotal - rawDaily)
+            ? math.max(0, rawTotal - rawBaseline)
+            : rawDaily;
+        final weekFiltered = (rawBaseline >= rawTotal - rawWeekly)
+            ? math.max(0, rawTotal - rawBaseline)
+            : rawWeekly;
+
+        final updatedAtRaw = raw['updatedAt'];
+        DateTime? newUpdatedAt;
+        if (updatedAtRaw is Timestamp) {
+          newUpdatedAt = updatedAtRaw.toDate();
+        } else if (updatedAtRaw is DateTime) {
+          newUpdatedAt = updatedAtRaw;
+        }
+
+        // Only rebuild if something actually changed.
+        if (existing.status == newStatus &&
+            existing.daily   == dailyFiltered &&
+            existing.weekly  == weekFiltered &&
+            existing.allTime == allTimeFiltered &&
+            existing.updatedAt == newUpdatedAt) continue;
+
+        _members[idx] = _MemberView(
+          uid:     existing.uid,
+          name:    existing.name,
+          isMe:    false,
+          status:  newStatus,
+          daily:   dailyFiltered,
+          weekly:  weekFiltered,
+          allTime: allTimeFiltered,
+          joined:  existing.joined,
+          updatedAt: newUpdatedAt,
+        );
+        changed = true;
+      }
+      if (changed) setState(() {});
+    });
   }
 
   Future<void> _loadOnce() async {
     final prov = context.read<AppProvider>();
     final myUid = prov.currentUid;
+    // Push current stats to Firestore before fetching so pull-to-refresh
+    // always returns fresh data (without waiting for the next publish cycle).
+    prov.forcePublishToGroups();
+    // Small delay to let Firestore write land before we read.
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     try {
-      final g = await prov
-          .groupStream(widget.groupId)
-          .first
+      final gSnap = await FirebaseFirestore.instance
+          .collection('study_groups')
+          .doc(widget.groupId)
+          .get()
           .timeout(const Duration(seconds: 10));
-      if (g != null) {
-        _name = (g['name'] as String?) ?? widget.groupName;
-        _description = (g['description'] as String?) ?? widget.description;
-        _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
-        _isOwner = myUid != null && myUid == _ownerUid;
+      List<String> memberUids = [];
+      if (gSnap.exists) {
+        final g = gSnap.data();
+        if (g != null) {
+          _name = (g['name'] as String?) ?? widget.groupName;
+          _description = (g['description'] as String?) ?? widget.description;
+          _ownerUid = (g['ownerUid'] as String?) ?? widget.ownerUid;
+          _isOwner = myUid != null && myUid == _ownerUid;
+          _isPublic = (g['isPublic'] as bool?) ?? true;
+          _groupSubjects = List<String>.from(g['subjects'] ?? []);
+          memberUids = List<String>.from(g['memberUids'] ?? []);
+        }
       }
-      final raw = await prov
-          .groupMembersStream(widget.groupId)
-          .first
+
+      final rawSnap = await FirebaseFirestore.instance
+          .collection('study_groups')
+          .doc(widget.groupId)
+          .collection('members')
+          .get()
           .timeout(const Duration(seconds: 10));
-      _members = _buildMembers(raw, prov, myUid);
+      
+      final List<Map<String, dynamic>> raw = rawSnap.docs
+          .map((d) => {'uid': d.id, ...d.data()})
+          .toList();
+      final List<Map<String, dynamic>> rawMutable = List<Map<String, dynamic>>.from(raw);
+      final Set<String> existingUids = rawMutable.map((m) => m['uid'] as String?).whereType<String>().toSet();
+
+      // Self-healing database repair: if current user is missing from members subcollection, write it
+      if (myUid != null && memberUids.contains(myUid) && !existingUids.contains(myUid)) {
+        await prov.joinGroupRemote(widget.groupId);
+        try {
+          final freshRawSnap = await FirebaseFirestore.instance
+              .collection('study_groups')
+              .doc(widget.groupId)
+              .collection('members')
+              .get()
+              .timeout(const Duration(seconds: 5));
+          final freshRaw = freshRawSnap.docs
+              .map((d) => {'uid': d.id, ...d.data()})
+              .toList();
+          rawMutable.clear();
+          rawMutable.addAll(freshRaw);
+          existingUids.clear();
+          existingUids.addAll(rawMutable.map((m) => m['uid'] as String?).whereType<String>());
+        } catch (_) {}
+      }
+
+      for (final uid in memberUids) {
+        if (!existingUids.contains(uid)) {
+          final isMe = uid == myUid;
+          final profile = await prov.fetchUserProfile(uid).timeout(const Duration(seconds: 3), onTimeout: () => null);
+          rawMutable.add({
+            'uid': uid,
+            'name': profile?['name'] ?? 'User',
+            'status': 'idle',
+            'studying': false,
+            'dailySeconds': 0,
+            'weekSeconds': 0,
+            'totalSeconds': isMe ? prov.totalSecondsAllTime : 0,
+            'baseline': isMe ? prov.totalSecondsAllTime : 0,
+            'joinedAt': null,
+          });
+        }
+      }
+
+      // Update _myBaseline from the actual Firestore member doc so the
+      // "since joining" filter is always based on the correct join snapshot.
+      if (myUid != null) {
+        final myDoc = rawMutable.firstWhere(
+          (m) => m['uid'] == myUid,
+          orElse: () => <String, dynamic>{},
+        );
+        if (myDoc.isNotEmpty) {
+          final baseline = (myDoc['baseline'] as num?)?.toInt() ?? 0;
+          final myAllTime = prov.totalSecondsAllTime;
+          final resolvedBaseline = (baseline > myAllTime) ? 0 : baseline;
+          if (baseline > myAllTime) {
+            // Self-heal baseline in Firestore
+            FirebaseFirestore.instance
+                .collection('study_groups')
+                .doc(widget.groupId)
+                .collection('members')
+                .doc(myUid)
+                .update({'baseline': 0});
+          }
+          if (!_baselineLoaded || _myBaseline != resolvedBaseline) {
+            _myBaseline = resolvedBaseline;
+            _baselineLoaded = true;
+          }
+        }
+      }
+
+      _members = _buildMembers(rawMutable, prov, myUid);
     } catch (_) {/* keep whatever we have; just stop the spinner */}
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() => _loading = false);
+      _startMembersStream();
+    }
   }
 
   List<_MemberView> _buildMembers(
       List<Map<String, dynamic>> raw, AppProvider prov, String? myUid) {
+    final now = DateTime.now();
+    final weekStart = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final endBound = now.add(const Duration(seconds: 1));
+
     return raw.map((m) {
       final uid = m['uid'] as String?;
       final isMe = uid != null && uid == myUid;
       final total = (m['totalSeconds'] as num?)?.toInt() ?? 0;
       final baseline = (m['baseline'] as num?)?.toInt() ?? 0;
-      final daily = isMe
+
+      final overallAllTime = isMe ? prov.totalSecondsAllTime : total;
+      
+      // Self-heal corrupted baseline (if overallAllTime is less than baseline, baseline is invalid/out-of-sync)
+      final effectiveBaseline = (baseline > overallAllTime) ? 0 : baseline;
+
+      // Store my baseline once so build() can recompute live on every frame.
+      if (isMe) _myBaseline = effectiveBaseline;
+
+      final overallDaily = isMe
           ? prov.todayStudiedSeconds
-          : (m['dailySeconds'] as num?)?.toInt() ?? 0;
-      final week = (m['weekSeconds'] as num?)?.toInt() ?? 0;
-      final allTime = isMe
-          ? math.max(0, prov.totalSecondsAllTime - baseline)
-          : math.max(0, total - baseline);
+          : ((m['dailySeconds'] as num?)?.toInt() ?? 0);
+
+      final overallWeek = isMe
+          ? prov.secondsInRange(weekStart, endBound)
+          : ((m['weekSeconds'] as num?)?.toInt() ?? 0);
+
+      // Daily time studied after joining the group
+      final dailyFiltered = (effectiveBaseline >= overallAllTime - overallDaily)
+          ? math.max(0, overallAllTime - effectiveBaseline)
+          : overallDaily;
+
+      // Weekly time studied after joining the group
+      final weekFiltered = (effectiveBaseline >= overallAllTime - overallWeek)
+          ? math.max(0, overallAllTime - effectiveBaseline)
+          : overallWeek;
+
+      // All-time time studied after joining the group
+      final allTimeFiltered = math.max(0, overallAllTime - effectiveBaseline);
+
       final status = isMe
           ? prov.studyStatus
           : ((m['status'] as String?) ??
               ((m['studying'] as bool? ?? false) ? 'studying' : 'idle'));
+
+      final updatedAtRaw = m['updatedAt'];
+      DateTime? updatedAt;
+      if (updatedAtRaw is Timestamp) {
+        updatedAt = updatedAtRaw.toDate();
+      } else if (updatedAtRaw is DateTime) {
+        updatedAt = updatedAtRaw;
+      }
+
       return _MemberView(
         uid: uid ?? '',
         name: (m['name'] as String?) ?? 'User',
         isMe: isMe,
         status: status,
-        daily: daily,
-        weekly: week,
-        allTime: allTime,
+        daily: dailyFiltered,
+        weekly: weekFiltered,
+        allTime: allTimeFiltered,
         joined: (m['joinedAt'] as Timestamp?)?.toDate(),
+        updatedAt: updatedAt,
       );
     }).toList();
   }
@@ -248,86 +500,213 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   void _showEditGroup(AppProvider prov, AppThemeData t) {
     final nameCtrl = TextEditingController(text: _name);
     final descCtrl = TextEditingController(text: _description);
+    bool localIsPublic = _isPublic;
+    final Set<String> localSubjects = Set<String>.from(_groupSubjects);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: t.background,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetCtx) => Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sheetHeader(t, Icons.edit_rounded, 'Edit Group',
-                    'Update name & description', sheetCtx),
-                const SizedBox(height: 18),
-                Text('Group Name',
-                    style: GoogleFonts.inder(
-                        color: t.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: nameCtrl,
-                  style: GoogleFonts.inder(color: t.textPrimary),
-                  textCapitalization: TextCapitalization.words,
-                  decoration: _fieldDecoration(t, 'Group name'),
-                ),
-                const SizedBox(height: 14),
-                Text('Description',
-                    style: GoogleFonts.inder(
-                        color: t.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: descCtrl,
-                  style: GoogleFonts.inder(color: t.textPrimary),
-                  maxLines: 3,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: _fieldDecoration(t, 'What is this group about?'),
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () async {
-                    final name = nameCtrl.text.trim();
-                    if (name.isEmpty) {
-                      _toast('Group name cannot be empty', error: true);
-                      return;
-                    }
-                    await prov.updateGroupInfo(
-                        widget.groupId, name, descCtrl.text.trim());
-                    if (!sheetCtx.mounted) return;
-                    Navigator.pop(sheetCtx);
-                    // Reflect the edit immediately on the static screen.
-                    if (mounted) {
-                      setState(() {
-                        _name = name;
-                        _description = descCtrl.text.trim();
-                      });
-                    }
-                    _toast('Group updated');
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    decoration: BoxDecoration(
-                        color: AppColors.blue,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Text('Save Changes',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inder(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600)),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+            child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sheetHeader(t, Icons.edit_rounded, 'Edit Group',
+                      'Update group information', sheetCtx),
+                  const SizedBox(height: 18),
+                  Text('Group Name',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameCtrl,
+                    style: GoogleFonts.inder(color: t.textPrimary),
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _fieldDecoration(t, 'Group name'),
                   ),
-                ),
-              ]),
+                  const SizedBox(height: 14),
+                  Text('Description',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: descCtrl,
+                    style: GoogleFonts.inder(color: t.textPrimary),
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: _fieldDecoration(t, 'What is this group about?'),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Group Type Toggle ──────────────────────────────
+                  Text('Group Type',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => localIsPublic = true),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: localIsPublic ? AppColors.green.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(color: localIsPublic ? AppColors.green : t.cardBorder),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.public_rounded,
+                                size: 16, color: localIsPublic ? AppColors.green : t.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Public',
+                                style: GoogleFonts.inder(
+                                    color: localIsPublic ? AppColors.green : t.textMuted,
+                                    fontSize: 13,
+                                    fontWeight: localIsPublic ? FontWeight.w700 : FontWeight.normal)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => localIsPublic = false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !localIsPublic ? AppColors.red.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(color: !localIsPublic ? AppColors.red : t.cardBorder),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(Icons.lock_rounded,
+                                size: 16, color: !localIsPublic ? AppColors.red : t.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Private',
+                                style: GoogleFonts.inder(
+                                    color: !localIsPublic ? AppColors.red : t.textMuted,
+                                    fontSize: 13,
+                                    fontWeight: !localIsPublic ? FontWeight.w700 : FontWeight.normal)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    localIsPublic
+                        ? 'Anyone can find and join this group.'
+                        : 'Only invited members can join.',
+                    style: GoogleFonts.inder(color: t.textMuted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // ── Subjects Picker ────────────────────────────────
+                  Text('What are you planning to study?',
+                      style: GoogleFonts.inder(
+                          color: t.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: kDefaultSubjects.map((sub) {
+                      final isSelected = localSubjects.contains(sub);
+                      return GestureDetector(
+                        onTap: () {
+                          setSheetState(() {
+                            if (isSelected) {
+                              localSubjects.remove(sub);
+                            } else {
+                              localSubjects.add(sub);
+                            }
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.blue.withOpacity(0.15) : t.inputBg,
+                            border: Border.all(
+                              color: isSelected ? AppColors.blue : t.cardBorder,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            sub,
+                            style: GoogleFonts.inder(
+                              color: isSelected ? AppColors.blue : t.textMuted,
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  GestureDetector(
+                    onTap: () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) {
+                        _toast('Group name cannot be empty', error: true);
+                        return;
+                      }
+                      await prov.updateGroupInfo(
+                        widget.groupId,
+                        name,
+                        descCtrl.text.trim(),
+                        isPublic: localIsPublic,
+                        subjects: localSubjects.toList(),
+                      );
+                      if (!sheetCtx.mounted) return;
+                      Navigator.pop(sheetCtx);
+                      // Reflect the edit immediately on the static screen.
+                      if (mounted) {
+                        setState(() {
+                          _name = name;
+                          _description = descCtrl.text.trim();
+                          _isPublic = localIsPublic;
+                          _groupSubjects = localSubjects.toList();
+                        });
+                      }
+                      _toast('Group updated');
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                          color: AppColors.blue,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Text('Save Changes',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inder(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ]),
+          ),
         ),
       ),
     );
@@ -336,19 +715,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // ── Member profile popup (everyone) ─────────────────────────────────────────
   Future<void> _showMemberProfile(
       AppProvider prov, AppThemeData t, _MemberView m, int rank) async {
+    // 1. Refresh once upon opening
+    await _loadOnce();
+
+    _MemberView activeMember = m;
+    final index = _members.indexWhere((x) => x.uid == m.uid);
+    if (index != -1) {
+      activeMember = _members[index];
+    }
+
     // Load the member's profile exactly once, then cache it — the popup shows
     // static data and never reloads while it is open.
-    Map<String, dynamic>? profile = _profileCache[m.uid];
+    Map<String, dynamic>? profile = _profileCache[activeMember.uid];
     if (profile == null) {
       profile = await prov
-          .fetchUserProfile(m.uid)
+          .fetchUserProfile(activeMember.uid)
           .timeout(const Duration(seconds: 6), onTimeout: () => null);
       if (!mounted) return;
-      if (profile != null) _profileCache[m.uid] = profile;
+      if (profile != null) _profileCache[activeMember.uid] = profile;
     }
     if (!mounted) return;
 
-    final vis = _statusVisual(m.status, t);
+    final vis = _statusVisual(activeMember.status, t);
     final grade = (profile?['grade'] as String?)?.trim() ?? '';
     final goal = (profile?['studyGoal'] as String?)?.trim() ?? '';
     final time = (profile?['studyTime'] as String?)?.trim() ?? '';
@@ -360,7 +748,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         strong.isNotEmpty ||
         weak.isNotEmpty;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       backgroundColor: t.background,
       isScrollControlled: true,
@@ -389,13 +777,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   const SizedBox(height: 16),
                   // Header: avatar + name + rank/status
                   Row(children: [
-                    _avatar(t, m, vis.color, size: 54),
+                    _avatar(t, activeMember, vis.color, size: 54),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m.isMe ? '${m.name} (You)' : m.name,
+                            Text(activeMember.isMe ? '${activeMember.name} (You)' : activeMember.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.inder(
@@ -430,12 +818,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   // Studied-time stat cards
                   Row(children: [
                     Expanded(
-                        child: _statCard(t, 'Today', _fmt(m.daily),
+                        child: _statCard(t, 'Today', _fmt(activeMember.daily),
                             Icons.today_rounded)),
                     const SizedBox(width: 10),
                     Expanded(
                         child: _statCard(t, 'Total studied',
-                            _fmt(m.allTime), Icons.timelapse_rounded)),
+                            _fmt(activeMember.allTime), Icons.timelapse_rounded)),
                   ]),
                   const SizedBox(height: 10),
                   // Profile details — pre-loaded once, rendered statically.
@@ -468,19 +856,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         size: 13, color: t.textMuted),
                     const SizedBox(width: 6),
                     Text(
-                        m.joined != null
-                            ? 'Joined ${_date(m.joined!)}'
+                        activeMember.joined != null
+                            ? 'Joined ${_date(activeMember.joined!)}'
                             : 'Member',
                         style: GoogleFonts.inder(
                             color: t.textMuted, fontSize: 12)),
                     const Spacer(),
-                    if (!m.isMe)
+                    if (!activeMember.isMe)
                       GestureDetector(
                         onTap: () async {
-                          await prov.sendStudyReminder(m.uid);
+                          await prov.sendStudyReminder(activeMember.uid);
                           if (!sheetCtx.mounted) return;
                           Navigator.pop(sheetCtx);
-                          _toast('Reminder sent to ${m.name} 🔔');
+                          _toast('Reminder sent to ${activeMember.name} 🔔');
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -513,6 +901,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         );
       },
     );
+
+    // 2. Refresh again when they click off (dismiss)
+    _loadOnce();
   }
 
   // ── Confirm dialog ──────────────────────────────────────────────────────────
@@ -577,13 +968,70 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // ── Build ───────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final prov = context.read<AppProvider>();
+    // watch() so that provider changes (timer ticks, studyStatus, etc.) trigger
+    // a rebuild and "me" always shows the current live time/status.
+    final prov = context.watch<AppProvider>();
     final t = prov.appTheme;
     final panelWidth =
         math.min(310.0, MediaQuery.of(context).size.width * 0.88);
-    // Snapshot taken on open — re-sorted locally when the range toggle changes.
-    final members = List<_MemberView>.of(_members)
+
+    // Recompute "me" live on every frame so the timer updates without a refresh.
+    final now = DateTime.now();
+    final weekStart =
+        DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final endBound = now.add(const Duration(seconds: 1));
+
+    final members = _members.map((m) {
+      if (m.isMe) {
+        final overallAllTime = prov.totalSecondsAllTime;
+        final overallDaily   = prov.todayStudiedSeconds;
+        final overallWeek    = prov.secondsInRange(weekStart, endBound);
+        
+        // Self-heal corrupted baseline
+        final myEffectiveBaseline = (_myBaseline > overallAllTime) ? 0 : _myBaseline;
+        
+        final dailyFiltered  = (myEffectiveBaseline >= overallAllTime - overallDaily)
+            ? math.max(0, overallAllTime - myEffectiveBaseline)
+            : overallDaily;
+        final weekFiltered   = (myEffectiveBaseline >= overallAllTime - overallWeek)
+            ? math.max(0, overallAllTime - myEffectiveBaseline)
+            : overallWeek;
+        final allTimeFiltered = math.max(0, overallAllTime - myEffectiveBaseline);
+        return _MemberView(
+          uid:     m.uid,
+          name:    m.name,
+          isMe:    true,
+          status:  prov.studyStatus,
+          daily:   dailyFiltered,
+          weekly:  weekFiltered,
+          allTime: allTimeFiltered,
+          joined:  m.joined,
+          updatedAt: m.updatedAt,
+        );
+      } else {
+        // Friend is studying: calculate live elapsed seconds since last Firestore publish (updatedAt)
+        int extra = 0;
+        if (m.studying && m.updatedAt != null) {
+          final diff = DateTime.now().difference(m.updatedAt!).inSeconds;
+          if (diff > 0) {
+            extra = diff;
+          }
+        }
+        return _MemberView(
+          uid:     m.uid,
+          name:    m.name,
+          isMe:    false,
+          status:  m.status,
+          daily:   m.daily + extra,
+          weekly:  m.weekly + extra,
+          allTime: m.allTime + extra,
+          joined:  m.joined,
+          updatedAt: m.updatedAt,
+        );
+      }
+    }).toList()
       ..sort((a, b) => b.timeFor(_range).compareTo(a.timeFor(_range)));
+
     final myRank = members.indexWhere((m) => m.isMe) + 1;
     final loading = _loading;
 
@@ -603,24 +1051,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               ? const Center(
                                   child: CircularProgressIndicator(
                                       color: AppColors.blue))
-                              : SingleChildScrollView(
-                                  padding: const EdgeInsets.fromLTRB(
-                                      16, 12, 16, 100),
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _leaderboardCard(t, members, myRank),
-                                        const SizedBox(height: 20),
-                                        Text('Members',
-                                            style: GoogleFonts.inder(
-                                                color: t.textPrimary,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold)),
+                              : RefreshIndicator(
+                                  color: AppColors.blue,
+                                  onRefresh: _loadOnce,
+                                  child: SingleChildScrollView(
+                                    physics: const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 12, 16, 100),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _leaderboardCard(t, members, myRank),
+                                          const SizedBox(height: 20),
+                                          Text('Members',
+                                              style: GoogleFonts.inder(
+                                                  color: t.textPrimary,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 12),
                                         _membersGrid(t, members, prov),
                                       ]),
                                 ),
+                              ),
                         ),
                       ]),
 
@@ -846,15 +1299,61 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               // Stat pills
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
-                child: Row(children: [
-                  _statPill(Icons.people_alt_rounded,
-                      '${members.length} members', AppColors.blue, t),
-                  const SizedBox(width: 8),
-                  if (studyingCount > 0)
-                    _statPill(Icons.bolt_rounded, '$studyingCount studying',
-                        _orange, t),
-                ]),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _statPill(Icons.people_alt_rounded,
+                        '${members.length} members', AppColors.blue, t),
+                    _statPill(
+                        _isPublic ? Icons.public_rounded : Icons.lock_rounded,
+                        _isPublic ? 'Public' : 'Private',
+                        _isPublic ? AppColors.green : AppColors.red,
+                        t),
+                    if (studyingCount > 0)
+                      _statPill(Icons.bolt_rounded, '$studyingCount studying',
+                          _orange, t),
+                  ],
+                ),
               ),
+
+              if (_groupSubjects.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Planning to Study',
+                          style: GoogleFonts.inder(
+                              color: t.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _groupSubjects.map((sub) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              sub,
+                              style: GoogleFonts.inder(
+                                color: AppColors.blue,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               Divider(color: t.divider, height: 1, indent: 16, endIndent: 16),
 
@@ -1234,94 +1733,104 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final time = m.timeFor(_range);
     const maxBarH = 105.0;
     final barH = (time / maxTime * maxBarH).clamp(34.0, maxBarH);
+    final prov = context.read<AppProvider>();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-        if (rank == 1)
-          const Text('👑', style: TextStyle(fontSize: 24))
-        else
-          const SizedBox(height: 24),
-        const SizedBox(height: 4),
-        _avatar(t, m, color, size: rank == 1 ? 56 : 46),
-        const SizedBox(height: 6),
-        Text(m.isMe ? 'You' : m.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inder(
-                color: m.isMe ? AppColors.blue : t.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 2),
-        Text(_fmt(time),
-            style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
-        const SizedBox(height: 8),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-          height: barH,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [color, color.withOpacity(0.55)],
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-          ),
-          alignment: Alignment.topCenter,
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('$rank',
+    return GestureDetector(
+      onTap: () => _showMemberProfile(prov, t, m, rank),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+          if (rank == 1)
+            const Text('👑', style: TextStyle(fontSize: 24))
+          else
+            const SizedBox(height: 24),
+          const SizedBox(height: 4),
+          _avatar(t, m, color, size: rank == 1 ? 56 : 46),
+          const SizedBox(height: 6),
+          Text(m.isMe ? 'You' : m.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: GoogleFonts.inder(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
-        ),
-      ]),
+                  color: m.isMe ? AppColors.blue : t.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(_fmt(time),
+              style: GoogleFonts.inder(color: t.textMuted, fontSize: 11)),
+          const SizedBox(height: 8),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            height: barH,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [color, color.withOpacity(0.55)],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+            ),
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('$rank',
+                style: GoogleFonts.inder(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ]),
+      ),
     );
   }
 
   Widget _yourRankRow(AppThemeData t, _MemberView m, int rank) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.blue.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.blue, width: 1.4),
-      ),
-      child: Row(children: [
-        const Icon(Icons.subdirectory_arrow_right_rounded,
-            color: AppColors.blue, size: 20),
-        const SizedBox(width: 6),
-        SizedBox(
-          width: 34,
-          child: Text('#$rank',
-              style: GoogleFonts.inder(
-                  color: AppColors.blue,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold)),
+    final prov = context.read<AppProvider>();
+    return GestureDetector(
+      onTap: () => _showMemberProfile(prov, t, m, rank),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.blue.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.blue, width: 1.4),
         ),
-        _avatar(t, m, AppColors.blue, size: 36),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text('You',
+        child: Row(children: [
+          const Icon(Icons.subdirectory_arrow_right_rounded,
+              color: AppColors.blue, size: 20),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 34,
+            child: Text('#$rank',
+                style: GoogleFonts.inder(
+                    color: AppColors.blue,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold)),
+          ),
+          _avatar(t, m, AppColors.blue, size: 36),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('You',
+                style: GoogleFonts.inder(
+                    color: t.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ),
+          if (m.studying)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.bolt_rounded, color: _orange, size: 18),
+            ),
+          Text(_fmt(m.timeFor(_range)),
               style: GoogleFonts.inder(
                   color: t.textPrimary,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600)),
-        ),
-        if (m.studying)
-          const Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Icon(Icons.bolt_rounded, color: _orange, size: 18),
-          ),
-        Text(_fmt(m.timeFor(_range)),
-            style: GoogleFonts.inder(
-                color: t.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
-      ]),
+        ]),
+      ),
     );
   }
 
@@ -1488,6 +1997,7 @@ class _MemberView {
   final int weekly;
   final int allTime;
   final DateTime? joined;
+  final DateTime? updatedAt;
 
   const _MemberView({
     required this.uid,
@@ -1498,6 +2008,7 @@ class _MemberView {
     required this.weekly,
     required this.allTime,
     required this.joined,
+    this.updatedAt,
   });
 
   bool get studying => status == 'studying';
