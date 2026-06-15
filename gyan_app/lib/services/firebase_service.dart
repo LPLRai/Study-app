@@ -486,6 +486,7 @@ class FirebaseService {
     required int dailySeconds,
     required int weekSeconds,
     required int totalSeconds,
+    int liveStartMs = 0,
     required bool studying,
     String status = 'idle',
   }) async {
@@ -493,10 +494,16 @@ class FirebaseService {
     if (uid == null) return;
     try {
       await _groups.doc(groupId).collection('members').doc(uid).set({
+        // While studying these are the STABLE base (time EXCLUDING the
+        // in-progress focus); viewers add the live part from [liveStartMs] so
+        // the number climbs smoothly and never snaps back between publishes.
         'dailySeconds': dailySeconds,
         'dailyDate': _todayKey,
         'weekSeconds': weekSeconds,
         'totalSeconds': totalSeconds,
+        // Wall-clock start (ms) of the focus currently running, or 0 if not
+        // studying — a FIXED anchor the viewer extrapolates the live time from.
+        'liveStartMs': liveStartMs,
         'studying': studying,
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),

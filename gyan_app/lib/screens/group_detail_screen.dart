@@ -172,8 +172,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ((raw['studying'] as bool? ?? false) ? 'studying' : 'idle');
         final rawTotal   = (raw['totalSeconds']  as num?)?.toInt() ?? 0;
         final rawBaseline = (raw['baseline']     as num?)?.toInt() ?? 0;
-        final rawDaily   = (raw['dailySeconds']  as num?)?.toInt() ?? 0;
-        final rawWeekly  = (raw['weekSeconds']   as num?)?.toInt() ?? 0;
+        // Zero stale daily/weekly snapshots once they've rolled past today /
+        // this week on our clock (see _buildMembers for the rationale); a
+        // member studying right now is always treated as fresh.
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final weekStart = today.subtract(const Duration(days: 6));
+        final isStudyingNow = newStatus == 'studying';
+        final active = _lastActiveDay(raw['dailyDate'] as String?);
+        final rawDaily = (isStudyingNow || (active != null && active == today))
+            ? ((raw['dailySeconds'] as num?)?.toInt() ?? 0)
+            : 0;
+        final rawWeekly =
+            (isStudyingNow || (active != null && !active.isBefore(weekStart)))
+                ? ((raw['weekSeconds'] as num?)?.toInt() ?? 0)
+                : 0;
 
         final allTimeFiltered = math.max(0, rawTotal - rawBaseline);
         final dailyFiltered = (rawBaseline >= rawTotal - rawDaily)
@@ -190,12 +203,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         } else if (updatedAtRaw is DateTime) {
           newUpdatedAt = updatedAtRaw;
         }
+        final newLiveStartMs = (raw['liveStartMs'] as num?)?.toInt() ?? 0;
 
         // Only rebuild if something actually changed.
         if (existing.status == newStatus &&
             existing.daily   == dailyFiltered &&
             existing.weekly  == weekFiltered &&
             existing.allTime == allTimeFiltered &&
+            existing.liveStartMs == newLiveStartMs &&
             existing.updatedAt == newUpdatedAt) continue;
 
         _members[idx] = _MemberView(
@@ -208,6 +223,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           allTime: allTimeFiltered,
           joined:  existing.joined,
           updatedAt: newUpdatedAt,
+          liveStartMs: newLiveStartMs,
         );
         changed = true;
       }
@@ -330,6 +346,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
+  // The day (midnight, local) a member was last active, parsed from their
+  // published 'dailyDate' ('YYYY-MM-DD'), or null if missing/unparseable.
+  DateTime? _lastActiveDay(String? dailyDate) {
+    if (dailyDate == null) return null;
+    final d = DateTime.tryParse(dailyDate);
+    return d == null ? null : DateTime(d.year, d.month, d.day);
+  }
+
   List<_MemberView> _buildMembers(
       List<Map<String, dynamic>> raw, AppProvider prov, String? myUid) {
     final now = DateTime.now();
@@ -350,13 +374,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       // Store my baseline once so build() can recompute live on every frame.
       if (isMe) _myBaseline = effectiveBaseline;
 
-      final overallDaily = isMe
-          ? prov.todayStudiedSeconds
-          : ((m['dailySeconds'] as num?)?.toInt() ?? 0);
-
-      final overallWeek = isMe
-          ? prov.secondsInRange(weekStart, endBound)
-          : ((m['weekSeconds'] as num?)?.toInt() ?? 0);
+      // A member's published daily/weekly are dated SNAPSHOTS. Zero them once
+      // their last-active day has rolled past today / this week on our clock,
+      // so the leaderboard never shows yesterday's total as today's. A member
+      // who is studying right now is always treated as fresh (their snapshot is
+      // being written live, even across a timezone/midnight boundary).
+      final isStudyingNow = ((m['status'] as String?) == 'studying') ||
+          (m['studying'] as bool? ?? false);
+      final active = _lastActiveDay(m['dailyDate'] as String?);
+      final today = DateTime(now.year, now.month, now.day);
+      final freshDaily = (isStudyingNow || (active != null && active == today))
+          ? ((m['dailySeconds'] as num?)?.toInt() ?? 0)
+          : 0;
+      final freshWeek =
+          (isStudyingNow || (active != null && !active.isBefore(weekStart)))
+              ? ((m['weekSeconds'] as num?)?.toInt() ?? 0)
+              : 0;
+      final overallDaily = isMe ? prov.todayStudiedSeconds : freshDaily;
+      final overallWeek =
+          isMe ? prov.secondsInRange(weekStart, endBound) : freshWeek;
 
       // Daily time studied after joining the group
       final dailyFiltered = (effectiveBaseline >= overallAllTime - overallDaily)
@@ -394,6 +430,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         allTime: allTimeFiltered,
         joined: (m['joinedAt'] as Timestamp?)?.toDate(),
         updatedAt: updatedAt,
+        liveStartMs: (m['liveStartMs'] as num?)?.toInt() ?? 0,
       );
     }).toList();
   }
@@ -1009,24 +1046,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           updatedAt: m.updatedAt,
         );
       } else {
-        // Friend is studying: calculate live elapsed seconds since last Firestore publish (updatedAt)
-        int extra = 0;
-        if (m.studying && m.updatedAt != null) {
-          final diff = DateTime.now().difference(m.updatedAt!).inSeconds;
-          if (diff > 0) {
-            extra = diff;
-          }
+        // Friend is studying: extrapolate the live focus time from its FIXED
+        // start anchor (liveStartMs), so it climbs smoothly and never snaps
+        // back when a fresh publish lands. The published daily/weekly/allTime
+        // are the stable base (they exclude the in-progress focus).
+        int live = 0;
+        if (m.studying && m.liveStartMs > 0) {
+          final diff =
+              (DateTime.now().millisecondsSinceEpoch - m.liveStartMs) ~/ 1000;
+          if (diff > 0) live = diff;
         }
         return _MemberView(
           uid:     m.uid,
           name:    m.name,
           isMe:    false,
           status:  m.status,
-          daily:   m.daily + extra,
-          weekly:  m.weekly + extra,
-          allTime: m.allTime + extra,
+          daily:   m.daily + live,
+          weekly:  m.weekly + live,
+          allTime: m.allTime + live,
           joined:  m.joined,
           updatedAt: m.updatedAt,
+          liveStartMs: m.liveStartMs,
         );
       }
     }).toList()
@@ -1998,6 +2038,7 @@ class _MemberView {
   final int allTime;
   final DateTime? joined;
   final DateTime? updatedAt;
+  final int liveStartMs; // focus start (ms) the live time is extrapolated from
 
   const _MemberView({
     required this.uid,
@@ -2009,6 +2050,7 @@ class _MemberView {
     required this.allTime,
     required this.joined,
     this.updatedAt,
+    this.liveStartMs = 0,
   });
 
   bool get studying => status == 'studying';

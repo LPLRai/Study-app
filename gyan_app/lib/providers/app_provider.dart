@@ -4,6 +4,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -554,22 +555,46 @@ class AppProvider extends ChangeNotifier {
   Future<void> kickMember(String groupId, String memberUid) =>
       _firebaseService.kickMember(groupId, memberUid);
 
+  /// Unthrottled, public push of the current stats to every group the user is
+  /// in. The group screen calls this before its fetch so the data it reads back
+  /// is fresh, instead of waiting for the next periodic publish.
+  void forcePublishToGroups() => _publishToGroups();
+
   /// Pushes the current user's study stats to every group they're in.
+  ///
+  /// While actively studying we publish the STABLE base — study time EXCLUDING
+  /// the in-progress focus — plus the focus's start time. Viewers extrapolate
+  /// the live seconds from that fixed anchor, so a friend's timer climbs
+  /// smoothly and never snaps back to 0 when a fresh publish lands (the old
+  /// approach extrapolated from `updatedAt`, which reset on every publish).
   void _publishToGroups() {
     if (!_remoteBackendReady || _myGroupIds.isEmpty) return;
     final now = DateTime.now();
     final weekStart =
         DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
-    final daily = todayStudiedSeconds;
-    final week = secondsInRange(weekStart, now.add(const Duration(seconds: 1)));
-    final total = totalSecondsAllTime;
+    final studyingNow = _studyStatus == 'studying';
+    final live = _liveSession;
+    // Seconds of the in-progress focus to strip from the base (only while
+    // studying); the viewer re-adds them live from the anchor below.
+    final liveSecs = (studyingNow && live != null) ? live.durationSeconds : 0;
+    // Anchor = now minus the elapsed focus seconds, so the viewer's
+    // `now - liveStartMs` reproduces the true elapsed even across pauses (the
+    // raw session start would also count paused time). Recomputed each publish.
+    final liveStartMs = (studyingNow && live != null)
+        ? now.millisecondsSinceEpoch - liveSecs * 1000
+        : 0;
+    final daily = math.max(0, todayStudiedSeconds - liveSecs);
+    final week = math.max(
+        0, secondsInRange(weekStart, now.add(const Duration(seconds: 1))) - liveSecs);
+    final total = math.max(0, totalSecondsAllTime - liveSecs);
     for (final gid in _myGroupIds) {
       _firebaseService.publishStats(
         gid,
         dailySeconds: daily,
         weekSeconds: week,
         totalSeconds: total,
-        studying: _studyStatus == 'studying',
+        liveStartMs: liveStartMs,
+        studying: studyingNow,
         status: _studyStatus,
       );
     }
