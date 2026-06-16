@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/subjects.dart';
 import '../providers/app_provider.dart';
+import '../widgets/buddies_view.dart';
 import 'group_detail_screen.dart';
 import 'join_group_screen.dart';
 
@@ -18,6 +19,32 @@ class _GroupsScreenState extends State<GroupsScreen> {
   List<Map<String, dynamic>>? _groups;
   bool _loading = false;
   int _lastTabIndex = -1;
+  int _seg = 0; // 0 = Groups, 1 = Buddies (Study Buddy chats)
+
+  Widget _segBtn(t, int i, IconData icon, String label) {
+    final sel = _seg == i;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _seg = i),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: sel ? const Color(0xFF5865F2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 17, color: sel ? Colors.white : t.textMuted),
+          const SizedBox(width: 7),
+          Text(label,
+              style: GoogleFonts.inder(
+                  color: sel ? Colors.white : t.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
 
   void _toast(BuildContext ctx, String msg, {bool error = false}) {
     ScaffoldMessenger.of(ctx)
@@ -287,8 +314,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
     final prov = context.watch<AppProvider>();
     final currentTab = prov.currentTabIndex;
 
-    // Refresh groups when coming to the tab (index 3)
-    if (currentTab == 3 && _lastTabIndex != 3) {
+    // Refresh groups when coming to the tab (index 2)
+    if (currentTab == 2 && _lastTabIndex != 2) {
       _groups = null; // reset to show spinner
       _loadGroups(prov);
     }
@@ -318,8 +345,25 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     fontWeight: FontWeight.bold)),
           ]),
         ),
+        // ── Groups | Buddies segmented toggle ───────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+                color: t.inputBg, borderRadius: BorderRadius.circular(14)),
+            child: Row(children: [
+              Expanded(child: _segBtn(t, 0, Icons.groups_rounded, 'Groups')),
+              Expanded(
+                  child: _segBtn(
+                      t, 1, Icons.volunteer_activism_rounded, 'Buddies')),
+            ]),
+          ),
+        ),
         Expanded(
-          child: loading
+          child: _seg == 1
+              ? const BuddiesView()
+              : loading
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.blue))
               : SingleChildScrollView(

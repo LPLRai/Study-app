@@ -38,24 +38,28 @@ class _AiFeaturesScreenState extends State<AiFeaturesScreen> {
           bottom: false,
           child: Column(
             children: [
-              // ── Header ──────────────────────────────────────────────
+              // ── Header (centred title + back button, like the other tabs) ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome_rounded,
-                        color: _accent, size: 24),
-                    const SizedBox(width: 10),
-                    Text(
-                      'AI Features',
-                      style: GoogleFonts.inder(
-                        color: t.textPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Stack(alignment: Alignment.center, children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => prov.switchTab(0),
+                      child: Icon(Icons.chevron_left_rounded,
+                          color: t.textPrimary, size: 28),
                     ),
-                  ],
-                ),
+                  ),
+                  Text(
+                    'AI Features',
+                    style: GoogleFonts.inder(
+                      color: t.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ]),
               ),
 
               // ── Segmented toggle ────────────────────────────────────

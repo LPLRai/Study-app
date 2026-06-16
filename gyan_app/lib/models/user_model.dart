@@ -17,6 +17,8 @@ class UserModel {
   String studyGoal;            // e.g. 'Improve Grades', 'Prepare for Exams'
   List<String> strongSubjects; // subjects the user is confident in
   List<String> weakSubjects;   // subjects the user wants to improve
+  List<String> helpSubjects;   // strong subjects they've opted to HELP peers
+                               // with as a Study Buddy (empty = opted out)
 
   // ── Streak ────────────────────────────────────────────────────────────────
   int      currentStreak;     // consecutive days with ≥1 qualifying session
@@ -37,13 +39,15 @@ class UserModel {
     this.studyGoal           = '',
     List<String>? strongSubjects,
     List<String>? weakSubjects,
+    List<String>? helpSubjects,
     this.currentStreak       = 0,
     this.bestStreak          = 0,
     this.lastSessionDate,
     this.totalSessions       = 0,
     this.totalMinutesStudied = 0,
   })  : strongSubjects = strongSubjects ?? [],
-        weakSubjects   = weakSubjects   ?? [];
+        weakSubjects   = weakSubjects   ?? [],
+        helpSubjects   = helpSubjects   ?? [];
 
   // ── Serialisation ─────────────────────────────────────────────────────────
 
@@ -57,6 +61,7 @@ class UserModel {
     'studyGoal':           studyGoal,
     'strongSubjects':      strongSubjects,
     'weakSubjects':        weakSubjects,
+    'helpSubjects':        helpSubjects,
     'currentStreak':       currentStreak,
     'bestStreak':          bestStreak,
     'lastSessionDate':     lastSessionDate?.toIso8601String(),
@@ -74,6 +79,7 @@ class UserModel {
     studyGoal:           j['studyGoal']           ?? '',
     strongSubjects:      List<String>.from(j['strongSubjects'] ?? []),
     weakSubjects:        List<String>.from(j['weakSubjects']   ?? []),
+    helpSubjects:        List<String>.from(j['helpSubjects']   ?? []),
     currentStreak:       j['currentStreak']       ?? 0,
     bestStreak:          j['bestStreak']           ?? 0,
     lastSessionDate:     j['lastSessionDate'] != null

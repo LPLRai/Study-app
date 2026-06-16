@@ -171,18 +171,33 @@ class _NotificationPanel extends StatelessWidget {
     final fromName = n['fromName'] as String? ?? 'Someone';
     final isInvite = type == 'group_invite';
     final isReminder = type == 'study_reminder';
+    final isBuddy = type.startsWith('buddy_'); // Study Buddy events
     final pending = isInvite && status == 'pending';
 
-    // Per-type icon, accent and copy.
+    // Per-type icon, accent and copy. Buddy notifications carry their own
+    // ready-made title/body (set in BuddyChatService / FirebaseService).
     const reminderColor = Color(0xFFFF8C00);
-    final IconData icon =
-        isReminder ? Icons.notifications_active_rounded : Icons.group_add_rounded;
-    final Color accent = isReminder ? reminderColor : AppColors.blue;
-    final String title =
-        isReminder ? 'Study reminder' : 'Group invitation';
+    const buddyColor = Color(0xFF2DC88A);
+    final IconData icon = isReminder
+        ? Icons.notifications_active_rounded
+        : isBuddy
+            ? Icons.volunteer_activism_rounded
+            : Icons.group_add_rounded;
+    final Color accent = isReminder
+        ? reminderColor
+        : isBuddy
+            ? buddyColor
+            : AppColors.blue;
+    final String title = isReminder
+        ? 'Study reminder'
+        : isBuddy
+            ? (n['title'] as String? ?? 'Study Buddy')
+            : 'Group invitation';
     final String body = isReminder
         ? '$fromName is nudging you to study. Time to focus! 💪'
-        : '$fromName invited you to join "$groupName"';
+        : isBuddy
+            ? (n['body'] as String? ?? '')
+            : '$fromName invited you to join "$groupName"';
 
     return Container(
       padding: const EdgeInsets.all(12),
