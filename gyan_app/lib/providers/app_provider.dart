@@ -1037,10 +1037,42 @@ class AppProvider extends ChangeNotifier {
     if (profileImagePath != null)   _user.profileImagePath = profileImagePath;
     if (studyTime != null)          _user.studyTime = studyTime;
     if (studyGoal != null)          _user.studyGoal = studyGoal;
-    if (strongSubjects != null)     _user.strongSubjects = strongSubjects;
+    if (strongSubjects != null) {
+      _user.strongSubjects = strongSubjects;
+      // Can't keep offering help in a subject you no longer mark as strong.
+      _user.helpSubjects =
+          _user.helpSubjects.where(strongSubjects.contains).toList();
+    }
     if (weakSubjects != null)       _user.weakSubjects = weakSubjects;
     await _saveUser();
     await _syncToFirestore();
+    // Keep the top-level helper-search mirror fresh when grade/subjects change.
+    if (_user.helpSubjects.isNotEmpty) {
+      await _firebaseService.publishHelperProfile(
+          grade: _user.grade, helpSubjects: _user.helpSubjects);
+    }
+    notifyListeners();
+  }
+
+  // ── Study Buddy (peer-help opt-in) ─────────────────────────────────────────
+  /// True if the user has opted in to help peers in at least one subject.
+  bool get isStudyBuddy => _user.helpSubjects.isNotEmpty;
+  List<String> get helpSubjects => List.unmodifiable(_user.helpSubjects);
+
+  /// Opt in/out of being a Study Buddy. [subjects] defaults to all of the
+  /// user's strong subjects (and is always intersected with them — you can only
+  /// help in subjects you're strong in). Persists locally + to Firestore and
+  /// mirrors the top-level matchGrade/helpSubjects fields the helper search uses.
+  Future<void> setStudyBuddy(bool enabled, {List<String>? subjects}) async {
+    _user.helpSubjects = enabled
+        ? (subjects ?? List<String>.from(_user.strongSubjects))
+            .where(_user.strongSubjects.contains)
+            .toList()
+        : <String>[];
+    await _saveUser();
+    await _syncToFirestore();
+    await _firebaseService.publishHelperProfile(
+        grade: _user.grade, helpSubjects: _user.helpSubjects);
     notifyListeners();
   }
 

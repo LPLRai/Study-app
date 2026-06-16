@@ -4,7 +4,6 @@
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_provider.dart';
@@ -35,6 +34,7 @@ class _GetStartedPageState extends State<GetStartedPage>
   String? _dailyTarget;
   final Set<String> _strong = {};
   final Set<String> _weak   = {};
+  bool _isStudyBuddy = false; // opt in to help peers (Study Buddy)
 
   late final AnimationController _entryCtrl;
   late final Animation<double>   _fade;
@@ -265,6 +265,49 @@ class _GetStartedPageState extends State<GetStartedPage>
                 textSub: textSub, borderDef: borderDef, fieldFill: fieldFill,
               ),
 
+              const SizedBox(height: 24),
+              // ── Study Buddy opt-in (consent) ───────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                decoration: BoxDecoration(
+                  color: fieldFill,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: _isStudyBuddy ? primary : borderDef),
+                ),
+                child: Row(children: [
+                  Icon(Icons.volunteer_activism_outlined,
+                      color: _isStudyBuddy ? primary : textSub, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Be a Study Buddy',
+                              style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Text(
+                              'Help classmates in your grade (or one below) who '
+                              'are weak in your strong subjects. You accept or '
+                              'decline each request, and can turn this off '
+                              'anytime in Profile.',
+                              style: TextStyle(
+                                  color: textSub,
+                                  fontSize: 11.5,
+                                  height: 1.35)),
+                        ]),
+                  ),
+                  Switch(
+                    value: _isStudyBuddy,
+                    activeColor: primary,
+                    onChanged: (v) => setState(() => _isStudyBuddy = v),
+                  ),
+                ]),
+              ),
+
               const SizedBox(height: 34),
               _CtaButton(onPressed: _onGetStarted, primary: primary),
             ],
@@ -344,6 +387,10 @@ class _GetStartedPageState extends State<GetStartedPage>
         strongSubjects: _strong.toList(),
         weakSubjects: _weak.toList(),
       );
+      // Persist the Study Buddy opt-in (mirrors matchGrade/helpSubjects). Must
+      // run before saveOnboardingProfile so user.toJson() carries helpSubjects.
+      await prov.setStudyBuddy(_isStudyBuddy,
+          subjects: _isStudyBuddy ? _strong.toList() : const <String>[]);
       await _saveProfilePrefs();
 
       // ── Save to Firebase directly (user has a UID from registration) ──

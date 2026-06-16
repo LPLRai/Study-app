@@ -14,7 +14,7 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   static const List<Widget> _pages = [
-    HomeScreen(), TimerScreen(), AiFeaturesScreen(), GroupsScreen(), ProfileScreen(),
+    HomeScreen(), TimerScreen(), GroupsScreen(), AiFeaturesScreen(), ProfileScreen(),
   ];
 
   @override
@@ -38,8 +38,8 @@ class _MainScreenState extends State<MainScreen> {
   static const List<_NavTab> _tabs = [
     _NavTab(icon: Icons.home_rounded,        label: 'Home'),
     _NavTab(icon: Icons.schedule_rounded, label: 'Timer'),
-    _NavTab(icon: Icons.auto_awesome_rounded, label: 'AI Features'),
     _NavTab(icon: Icons.groups_rounded,       label: 'Groups'),
+    _NavTab(icon: Icons.auto_awesome_rounded, label: 'AI Features'),
     _NavTab(icon: Icons.person_rounded,      label: 'Profile', isAvatar: true),
   ];
 

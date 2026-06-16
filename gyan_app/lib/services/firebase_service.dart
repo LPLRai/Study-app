@@ -523,6 +523,47 @@ class FirebaseService {
         .set({'user': userData}, SetOptions(merge: true));
   }
 
+  /// Mirrors the "Study Buddy" helper profile to the TOP LEVEL of the user doc
+  /// so peers can find helpers with a cheap query (matchGrade equality +
+  /// helpSubjects array-contains). An empty [helpSubjects] means the user has
+  /// opted OUT — they stop appearing in any helper search.
+  Future<void> publishHelperProfile({
+    required String grade,
+    required List<String> helpSubjects,
+  }) async {
+    if (!_initialized || currentUser == null) return;
+    try {
+      await userDoc.set({
+        'matchGrade': grade,
+        'helpSubjects': helpSubjects,
+      }, SetOptions(merge: true));
+    } catch (_) {/* offline — will sync when back */}
+  }
+
+  /// In-app notification (+ best-effort FCM push) for Study Buddy events. The
+  /// ready-made [title]/[body] render directly in the notification panel; the
+  /// push is a no-op unless PUSH_ENDPOINT is set (and the push-server is taught
+  /// the buddy_* types — see the README/setup notes).
+  Future<void> sendBuddyNotification(
+    String toUid, {
+    required String type,
+    required String title,
+    required String body,
+  }) async {
+    if (!_initialized) return;
+    try {
+      await _notifs(toUid).add({
+        'type': type,
+        'title': title,
+        'body': body,
+        'fromName': await _myName(),
+        'seen': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _sendPush(toUid, type);
+    } catch (_) {/* notification is best-effort */}
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // Admin panel — presence, aggregate counts, and admin grants
   // ───────────────────────────────────────────────────────────────────────────

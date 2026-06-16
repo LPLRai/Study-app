@@ -39,6 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _selectedDailyTarget;
   final Set<String> _strong = {};
   final Set<String> _weak   = {};
+  bool _isStudyBuddy = false; // Study Buddy opt-in
 
   static const _grades = [
     '6th Grade', '7th Grade', '8th Grade', '9th Grade', '10th Grade',
@@ -66,6 +67,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _selectedDailyTarget = '${user.dailyStudyGoalHours} ${user.dailyStudyGoalHours == 1 ? 'Hour' : 'Hours'}';
     _strong.addAll(user.strongSubjects);
     _weak.addAll(user.weakSubjects);
+    _isStudyBuddy = user.helpSubjects.isNotEmpty;
   }
 
   @override
@@ -86,6 +88,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         strongSubjects: _strong.toList(),
         weakSubjects: _weak.toList(),
       );
+      // Save the Study Buddy opt-in (after updateUser, so strong subjects are set).
+      prov.setStudyBuddy(_isStudyBuddy,
+          subjects: _isStudyBuddy ? _strong.toList() : const <String>[]);
     } else {
       final user = prov.user;
       _nameCtrl.text = user.name;
@@ -96,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _strong.addAll(user.strongSubjects);
       _weak.clear();
       _weak.addAll(user.weakSubjects);
+      _isStudyBuddy = user.helpSubjects.isNotEmpty;
     }
     setState(() => _editMode = !_editMode);
   }
@@ -364,6 +370,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 excluded: _strong,
                 accent: const Color(0xFFEF5A55),
                 t: t,
+              ),
+              const SizedBox(height: 18),
+              // ── Study Buddy opt-in ───────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+                decoration: BoxDecoration(
+                  color: t.inputBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: _isStudyBuddy ? _accent : t.cardBorder),
+                ),
+                child: Row(children: [
+                  Icon(Icons.volunteer_activism_outlined,
+                      color: _isStudyBuddy ? _accent : t.textMuted, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Be a Study Buddy',
+                              style: GoogleFonts.inder(
+                                  color: t.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 3),
+                          Text(
+                              'Help peers in your grade (or one below) who are '
+                              'weak in your strong subjects. You accept or '
+                              'decline each request.',
+                              style: GoogleFonts.inder(
+                                  color: t.textMuted,
+                                  fontSize: 11,
+                                  height: 1.35)),
+                        ]),
+                  ),
+                  Switch(
+                    value: _isStudyBuddy,
+                    activeColor: _accent,
+                    onChanged: (v) => setState(() => _isStudyBuddy = v),
+                  ),
+                ]),
               ),
             ] else ...[
               Center(
