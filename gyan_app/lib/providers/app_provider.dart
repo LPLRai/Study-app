@@ -18,6 +18,7 @@ import 'package:installed_apps/installed_apps.dart';
 
 import '../services/firebase_service.dart';
 import '../services/push_service.dart';
+import '../services/local_notification_service.dart'; // ← NEW
 import '../services/focus_lock_store.dart';
 import '../theme/app_theme.dart';
 import '../config/admin_config.dart';
@@ -36,9 +37,6 @@ class AppProvider extends ChangeNotifier {
   Timer? _midnightTimer;
 
   // ── Timer configuration (per-device; only the Admin Panel changes it) ───────
-  // Defaults are the classic Pomodoro. Normal users never see an editor, so
-  // their experience is unchanged. Reset on sign-out so a shared device never
-  // leaks an admin's custom timings to the next account.
   int _focusMinutes = 25;
   int _shortBreakMinutes = 5;
   int _longBreakMinutes = 15;
@@ -51,16 +49,12 @@ class AppProvider extends ChangeNotifier {
   int? _ovrStudyMinutes;
 
   // ── Admin status ────────────────────────────────────────────────────────────
-  // Root admins come from AdminConfig (verified email); granted admins are
-  // loaded from Firestore at init.
   bool _grantedAdmin = false;
-
 
   // Real-time group backend
   StreamSubscription? _groupsSub;
   List<String> _myGroupIds = [];
   List<String> get myGroupIds => _myGroupIds;
-  // studying | paused | short_break | long_break | idle — shown to group members
   String _studyStatus = 'idle';
   String get studyStatus => _studyStatus;
 
@@ -75,7 +69,6 @@ class AppProvider extends ChangeNotifier {
   // ── Onboarding / study-profile ──────────────────────────────────────────
   bool _onboardingComplete = false;
 
-  /// Extra profile fields saved from GetStartedPage
   String? profileCourse;
   String? profileStudyTime;
   String? profileGoal;
@@ -120,9 +113,6 @@ class AppProvider extends ChangeNotifier {
   int? get overrideStudyMinutes => _ovrStudyMinutes;
 
   // ── Focus Lock ──────────────────────────────────────────────────────────────
-  // Builds the catalog of installed apps (name + package + icon) so the lock
-  // overlay can offer an add/remove picker with real app logos. Runs in the
-  // background on startup; stored as a cache file (icons are too big for prefs).
   Future<void> refreshAppCatalog() async {
     try {
       final apps = await InstalledApps.getInstalledApps(true, true);
@@ -166,21 +156,13 @@ class AppProvider extends ChangeNotifier {
     return secondsInRange(start, now.add(const Duration(seconds: 1)));
   }
 
-  // Today's studied time, precise (seconds) → minutes for display.
   int get todayStudiedMinutes => todayStudiedSeconds ~/ 60;
-  // Counts sessions of ≥1 min (incl. the in-progress one) so it updates in
-  // real time as soon as you study, not only after a 10-min qualifying block.
   int get todaySessionCount {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
     return sessionsInRange(start, now.add(const Duration(seconds: 1)));
   }
 
-  /// TODAY's most recently studied DISTINCT subjects (max 4), newest first.
-  /// Resets automatically at midnight (only today's sessions are considered),
-  /// de-duplicated by subject name so the same subject never appears twice.
-  /// Includes the in-progress (live) session once it has logged ≥1 minute, so
-  /// the list and its timings update in real time while studying.
   List<StudySessionModel> get recentSessions {
     final now = DateTime.now();
     bool isToday(DateTime d) =>
@@ -189,7 +171,6 @@ class AppProvider extends ChangeNotifier {
     final seen = <String>{};
     final result = <StudySessionModel>[];
 
-    // Live, in-progress session first (visible after the first minute).
     final live = _liveSession;
     if (live != null &&
         live.durationMinutes >= 1 &&
@@ -210,16 +191,14 @@ class AppProvider extends ChangeNotifier {
     return result;
   }
 
-  // ── Daily activity (for the streak week view & mini chart) ────────────────
-  /// Whether the user logged a qualifying (≥10 min) session on [day].
+  // ── Daily activity ────────────────────────────────────────────────────────
   bool didStudyOn(DateTime day) {
     final d = _dateOnly(day);
     return _sessions
         .any((s) => s.isQualifying && _dateOnly(s.startTime).isAtSameMomentAs(d));
   }
 
-  // ── Streak — derived from sessions so it's always accurate ────────────────
-  /// Distinct days (midnight) with a qualifying (≥10 min) session.
+  // ── Streak ────────────────────────────────────────────────────────────────
   Set<DateTime> get studiedDays {
     final set = <DateTime>{};
     for (final s in _sessions) {
@@ -230,10 +209,6 @@ class AppProvider extends ChangeNotifier {
 
   bool studiedOnDay(DateTime day) => studiedDays.contains(_dateOnly(day));
 
-  /// Whether [day] should appear as a "fire" streak day in the calendars.
-  /// With an admin streak override active, the current streak is exactly the
-  /// last N days ending today; otherwise it's the real qualifying-session days.
-  /// (Best streak is unaffected — only the current-streak window lights up.)
   bool isStreakDay(DateTime day) {
     final d = _dateOnly(day);
     final ovr = _ovrStreak;
@@ -242,15 +217,13 @@ class AppProvider extends ChangeNotifier {
       final today = _dateOnly(DateTime.now());
       if (d.isAfter(today)) return false;
       final start = today.subtract(Duration(days: ovr - 1));
-      return !d.isBefore(start); // within [start, today]
+      return !d.isBefore(start);
     }
     return studiedDays.contains(d);
   }
 
   int get totalStudiedDays => studiedDays.length;
 
-  /// Consecutive studied days ending today (or yesterday if today isn't done
-  /// yet — the streak is still alive until the day ends).
   int get currentStreakDays {
     if (_ovrStreak != null) return _ovrStreak!;
     final days = studiedDays;
@@ -269,7 +242,6 @@ class AppProvider extends ChangeNotifier {
     return streak;
   }
 
-  /// Longest run of consecutive studied days, ever.
   int get bestStreakDays {
     if (_ovrBestStreak != null) return _ovrBestStreak!;
     final days = studiedDays.toList()..sort();
@@ -287,7 +259,6 @@ class AppProvider extends ChangeNotifier {
     return best;
   }
 
-  /// Total minutes studied on [day] across all sessions.
   int minutesStudiedOn(DateTime day) {
     final d = _dateOnly(day);
     return _sessions
@@ -295,22 +266,14 @@ class AppProvider extends ChangeNotifier {
         .fold(0, (sum, s) => sum + s.durationMinutes);
   }
 
-  /// All-time minutes studied for a subject, derived from saved sessions so the
-  /// value stays consistent with statistics everywhere it is displayed.
   int minutesForSubjectId(String subjectId) => _sessions
       .where((s) => s.subjectId == subjectId)
       .fold(0, (sum, s) => sum + s.durationMinutes);
 
-  /// All-time SECONDS studied for a subject (precise), from saved sessions.
   int secondsForSubjectId(String subjectId) => _sessions
       .where((s) => s.subjectId == subjectId)
       .fold(0, (sum, s) => sum + s.durationSeconds);
 
-  // ── Aggregate statistics — all derived from saved sessions so every screen
-  //    shows the same, accurate numbers. [end] is exclusive. ────────────────
-  //
-  // Time totals include the in-progress (live) session so stats update in real
-  // time while studying; session COUNTS use only completed sessions.
   List<StudySessionModel> get _statSessions =>
       _liveSession == null ? _sessions : [..._sessions, _liveSession!];
 
@@ -318,9 +281,6 @@ class AppProvider extends ChangeNotifier {
       .where((s) => !s.startTime.isBefore(start) && s.startTime.isBefore(end))
       .fold(0, (sum, s) => sum + s.durationSeconds);
 
-  // A "session" counts once it has ≥1 min of focus (or is a completed focus
-  // phase of any length); includes the live session so the count updates in
-  // real time while studying.
   bool _countsAsSession(StudySessionModel s) =>
       s.durationMinutes >= 1 || s.completed;
 
@@ -336,8 +296,6 @@ class AppProvider extends ChangeNotifier {
     return c;
   }
 
-  /// Session counts per subject name (≥1 min or completed, incl. live) within
-  /// [start, end).
   Map<String, int> subjectSessionCounts(DateTime start, DateTime end) {
     bool inRange(DateTime d) => !d.isBefore(start) && d.isBefore(end);
     final m = <String, int>{};
@@ -355,16 +313,11 @@ class AppProvider extends ChangeNotifier {
   int get totalSecondsAllTime =>
       _statSessions.fold(0, (sum, s) => sum + s.durationSeconds);
   int get totalMinutesAllTime => _ovrStudyMinutes ?? (totalSecondsAllTime ~/ 60);
-  /// All-time seconds for HEADLINE displays (honours the admin override). The
-  /// per-subject / per-day data used by graphs always uses the real values, so
-  /// charts are never distorted by an override.
   int get displayTotalSeconds =>
       _ovrStudyMinutes != null ? _ovrStudyMinutes! * 60 : totalSecondsAllTime;
   int get totalSessionsCount =>
       _ovrSessions ?? _sessions.where((s) => s.isQualifying).length;
 
-  /// Per-subject totals (merged by name) within [start, end), sorted desc.
-  /// Includes the live session, so the breakdown updates in real time.
   List<SubjectTimeStat> subjectStats(DateTime start, DateTime end) {
     final sec = <String, int>{};
     final col = <String, int>{};
@@ -381,26 +334,18 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  /// Fast startup: only Firebase core + locally-cached data (SharedPreferences)
-  /// are awaited, so the first frame appears almost immediately. Every
-  /// network-bound task (Firestore sync, admin status, presence, push, groups)
-  /// runs in the background via [_initRemote] and refreshes the UI when ready —
-  /// this is what keeps cold start from hanging on slow network round-trips.
   Future<void> init() async {
-    await _initBackend();     // Firebase core only — needed for the auth gate
-    await _load();            // cached subjects/sessions/theme — instant UI data
-    await _loadActiveTimer(); // in-progress timer (local prefs, no network)
+    await _initBackend();
+    await _load();
+    await _loadActiveTimer();
     _checkStreakReset();
     _scheduleMidnightRollover();
-    notifyListeners();        // UI can render right now with cached data
+    notifyListeners();
 
-    // Fire-and-forget: do NOT await — keeps the first frame from blocking.
     _initRemote();
-    refreshAppCatalog(); // build the installed-apps catalog for the lock overlay
+    refreshAppCatalog();
   }
 
-  /// Network-bound startup. Runs after the first frame so launch never waits on
-  /// it; calls notifyListeners() once the freshest data has synced.
   Future<void> _initRemote() async {
     if (!_remoteBackendReady) return;
     try {
@@ -410,14 +355,14 @@ class AppProvider extends ChangeNotifier {
       await _loadAdminStatus();
     } catch (_) {}
     _subscribeGroups();
-    _firebaseService.ensureEmailIndex(); // make me findable by email
-    _firebaseService.touchPresence();    // heartbeat for the active-users metric
-    PushService.instance.init();         // register for push notifications
+    _firebaseService.ensureEmailIndex();
+    _firebaseService.touchPresence();
+    PushService.instance.init();
+    // ── Schedule local notifications based on the loaded user profile ──
+    LocalNotificationService.instance.scheduleAll(_user.studyTime); // ← NEW
     notifyListeners();
   }
 
-  /// Loads whether the signed-in account has been granted admin in Firestore.
-  /// (Root admins are determined purely by their verified email via AdminConfig.)
   Future<void> _loadAdminStatus() async {
     final uid = _firebaseService.currentUser?.uid;
     if (uid == null) {
@@ -432,7 +377,7 @@ class AppProvider extends ChangeNotifier {
     _groupsSub?.cancel();
     _groupsSub = _firebaseService.myGroupsStream().listen((groups) {
       _myGroupIds = groups.map((g) => g['id'] as String).toList();
-      _publishToGroups(); // push current stats to any new groups
+      _publishToGroups();
     });
   }
 
@@ -443,9 +388,6 @@ class AppProvider extends ChangeNotifier {
   Future<void> markNotificationsSeen() =>
       _firebaseService.markAllNotificationsSeen();
 
-  // ── Curated avatars (developer-provided, bundled with the app) ────────────
-  // No backend / Firebase Storage needed — the choices live in
-  // constants/avatars.dart and ship as app assets.
   List<String> get avatarOptions => kAvatarAssets;
 
   Future<void> setProfileAvatar(String assetPath) =>
@@ -478,7 +420,6 @@ class AppProvider extends ChangeNotifier {
   Future<void> sendStudyReminder(String toUid) =>
       _firebaseService.sendStudyReminder(toUid);
 
-  /// Creates a group (max 5 owned). Returns 'ok', 'limit', or 'error'.
   Future<String> createGroupRemote(
     String name, {
     String description = '',
@@ -503,7 +444,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// Directly joins a public group.
   Future<void> joinGroupRemote(String groupId) async {
     if (!_remoteBackendReady) return;
     try {
@@ -512,7 +452,6 @@ class AppProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Stream of all public study groups.
   Stream<List<Map<String, dynamic>>> publicGroupsStream() {
     return FirebaseFirestore.instance
         .collection('study_groups')
@@ -537,7 +476,6 @@ class AppProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Called by the Timer screen as its state changes; republishes to groups.
   void setStudyStatus(String s) {
     if (_studyStatus == s) return;
     _studyStatus = s;
@@ -555,18 +493,8 @@ class AppProvider extends ChangeNotifier {
   Future<void> kickMember(String groupId, String memberUid) =>
       _firebaseService.kickMember(groupId, memberUid);
 
-  /// Unthrottled, public push of the current stats to every group the user is
-  /// in. The group screen calls this before its fetch so the data it reads back
-  /// is fresh, instead of waiting for the next periodic publish.
   void forcePublishToGroups() => _publishToGroups();
 
-  /// Pushes the current user's study stats to every group they're in.
-  ///
-  /// While actively studying we publish the STABLE base — study time EXCLUDING
-  /// the in-progress focus — plus the focus's start time. Viewers extrapolate
-  /// the live seconds from that fixed anchor, so a friend's timer climbs
-  /// smoothly and never snaps back to 0 when a fresh publish lands (the old
-  /// approach extrapolated from `updatedAt`, which reset on every publish).
   void _publishToGroups() {
     if (!_remoteBackendReady || _myGroupIds.isEmpty) return;
     final now = DateTime.now();
@@ -574,12 +502,7 @@ class AppProvider extends ChangeNotifier {
         DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
     final studyingNow = _studyStatus == 'studying';
     final live = _liveSession;
-    // Seconds of the in-progress focus to strip from the base (only while
-    // studying); the viewer re-adds them live from the anchor below.
     final liveSecs = (studyingNow && live != null) ? live.durationSeconds : 0;
-    // Anchor = now minus the elapsed focus seconds, so the viewer's
-    // `now - liveStartMs` reproduces the true elapsed even across pauses (the
-    // raw session start would also count paused time). Recomputed each publish.
     final liveStartMs = (studyingNow && live != null)
         ? now.millisecondsSinceEpoch - liveSecs * 1000
         : 0;
@@ -600,13 +523,9 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // ── Active timer persistence (survives app restart / hard kill) ────────────
+  // ── Active timer persistence ───────────────────────────────────────────────
   static const String _kActiveTimer = 'active_timer';
 
-  /// Loads the persisted in-progress timer so the countdown and the Recent
-  /// "live" entry survive a cold start. The Timer screen reads [activeTimer]
-  /// to restore its countdown; here we also rebuild the live Recent entry and
-  /// re-select the subject so the display matches.
   Future<void> _loadActiveTimer() async {
     final p = await _prefs;
     final raw = p.getString(_kActiveTimer);
@@ -615,11 +534,11 @@ class AppProvider extends ChangeNotifier {
       final m = Map<String, dynamic>.from(jsonDecode(raw) as Map);
       final subId = m['subjectId'] as String?;
       if (subId == null || !_subjects.any((s) => s.id == subId)) {
-        await p.remove(_kActiveTimer); // subject gone → drop stale state
+        await p.remove(_kActiveTimer);
         return;
       }
       _activeTimer = m;
-      _selectedSubjectId = subId; // restore selection so the display matches
+      _selectedSubjectId = subId;
       _rebuildLiveFromActive();
     } catch (_) {
       _activeTimer = null;
@@ -636,7 +555,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // Derive the Recent "live" entry from the active timer (focus phase only).
   void _rebuildLiveFromActive() {
     final m = _activeTimer;
     final phaseIndex = (m?['phaseIndex'] as int?) ?? 0;
@@ -658,9 +576,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  /// At midnight, refresh day-scoped data (today's sessions, the recent list,
-  /// statistics, streak) so the UI rolls over to a fresh day even if the app
-  /// is left open. Re-arms itself for the following day.
   void _scheduleMidnightRollover() {
     _midnightTimer?.cancel();
     final now = DateTime.now();
@@ -728,9 +643,7 @@ class AppProvider extends ChangeNotifier {
       }
 
       await _saveLocalState();
-    } catch (_) {
-      // Keep local data on Firestore sync errors.
-    }
+    } catch (_) {}
   }
 
   Future<void> _saveLocalState() async {
@@ -750,9 +663,7 @@ class AppProvider extends ChangeNotifier {
         groups: _groups.map((g) => g.toJson()).toList(),
         isDarkMode: _isDarkMode,
       );
-    } catch (_) {
-      // Ignore backend errors.
-    }
+    } catch (_) {}
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -782,7 +693,9 @@ class AppProvider extends ChangeNotifier {
       _firebaseService.ensureEmailIndex();
       await _loadAdminStatus();
       _firebaseService.touchPresence();
-      PushService.instance.init(); // register for push notifications
+      PushService.instance.init();
+      // ── Schedule notifications on sign-in with loaded study time ──
+      LocalNotificationService.instance.scheduleAll(_user.studyTime); // ← NEW
       notifyListeners();
       return true;
     } catch (e) {
@@ -822,8 +735,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> signOutUser() async {
-    // Detach this device's push token while we're still authenticated, so the
-    // next account doesn't inherit the previous user's notifications.
+    // Cancel scheduled notifications before clearing the token ── NEW
+    await LocalNotificationService.instance.cancelAll(); // ← NEW
     await PushService.instance.clearToken();
     try {
       await _firebaseService.signOut();
@@ -834,8 +747,6 @@ class AppProvider extends ChangeNotifier {
     _studyStatus = 'idle';
     _remoteBackendReady = false;
 
-    // Clear this account's data so the next account that logs in doesn't
-    // inherit it (profile picture, sessions, subjects, etc.).
     _user = UserModel();
     _subjects = [];
     _sessions = [];
@@ -844,8 +755,6 @@ class AppProvider extends ChangeNotifier {
     _activeTimer = null;
     _selectedSubjectId = null;
 
-    // Reset admin privileges, custom timings and stat overrides so the next
-    // account on this device starts clean (no leaked admin settings).
     _grantedAdmin = false;
     _focusMinutes = 25;
     _shortBreakMinutes = 5;
@@ -904,7 +813,6 @@ class AppProvider extends ChangeNotifier {
     _isDarkMode = p.getBool('isDarkMode') ?? false;
     if (_subjects.isNotEmpty) _selectedSubjectId = _subjects.first.id;
 
-    // Timer configuration + admin stat overrides (default to classic values).
     _focusMinutes = p.getInt('cfg_focus') ?? 25;
     _shortBreakMinutes = p.getInt('cfg_short') ?? 5;
     _longBreakMinutes = p.getInt('cfg_long') ?? 15;
@@ -914,8 +822,6 @@ class AppProvider extends ChangeNotifier {
     _ovrSessions = p.getInt('ovr_sessions');
     _ovrStudyMinutes = p.getInt('ovr_minutes');
 
-
-    // ── Load study-profile fields written by GetStartedPage ──
     _onboardingComplete = p.getBool('onboarding_complete') ?? false;
     profileCourse        = p.getString('profile_course');
     profileStudyTime     = p.getString('profile_studyTime');
@@ -996,12 +902,12 @@ class AppProvider extends ChangeNotifier {
     await put('ovr_sessions', _ovrSessions);
     await put('ovr_minutes', _ovrStudyMinutes);
     notifyListeners();
-    _publishToGroups(); // reflect new totals on group leaderboards
+    _publishToGroups();
   }
 
   Future<void> clearStatOverrides() => adminSetStatOverrides();
 
-  // ── Admin: aggregate metrics & grants (delegates to the backend) ────────────
+  // ── Admin: aggregate metrics & grants ────────────────────────────────────────
   Future<int> registeredUserCount() => _firebaseService.registeredUserCount();
   Future<int> activeUserCount() => _firebaseService.activeUserCount();
   Future<int> paidUserCount() => _firebaseService.paidUserCount();
@@ -1020,7 +926,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-    // ── User update (called by GetStartedPage & ProfileScreen) ────────────────
+  // ── User update (called by GetStartedPage & ProfileScreen) ────────────────
   Future<void> updateUser({
     String? name,
     String? grade,
@@ -1031,9 +937,10 @@ class AppProvider extends ChangeNotifier {
     List<String>? strongSubjects,
     List<String>? weakSubjects,
   }) async {
-    if (name != null)               _user.name = name;
-    if (grade != null)              _user.grade = grade;
+    if (name != null)                _user.name = name;
+    if (grade != null)               _user.grade = grade;
     if (dailyStudyGoalHours != null) _user.dailyStudyGoalHours = dailyStudyGoalHours;
+<<<<<<< HEAD
     if (profileImagePath != null)   _user.profileImagePath = profileImagePath;
     if (studyTime != null)          _user.studyTime = studyTime;
     if (studyGoal != null)          _user.studyGoal = studyGoal;
@@ -1073,6 +980,19 @@ class AppProvider extends ChangeNotifier {
     await _syncToFirestore();
     await _firebaseService.publishHelperProfile(
         grade: _user.grade, helpSubjects: _user.helpSubjects);
+=======
+    if (profileImagePath != null)    _user.profileImagePath = profileImagePath;
+    if (studyTime != null)           _user.studyTime = studyTime;
+    if (studyGoal != null)           _user.studyGoal = studyGoal;
+    if (strongSubjects != null)      _user.strongSubjects = strongSubjects;
+    if (weakSubjects != null)        _user.weakSubjects = weakSubjects;
+    await _saveUser();
+    await _syncToFirestore();
+    // ── Re-schedule notifications if study time changed ──
+    if (studyTime != null) {
+      LocalNotificationService.instance.scheduleAll(_user.studyTime); // ← NEW
+    }
+>>>>>>> 06e72ee (Add daily study reminders and streak nudge notifications)
     notifyListeners();
   }
 
@@ -1107,7 +1027,7 @@ class AppProvider extends ChangeNotifier {
     await _saveSessions();
     await _syncToFirestore();
     notifyListeners();
-    _publishToGroups(); // update group leaderboards with the new total
+    _publishToGroups();
   }
 
   // ── Subjects ──────────────────────────────────────────────────────────────
@@ -1139,10 +1059,6 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ── Active (in-progress) timer ─────────────────────────────────────────────
-  /// Called by the Timer screen on every meaningful change. Persists the full
-  /// countdown state (so it restores after a restart) and refreshes the Recent
-  /// "live" entry. Notifies listeners only when the visible minute (or subject)
-  /// changes, so Home refreshes ~once per minute rather than every second.
   void saveActiveTimer({
     required String subjectId,
     required String subjectName,
@@ -1169,20 +1085,12 @@ class AppProvider extends ChangeNotifier {
         l == null ? null : '${l.subjectId}:${l.durationMinutes}';
     final before = key(_liveSession);
     _rebuildLiveFromActive();
-    // Notify every tick so the donut / activity / live time render in real time.
     notifyListeners();
-    // Group leaderboards only need a Firestore write when the visible minute (or
-    // subject) changes — keep those ≈ once per minute to limit traffic.
     if (key(_liveSession) != before) {
       _publishToGroups();
     }
   }
 
-  /// Live study push for the Focus Lock background sync (app minimised): keeps
-  /// the in-progress session + group rankings advancing while you study from
-  /// OUTSIDE GYAN. Mirrors [saveActiveTimer] but forces the group [status] (the
-  /// background path can't read the timer's running flag) and always
-  /// republishes — the caller (a slow background timer) controls the cadence.
   void pushLiveProgress({
     required String subjectId,
     required String subjectName,
@@ -1217,17 +1125,9 @@ class AppProvider extends ChangeNotifier {
     _liveSession = null;
     _persistActiveTimer();
     if (hadLive) notifyListeners();
-    _publishToGroups(); // studying stopped → push studying=false
+    _publishToGroups();
   }
 
-  /// Opens the subject behind [s] in the Timer tab.
-  ///
-  /// Matching rules (no duplicates ever created):
-  ///  • If a subject with the same name (case-insensitive) still exists, it is
-  ///    selected — even if its id changed.
-  ///  • If the original subject was deleted, OR was renamed to something else
-  ///    (so no subject carries this name anymore), a fresh subject is created
-  ///    from the session's saved name + colour.
   Future<void> openSubjectFromSession(StudySessionModel s) async {
     final wanted = s.subjectName.toLowerCase().trim();
     SubjectModel? match;
@@ -1249,7 +1149,7 @@ class AppProvider extends ChangeNotifier {
       await _syncToFirestore();
     }
     _selectedSubjectId = match.id;
-    _currentTabIndex = 1; // Timer tab
+    _currentTabIndex = 1;
     notifyListeners();
   }
 
