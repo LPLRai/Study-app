@@ -28,6 +28,8 @@ dependencies:
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^18.0.1
   installed_apps: ^1.5.2 # list/launch the apps allowed during a focus lock
+  flutter_timezone: ^3.0.0
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:
