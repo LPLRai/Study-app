@@ -86,21 +86,61 @@ class BuddyChatService {
     return out;
   }
 
+  /// Profile info for the chat's profile popup: the other user's profile fields
+  /// plus today's studied seconds (summed from their synced sessions). Returns
+  /// null if the doc can't be read.
+  Future<Map<String, dynamic>?> fetchBuddyInfo(String uid) async {
+    try {
+      final snap = await _users.doc(uid).get().timeout(const Duration(seconds: 6));
+      if (!snap.exists) return null;
+      final data = snap.data() ?? const <String, dynamic>{};
+      final user = (data['user'] as Map<String, dynamic>?) ?? const {};
+      final now = DateTime.now();
+      var todaySecs = 0;
+      for (final s in (data['sessions'] as List?) ?? const []) {
+        if (s is! Map) continue;
+        final start = DateTime.tryParse((s['startTime'] as String?) ?? '');
+        if (start == null) continue;
+        if (start.year == now.year &&
+            start.month == now.month &&
+            start.day == now.day) {
+          final secs = (s['durationSeconds'] as num?)?.toInt();
+          todaySecs += secs ?? (((s['durationMinutes'] as num?)?.toInt() ?? 0) * 60);
+        }
+      }
+      return {
+        'name': (user['name'] as String?) ?? 'User',
+        'grade': (user['grade'] as String?) ?? '',
+        'studyTime': (user['studyTime'] as String?) ?? '',
+        'studyGoal': (user['studyGoal'] as String?) ?? '',
+        'strongSubjects': List<String>.from(user['strongSubjects'] ?? const []),
+        'weakSubjects': List<String>.from(user['weakSubjects'] ?? const []),
+        'bestStreak': (user['bestStreak'] as num?)?.toInt() ?? 0,
+        'todaySeconds': todaySecs,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// True if the learner already has a pending OR active buddy for [subject]
-  /// (anti-spam: one open thread per subject at a time).
+  /// (anti-spam: one open thread per subject at a time). Queries by
+  /// `participants` — the same field the security rules check — so the LIST is
+  /// permitted, then filters requester/subject/status in Dart. This avoids both
+  /// a composite index AND the Firestore "query doesn't match the rule" rejection.
   Future<bool> hasOpenChatForSubject(String myUid, String subject) async {
-    final snap = await _chats
-        .where('requesterUid', isEqualTo: myUid)
-        .where('subject', isEqualTo: subject)
-        .get();
+    final snap = await _chats.where('participants', arrayContains: myUid).get();
     return snap.docs.any((d) {
-      final s = (d.data()['status'] as String?) ?? '';
-      return s == 'pending' || s == 'active';
+      final data = d.data();
+      final s = (data['status'] as String?) ?? '';
+      return data['requesterUid'] == myUid &&
+          data['subject'] == subject &&
+          (s == 'pending' || s == 'active');
     });
   }
 
   /// Sends a help request → creates the chat in 'pending' + notifies the helper.
-  /// Returns 'sent' | 'exists' | 'error'.
+  /// Returns 'sent' | 'exists' | 'denied' (Firestore rules) | 'error'.
   Future<String> requestHelp({
     required String learnerUid,
     required String learnerName,
@@ -126,14 +166,21 @@ class BuddyChatService {
         'lastMessage': '',
         'lastMessageAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      await FirebaseService.instance.sendBuddyNotification(
-        helperUid,
-        type: 'buddy_request',
-        title: 'New help request',
-        body:
-            '$learnerName ($learnerGrade) needs help with $subject. Open Groups → Buddies to accept.',
-      );
+      // The chat is created — the request has succeeded. The notification is
+      // best-effort, so a failure there must NOT turn this into an error.
+      try {
+        await FirebaseService.instance.sendBuddyNotification(
+          helperUid,
+          type: 'buddy_request',
+          title: 'New help request',
+          body:
+              '$learnerName ($learnerGrade) needs help with $subject. Open Groups → Buddies to accept.',
+        );
+      } catch (_) {/* notification is optional */}
       return 'sent';
+    } on FirebaseException catch (e) {
+      // permission-denied ⇒ the `chats` security rules aren't published yet.
+      return e.code == 'permission-denied' ? 'denied' : 'error';
     } catch (_) {
       return 'error';
     }

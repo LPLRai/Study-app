@@ -61,7 +61,9 @@ class _FindBuddyScreenState extends State<FindBuddyScreen> {
           ? 'Request sent to ${helper['name']}'
           : res == 'exists'
               ? 'You already have a buddy for $_subject'
-              : "Couldn't send the request",
+              : res == 'denied'
+                  ? "Chat isn't enabled yet — publish the Firestore 'chats' rules"
+                  : "Couldn't send the request",
       error: res != 'sent',
     );
   }
