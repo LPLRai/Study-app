@@ -2,22 +2,29 @@
 // services/focus_monitor.dart
 //
 // The brain of Focus Lock, running in the MAIN isolate while a session is active
-// (timer running + GYAN backgrounded). Every tick it:
+// (timer running + GYAN backgrounded). Every 500ms tick it:
 //   1. consumes any command the overlay left ("launch:<pkg>" / "exit"), and
-//   2. checks the foreground app and tells the overlay to lock or hide:
-//        • an ALLOWED app in front → "hidden" (overlay invisible / passthrough)
-//        • anything else           → "locked" (cover the screen)
+//   2. checks the foreground app and writes the overlay's mode:
+//        • an ALLOWED app (or the phone dialer) in front → "hidden" (bubble)
+//        • the home launcher                             → "locked" (cover home)
+//        • any other app                                 → "locked" + force-exit
 //
-// The foreground app is read from a file written in real time by
-// FocusAccessibilityService (usage_stats is too laggy/unreliable for this).
-// Communication with the overlay is file-based (FocusLockStore) because
+// The monitor NEVER touches the overlay window's geometry. The overlay isolate
+// owns that entirely: it reads the mode file and resizes ITSELF (small bubble vs
+// full-screen) while the window's top gravity keeps both states correctly
+// positioned. Two isolates fighting over moveOverlay/resizeOverlay was what made
+// the overlay jump around, so the monitor's only job here is the mode string.
+//
+// Foreground detection uses Android's UsageStatsManager via the native channel —
+// the same approach YPT/Forest use. NO AccessibilityService is involved, so the
+// app no longer trips Google Play Protect's "sensitive data" install block.
+// Blocked apps are pushed away with a CATEGORY_HOME intent (goHome), exactly like
+// YPT. Communication with the overlay is file-based (FocusLockStore) because
 // shareData between the overlay's plugin-less engine and this isolate is
 // unreliable. The overlay's foreground service keeps this process alive.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
-import 'dart:io';
-import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
@@ -30,25 +37,23 @@ class FocusMonitor {
   static const String ownPackage = 'com.example.gyan_app';
   static const MethodChannel _native = MethodChannel('gyan/native');
 
-  // The accessibility service writes the foreground package to the NATIVE
-  // cacheDir, which is NOT the same as Dart's Directory.systemTemp — so we ask
-  // native for the path once and read from there.
-  String? _fgPath;
-
-  Future<File?> _fgFile() async {
-    _fgPath ??= await _native.invokeMethod<String>('getCacheDir');
-    if (_fgPath == null) return null;
-    return File('$_fgPath/fg_pkg.txt');
-  }
-
   Timer? _timer;
+  String _mode = 'locked'; // last mode written to the overlay
   DateTime _graceUntil = DateTime.fromMillisecondsSinceEpoch(0);
-  String _lastMove = ''; // throttle moveOverlay calls
+  String _lastForced = ''; // last package we force-exited (avoid repeat goHome)
+  String? _launcherPkg; // home launcher — covered by the lock but never forced
+  int _lockStreak = 0; // consecutive "should lock" ticks (debounce, see _tick)
+  // After launching an allowed app, UsageStatsManager lags ~1-2s before it
+  // reports the new app (it briefly still returns the launcher / null / GYAN).
+  // We "protect" the just-launched package during that window so the lag can't
+  // re-lock over — or force-exit — the app the user just chose to open.
+  String _expectedFg = '';
+  DateTime _expectedUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
+  // ── Permission: "Usage access" (PACKAGE_USAGE_STATS), not accessibility ──────
   Future<bool> hasPermission() async {
     try {
-      return (await _native.invokeMethod<bool>('isAccessibilityEnabled')) ??
-          false;
+      return (await _native.invokeMethod<bool>('isUsageAccessGranted')) ?? false;
     } catch (_) {
       return false;
     }
@@ -56,53 +61,38 @@ class FocusMonitor {
 
   Future<void> requestPermission() async {
     try {
-      await _native.invokeMethod('openAccessibilitySettings');
+      await _native.invokeMethod('openUsageAccessSettings');
     } catch (_) {}
   }
 
   void start() {
     stop();
+    _mode = 'locked';
     _graceUntil = DateTime.fromMillisecondsSinceEpoch(0);
-    _lastMove = '';
-    _resetForeground(); // drop any stale foreground so we begin LOCKED
-    // The plugin shows the window with a built-in negative Y offset (it parks it
-    // above the status bar), so the freshly-shown lock starts clipped off the
-    // top of the screen. On the launcher the foreground can read null, so the
-    // locked-path moveOverlay below may never run — snap the window to the top
-    // explicitly once the overlay has had a moment to attach.
-    Future.delayed(const Duration(milliseconds: 350), () async {
-      try {
-        await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
-      } catch (_) {}
-    });
+    _lastForced = '';
+    _lockStreak = 0;
+    _expectedFg = '';
+    _resolveLauncher();
+    // The plugin parks the freshly-shown window UP by the status-bar height (its
+    // built-in default Y offset). With top gravity that clips the lock under the
+    // status bar and leaves a gap at the bottom (the home dock peeks through), so
+    // snap the offset back to 0 to sit flush against the top and fill the screen.
+    // This is a ONE-OFF reset, not a per-mode move: resizeOverlay never changes
+    // x/y, so once y is 0 it stays 0 — nothing races the overlay's own resizing.
+    // Fired twice in case the service isn't attached yet on the first call.
+    for (final ms in const [350, 1200]) {
+      Future.delayed(Duration(milliseconds: ms), () async {
+        try {
+          await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
+        } catch (_) {}
+      });
+    }
     _timer = Timer.periodic(const Duration(milliseconds: 500), (_) => _tick());
   }
 
-  // Park the window: full-screen lock centered, or the bubble near the top so
-  // it doesn't cover the middle of the allowed app. moveOverlay only works from
-  // this (main) isolate, so the monitor drives it.
-  Future<void> _position(String mode) async {
-    if (mode == _lastMove) return;
-    _lastMove = mode;
+  Future<void> _resolveLauncher() async {
     try {
-      if (mode == 'hidden') {
-        final v = WidgetsBinding.instance.platformDispatcher.views.first;
-        final hDp = v.physicalSize.height / v.devicePixelRatio;
-        await FlutterOverlayWindow.moveOverlay(
-            OverlayPosition(0, -(hDp / 2 - 60)));
-      } else {
-        await FlutterOverlayWindow.moveOverlay(const OverlayPosition(0, 0));
-      }
-    } catch (_) {}
-  }
-
-  // Clears the last-known foreground at the start of a session. Otherwise the
-  // first tick could read a stale allowed app (from a previous session) and
-  // immediately hide the lock instead of showing it.
-  Future<void> _resetForeground() async {
-    try {
-      final f = await _fgFile();
-      if (f != null && await f.exists()) await f.delete();
+      _launcherPkg = await _native.invokeMethod<String>('getLauncherPackage');
     } catch (_) {}
   }
 
@@ -111,40 +101,102 @@ class FocusMonitor {
     _timer = null;
   }
 
+  // Write the overlay's mode. The overlay isolate polls this file and resizes
+  // itself accordingly — the monitor deliberately does NOT move/resize the
+  // window (that's what used to make it jump).
+  Future<void> _setMode(String mode) async {
+    _mode = mode;
+    await FocusLockStore.writeMode(mode);
+  }
+
   Future<void> _tick() async {
     try {
       // 1) Act on any command the overlay left for us.
       final cmd = await FocusLockStore.takeCommand();
       if (cmd.startsWith('launch:')) {
+        final pkg = cmd.substring('launch:'.length);
         _graceUntil = DateTime.now().add(const Duration(seconds: 2));
-        await FocusLockStore.writeMode('hidden');
-        await _position('hidden');
-        await _native.invokeMethod(
-            'launchApp', {'package': cmd.substring('launch:'.length)});
+        // Protect the launched app until usage stats confirms it's on screen.
+        _expectedFg = pkg;
+        _expectedUntil = DateTime.now().add(const Duration(seconds: 12));
+        _lastForced = '';
+        _lockStreak = 0;
+        await _setMode('hidden');
+        await _native.invokeMethod('launchApp', {'package': pkg});
         return;
       } else if (cmd == 'exit') {
         await _exit();
         return;
       }
 
-      // 2) Brief grace right after a launch so the launcher flashing past
-      //    during the app switch doesn't snap the lock back.
+      // 2) Brief grace right after a launch so the launcher flashing past during
+      //    the app switch doesn't snap the lock back.
       if (DateTime.now().isBefore(_graceUntil)) {
-        await FocusLockStore.writeMode('hidden');
-        await _position('hidden');
+        await _setMode('hidden');
         return;
       }
 
-      // 3) Lock or hide based on the real foreground app. The overlay's own
-      //    poll reads this and resizes itself (it stays alive as a small bubble
-      //    while hidden, so it can grow back — we never stop the service, which
-      //    Android would block from restarting in the background).
+      // 3) Lock or hide based on the real foreground app (Usage Access).
       final fg = await _foreground();
+
+      // While waiting for a just-launched allowed app to actually surface (usage
+      // stats lags 1-2s and briefly reports the launcher / null / GYAN), keep the
+      // bubble — never re-lock or force-exit the app the user just chose to open.
+      if (_expectedFg.isNotEmpty && DateTime.now().isBefore(_expectedUntil)) {
+        if (fg == _expectedFg) {
+          _expectedFg = ''; // confirmed on screen — resume normal detection
+        } else if (fg == null ||
+            fg == ownPackage ||
+            fg == _launcherPkg ||
+            fg.contains('systemui')) {
+          await _setMode('hidden');
+          return;
+        } else {
+          _expectedFg = ''; // a different real app surfaced — handle it below
+        }
+      }
+
+      // GYAN itself / no reading: leave the current mode untouched.
       if (fg == null || fg == ownPackage) return;
+      // The notification shade / recents are transient — don't let them toggle
+      // the lock.
+      if (fg.contains('systemui')) return;
+
       final allowed = await FocusLockStore.loadApps();
-      final mode = allowed.any((a) => a.package == fg) ? 'hidden' : 'locked';
-      await FocusLockStore.writeMode(mode);
-      await _position(mode);
+      // Always let the phone through so incoming/active calls aren't blocked.
+      final isPhone = fg.contains('dialer') ||
+          fg.contains('incallui') ||
+          fg.contains('telecom') ||
+          fg.endsWith('.phone');
+      final isLauncher = fg == _launcherPkg;
+      final isAllowed = isPhone || allowed.any((a) => a.package == fg);
+
+      // Allowed app in front → bubble immediately (get out of the way fast).
+      if (isAllowed) {
+        _lockStreak = 0;
+        _lastForced = '';
+        await _setMode('hidden');
+        return;
+      }
+
+      // Blocked app / home → lock. Debounce so a single stray usage-stats
+      // reading (which can briefly mis-report during an app switch) can't flash
+      // the full lock over an allowed app: require two consecutive ticks before
+      // growing the lock back from the bubble.
+      _lockStreak++;
+      if (_mode == 'hidden' && _lockStreak < 2) return;
+      await _setMode('locked');
+
+      // Force the user out of a genuinely-blocked app (not home / phone / allowed)
+      // — YPT-style CATEGORY_HOME. Fired once per blocked app so it doesn't loop.
+      if (!isLauncher) {
+        if (fg != _lastForced) {
+          _lastForced = fg;
+          await _native.invokeMethod('goHome');
+        }
+      } else {
+        _lastForced = '';
+      }
     } catch (_) {}
   }
 
@@ -160,10 +212,8 @@ class FocusMonitor {
 
   Future<String?> _foreground() async {
     try {
-      final f = await _fgFile();
-      if (f == null || !await f.exists()) return null;
-      final p = (await f.readAsString()).trim();
-      return p.isEmpty ? null : p;
+      final p = await _native.invokeMethod<String>('getForegroundApp');
+      return (p == null || p.isEmpty) ? null : p;
     } catch (_) {
       return null;
     }

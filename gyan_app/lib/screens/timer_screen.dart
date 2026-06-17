@@ -85,7 +85,11 @@ class _OverlayHelper {
       // taller than the panel so it renders above the top of the screen.
       height: WindowSize.matchParent,
       width: WindowSize.matchParent,
-      alignment: OverlayAlignment.center,
+      // top gravity: the window anchors to the TOP, so when the overlay resizes
+      // itself to the small bubble (allowed-app mode) the bubble sits at the top
+      // instead of mid-screen — no moveOverlay needed, so nothing races the
+      // resize. The full-screen lock fills from the top either way.
+      alignment: OverlayAlignment.topCenter,
       flag: OverlayFlag.defaultFlag,
       visibility: NotificationVisibility.visibilityPublic,
     );
@@ -291,6 +295,16 @@ class _TimerScreenState extends State<TimerScreen>
       }
     }
 
+    // Keep the cumulative-streak's in-progress focus advancing while minimised:
+    // the in-app ticker is stopped, so push the wall-clock elapsed each tick.
+    if (_phase == TimerPhase.focus && _phaseEndAt != null) {
+      final rem = math.max(0, _phaseEndAt!.difference(now).inSeconds);
+      prov.setLiveFocusSecs(
+          math.min(_phaseTotalSecs, math.max(0, _phaseTotalSecs - rem)));
+    } else {
+      prov.setLiveFocusSecs(0);
+    }
+
     // 2) Throttled live push — keep study time + group rankings advancing.
     if (subject != null && now.difference(_lastLockPublish).inSeconds >= 20) {
       _lastLockPublish = now;
@@ -350,6 +364,10 @@ class _TimerScreenState extends State<TimerScreen>
     // live progress from the wall clock.
     _phaseEndAt = DateTime.now().add(Duration(seconds: _remainingSecs));
 
+    // Count the focus done so far toward today's streak before the in-app ticker
+    // stops; the lock engine keeps it advancing while we're minimised.
+    _pushLiveFocus();
+
     // Stop the in-app ticker (the stored end-time handles background elapsed)
     _ticker?.cancel();
     setState(() => _isRunning = false);
@@ -405,6 +423,7 @@ class _TimerScreenState extends State<TimerScreen>
       if (endedFocus) _playNotificationSound('audio/focus_end.mp3');
     }
     _syncActiveTimer(context.read<AppProvider>());
+    _pushLiveFocus(); // reconcile the in-progress focus after the lock
     if (_isRunning) _startTicker();
   }
 
@@ -602,7 +621,7 @@ class _TimerScreenState extends State<TimerScreen>
         !_askedUsagePermission) {
       _askedUsagePermission = true;
       _toastInfo(
-          'Turn on “GYAN Focus Lock” under Accessibility so the lock can block other apps, then press play again');
+          'Allow “Usage access” for GYAN so Focus Lock can detect other apps, then press play again');
       await FocusMonitor.instance.requestPermission();
       return true;
     }
@@ -628,6 +647,7 @@ class _TimerScreenState extends State<TimerScreen>
       if (_remainingSecs > 0) {
         setState(() => _remainingSecs--);
         _syncActiveTimer(context.read<AppProvider>());
+        _pushLiveFocus();
       } else {
         _onPhaseComplete();
       }
@@ -644,6 +664,7 @@ class _TimerScreenState extends State<TimerScreen>
     _ticker?.cancel();
     setState(() => _isRunning = false);
     _OverlayHelper.clearEndTime();
+    _pushLiveFocus(); // count focus done so far toward today's streak
     _syncActiveTimer(context.read<AppProvider>()); // persist the paused state
   }
 
@@ -662,6 +683,7 @@ class _TimerScreenState extends State<TimerScreen>
     });
     // Clear snapshot for current subject so it resets fresh
     if (_loadedSubjectId != null) _snapshots.remove(_loadedSubjectId);
+    _pushLiveFocus(); // session (if any) was just saved → clear in-progress to 0
     _syncActiveTimer(context.read<AppProvider>()); // now idle → clears it
   }
 
@@ -673,6 +695,7 @@ class _TimerScreenState extends State<TimerScreen>
       _isRunning = true;
     });
     _syncActiveTimer(context.read<AppProvider>());
+    _pushLiveFocus(); // focus just saved → push the new (break) phase's 0
     _startTicker();
   }
 
@@ -773,6 +796,18 @@ class _TimerScreenState extends State<TimerScreen>
       endTime: DateTime.now(),
       completed: completed,
     ));
+  }
+
+  // Feed the in-progress focus elapsed to the provider so the daily-cumulative
+  // streak can flip mid-phase (covers pausing or leaving the app, not only
+  // finishing). Pushes 0 whenever we're not in a live focus phase, so a focus
+  // that was just saved as a session is never counted twice.
+  void _pushLiveFocus() {
+    if (!mounted) return;
+    final secs = (_phase == TimerPhase.focus && _sessionStart != null)
+        ? math.max(0, _phaseTotalSecs - _remainingSecs)
+        : 0;
+    context.read<AppProvider>().setLiveFocusSecs(secs);
   }
 
   // ── Subject overlay ───────────────────────────────────────────────────────
