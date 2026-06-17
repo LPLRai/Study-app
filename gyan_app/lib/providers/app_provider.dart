@@ -986,16 +986,26 @@ class AppProvider extends ChangeNotifier {
     if (grade != null)               _user.grade = grade;
     if (dailyStudyGoalHours != null) _user.dailyStudyGoalHours = dailyStudyGoalHours;
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (profileImagePath != null)   _user.profileImagePath = profileImagePath;
     if (studyTime != null)          _user.studyTime = studyTime;
     if (studyGoal != null)          _user.studyGoal = studyGoal;
+=======
+    if (profileImagePath != null)    _user.profileImagePath = profileImagePath;
+    if (studyTime != null)           _user.studyTime = studyTime;
+    if (studyGoal != null)           _user.studyGoal = studyGoal;
+>>>>>>> df487c82a070bc50041db46059ed4168141aeef8
     if (strongSubjects != null) {
       _user.strongSubjects = strongSubjects;
       // Can't keep offering help in a subject you no longer mark as strong.
       _user.helpSubjects =
           _user.helpSubjects.where(strongSubjects.contains).toList();
     }
+<<<<<<< HEAD
     if (weakSubjects != null)       _user.weakSubjects = weakSubjects;
+=======
+    if (weakSubjects != null)        _user.weakSubjects = weakSubjects;
+>>>>>>> df487c82a070bc50041db46059ed4168141aeef8
     await _saveUser();
     await _syncToFirestore();
     // Keep the top-level helper-search mirror fresh when grade/subjects change.
@@ -1003,6 +1013,13 @@ class AppProvider extends ChangeNotifier {
       await _firebaseService.publishHelperProfile(
           grade: _user.grade, helpSubjects: _user.helpSubjects);
     }
+<<<<<<< HEAD
+=======
+    // Re-schedule local study-time notifications when the preferred time changes.
+    if (studyTime != null) {
+      LocalNotificationService.instance.scheduleAll(_user.studyTime);
+    }
+>>>>>>> df487c82a070bc50041db46059ed4168141aeef8
     notifyListeners();
   }
 
@@ -1025,6 +1042,7 @@ class AppProvider extends ChangeNotifier {
     await _syncToFirestore();
     await _firebaseService.publishHelperProfile(
         grade: _user.grade, helpSubjects: _user.helpSubjects);
+<<<<<<< HEAD
 =======
     if (profileImagePath != null)    _user.profileImagePath = profileImagePath;
     if (studyTime != null)           _user.studyTime = studyTime;
@@ -1038,6 +1056,8 @@ class AppProvider extends ChangeNotifier {
       LocalNotificationService.instance.scheduleAll(_user.studyTime); // ← NEW
     }
 >>>>>>> 06e72ee (Add daily study reminders and streak nudge notifications)
+=======
+>>>>>>> df487c82a070bc50041db46059ed4168141aeef8
     notifyListeners();
   }
 
