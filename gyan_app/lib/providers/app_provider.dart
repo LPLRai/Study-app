@@ -192,19 +192,64 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ── Daily activity ────────────────────────────────────────────────────────
-  bool didStudyOn(DateTime day) {
-    final d = _dateOnly(day);
-    return _sessions
-        .any((s) => s.isQualifying && _dateOnly(s.startTime).isAtSameMomentAs(d));
-  }
+  bool didStudyOn(DateTime day) => studiedOnDay(day);
 
   // ── Streak ────────────────────────────────────────────────────────────────
+  // A day counts toward the streak once its TOTAL focus time reaches 10 minutes
+  // — summed across every session that day (one long pomodoro, or several short
+  // stops), plus the focus phase currently in progress. Counting cumulative
+  // seconds (not "one ≥10-min session") is what lets the day flip the moment you
+  // cross 10 min even if you pause or leave mid-phase instead of finishing.
+  static const int _dayQualifySecs = 600; // 10 min/day
+
+  // The running focus phase isn't written as a session until it completes or is
+  // reset, so the timer pushes its in-progress elapsed seconds here (see
+  // setLiveFocusSecs). It's pushed back to 0 the instant the focus saves, so the
+  // saved session is never double-counted on top of this.
+  int _liveFocusSecs = 0;
+  DateTime? _liveFocusDay;
+
   Set<DateTime> get studiedDays {
-    final set = <DateTime>{};
+    final secsByDay = <DateTime, int>{};
     for (final s in _sessions) {
-      if (s.isQualifying) set.add(_dateOnly(s.startTime));
+      final d = _dateOnly(s.startTime);
+      secsByDay[d] = (secsByDay[d] ?? 0) + s.durationSeconds;
     }
+    if (_liveFocusDay != null && _liveFocusSecs > 0) {
+      final d = _dateOnly(_liveFocusDay!);
+      secsByDay[d] = (secsByDay[d] ?? 0) + _liveFocusSecs;
+    }
+    final set = <DateTime>{};
+    secsByDay.forEach((d, secs) {
+      if (secs >= _dayQualifySecs) set.add(d);
+    });
     return set;
+  }
+
+  int _savedFocusSecsOn(DateTime day) {
+    final d = _dateOnly(day);
+    var secs = 0;
+    for (final s in _sessions) {
+      if (_dateOnly(s.startTime) == d) secs += s.durationSeconds;
+    }
+    return secs;
+  }
+
+  /// Fed by the timer with the in-progress focus phase's elapsed seconds (0 when
+  /// not focusing). Lets the daily-cumulative streak flip mid-session — covering
+  /// a pause or leaving the app — without waiting for the session to be saved.
+  void setLiveFocusSecs(int secs) {
+    secs = secs < 0 ? 0 : secs;
+    final today = _dateOnly(DateTime.now());
+    final prev = (_liveFocusDay == today) ? _liveFocusSecs : 0;
+    if (_liveFocusDay == today && secs == prev) return;
+    final saved = _savedFocusSecsOn(today);
+    _liveFocusDay = today;
+    _liveFocusSecs = secs;
+    // Rebuild listeners only when "studied today" actually flips — not every tick.
+    if ((saved + prev >= _dayQualifySecs) != (saved + secs >= _dayQualifySecs)) {
+      notifyListeners();
+    }
   }
 
   bool studiedOnDay(DateTime day) => studiedDays.contains(_dateOnly(day));

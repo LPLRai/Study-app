@@ -9,6 +9,10 @@
     <!-- List/launch the user's "allowed apps" during a focus lock -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission"/>
+    <!-- YPT-style foreground-app detection ("Usage access"). Replaces the
+         accessibility service so Google Play Protect no longer blocks install. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
     <application
         android:label="GYAN"
         android:name="${applicationName}"
@@ -33,20 +37,6 @@
                 android:value="focus_lock_overlay"/>
         </service>
 
-        <!-- Real-time foreground-app detection for Focus Lock (user enables it
-             in Settings → Accessibility) -->
-        <service
-            android:name=".FocusAccessibilityService"
-            android:exported="false"
-            android:label="GYAN Focus Lock"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService"/>
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/focus_accessibility_config"/>
-        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true"
