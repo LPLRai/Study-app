@@ -54,15 +54,36 @@ class MainActivity : FlutterActivity() {
             val usm = applicationContext
                 .getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             val end = System.currentTimeMillis()
-            val events = usm.queryEvents(end - 10_000, end)
-            var pkg: String? = null
-            var ts = 0L
+            // Track the LAST event per package over a wide window. The true
+            // foreground is the package whose most recent event is a RESUME and
+            // not a later PAUSE. Looking only at "latest resume" (the old way) let
+            // a launcher's transient resume — fired during gesture-nav/Quickstep
+            // transitions while another app is genuinely on top — win, so the lock
+            // wrongly covered allowed apps. Tracking the last event type fixes it:
+            // a launcher that resumes-then-pauses has PAUSE as its last event and
+            // is excluded.
+            val events = usm.queryEvents(end - 60_000, end)
+            val lastType = HashMap<String, Int>()
+            val lastTime = HashMap<String, Long>()
             val e = UsageEvents.Event()
             while (events.hasNextEvent()) {
                 events.getNextEvent(e)
-                if (e.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND && e.timeStamp >= ts) {
-                    ts = e.timeStamp
-                    pkg = e.packageName
+                val t = e.eventType
+                if (t == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                    t == UsageEvents.Event.MOVE_TO_BACKGROUND
+                ) {
+                    if (e.timeStamp >= (lastTime[e.packageName] ?: 0L)) {
+                        lastTime[e.packageName] = e.timeStamp
+                        lastType[e.packageName] = t
+                    }
+                }
+            }
+            var pkg: String? = null
+            var ts = 0L
+            for ((p, time) in lastTime) {
+                if (lastType[p] == UsageEvents.Event.MOVE_TO_FOREGROUND && time >= ts) {
+                    ts = time
+                    pkg = p
                 }
             }
             pkg

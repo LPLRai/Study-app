@@ -179,12 +179,15 @@ class FocusMonitor {
         return;
       }
 
-      // Blocked app / home → lock. Debounce so a single stray usage-stats
-      // reading (which can briefly mis-report during an app switch) can't flash
-      // the full lock over an allowed app: require two consecutive ticks before
-      // growing the lock back from the bubble.
+      // Blocked app / home → lock. Debounce so a stray usage-stats reading can't
+      // flash the lock over an allowed app. The launcher needs a LONGER streak:
+      // gesture-nav launchers (Quickstep) blip "foreground" during transitions
+      // while an allowed app is genuinely on top, so only a sustained launcher
+      // reading (a real "go home") should grow the lock back from the bubble. A
+      // genuinely-blocked app still locks fast.
       _lockStreak++;
-      if (_mode == 'hidden' && _lockStreak < 2) return;
+      final needed = isLauncher ? 6 : 2;
+      if (_mode == 'hidden' && _lockStreak < needed) return;
       await _setMode('locked');
 
       // Force the user out of a genuinely-blocked app (not home / phone / allowed)

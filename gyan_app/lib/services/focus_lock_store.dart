@@ -40,16 +40,41 @@ class AllowedApp {
 class FocusLockStore {
   static const String _kApps = 'focus_allowed_apps_json';
 
-  // ── Allowed apps (user's picks — small, kept in prefs) ─────────────────────
+  // ── Allowed apps (user's picks) ────────────────────────────────────────────
+  // Stored in a FILE, not just SharedPreferences, because the lock overlay runs
+  // in a SEPARATE isolate. SharedPreferences keeps a per-isolate in-memory cache,
+  // so an app added from the overlay isolate stays invisible to the monitor in
+  // the main isolate (it kept reading an empty stale cache and force-closed the
+  // very app the user allowed). dart:io files resolve to the same path in both
+  // isolates (like the catalog + IPC files), so both sides always agree.
+  static File get _appsFile =>
+      File('${Directory.systemTemp.path}/focus_allowed_apps.json');
+
   static Future<List<AllowedApp>> loadApps() async {
-    final p = await SharedPreferences.getInstance();
-    return _parse(p.getString(_kApps));
+    try {
+      if (await _appsFile.exists()) {
+        return _parse(await _appsFile.readAsString());
+      }
+    } catch (_) {}
+    // Fallback / migration: read prefs (reload so a write from the other isolate
+    // is picked up instead of served from this isolate's stale cache).
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.reload();
+      return _parse(p.getString(_kApps));
+    } catch (_) {}
+    return const [];
   }
 
   static Future<void> saveApps(List<AllowedApp> apps) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(
-        _kApps, jsonEncode(apps.map((a) => a.toJson()).toList()));
+    final json = jsonEncode(apps.map((a) => a.toJson()).toList());
+    try {
+      await _appsFile.writeAsString(json);
+    } catch (_) {}
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kApps, json);
+    } catch (_) {}
   }
 
   // ── Overlay ⇄ main channel (files — shareData is unreliable between the
