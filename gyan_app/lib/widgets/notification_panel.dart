@@ -10,6 +10,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/buddy_chat_model.dart';
+import '../screens/buddy_chat_screen.dart';
 import '../theme/app_theme.dart';
 
 /// Slides a notifications panel in from the right edge of the screen.
@@ -199,14 +202,42 @@ class _NotificationPanel extends StatelessWidget {
             ? (n['body'] as String? ?? '')
             : '$fromName invited you to join "$groupName"';
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: t.widgetBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: pending ? AppColors.blue.withOpacity(0.4) : t.cardBorder),
-      ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        if (isReminder) {
+          Navigator.of(context).pop();
+          prov.switchTab(1); // Timer
+        } else if (isInvite) {
+          Navigator.of(context).pop();
+          prov.switchTab(2); // Groups
+        } else if (isBuddy) {
+          final chatId = n['chatId'] as String?;
+          if (chatId != null) {
+            final doc = await FirebaseFirestore.instance.collection('buddy_chats').doc(chatId).get();
+            if (doc.exists && context.mounted) {
+              Navigator.of(context).pop();
+              final chat = BuddyChat.fromDoc(doc.id, doc.data()!);
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => BuddyChatScreen(chat: chat)));
+            } else if (context.mounted) {
+              Navigator.of(context).pop();
+              prov.switchTab(2);
+            }
+          } else {
+            Navigator.of(context).pop();
+            prov.switchTab(2);
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: t.widgetBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: pending ? AppColors.blue.withOpacity(0.4) : t.cardBorder),
+        ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
@@ -262,6 +293,7 @@ class _NotificationPanel extends StatelessWidget {
             ),
           ),
       ]),
+      ),
     );
   }
 

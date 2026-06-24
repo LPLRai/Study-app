@@ -75,14 +75,18 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
   Widget build(BuildContext context) {
     final t = context.watch<AppProvider>().appTheme;
 
-    return GestureDetector(
-      // Collapsed: tapping anywhere on the card opens it.
-      // Expanded: this no-ops, so tapping the body does NOT close the card.
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (!_isExpanded) setState(() => _isExpanded = true);
+    return TapRegion(
+      onTapOutside: (event) {
+        if (_isExpanded) setState(() => _isExpanded = false);
       },
-      child: AnimatedContainer(
+      child: GestureDetector(
+        // Collapsed: tapping anywhere on the card opens it.
+        // Expanded: this no-ops, so tapping the body does NOT close the card.
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (!_isExpanded) setState(() => _isExpanded = true);
+        },
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
         margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
@@ -192,6 +196,7 @@ class _WhiteNoiseWidgetState extends State<WhiteNoiseWidget> {
                 : const SizedBox(width: double.infinity),
           ),
         ]),
+      ),
       ),
     );
   }

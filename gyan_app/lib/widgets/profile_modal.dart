@@ -56,6 +56,13 @@ class ProfileModal extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (user.email.isNotEmpty)
+                    Text(
+                      user.email,
+                      style: GoogleFonts.inder(color: t.textMuted, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   Text(
                     user.grade.isEmpty ? 'Grade: N/A' : 'Grade: ${user.grade}',
                     style: GoogleFonts.inder(color: t.textMuted, fontSize: 11),

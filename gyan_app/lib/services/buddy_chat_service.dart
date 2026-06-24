@@ -175,6 +175,7 @@ class BuddyChatService {
           title: 'New help request',
           body:
               '$learnerName ($learnerGrade) needs help with $subject. Open Groups → Buddies to accept.',
+          chatId: id,
         );
       } catch (_) {/* notification is optional */}
       return 'sent';
@@ -253,6 +254,7 @@ class BuddyChatService {
         type: 'buddy_message',
         title: senderName,
         body: t.length > 80 ? '${t.substring(0, 80)}…' : t,
+        chatId: chat.id,
       );
     }
   }

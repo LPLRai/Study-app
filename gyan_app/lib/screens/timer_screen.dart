@@ -1089,8 +1089,8 @@ class _TimerScreenState extends State<TimerScreen>
                     _controlBtn(
                         icon: Icons.refresh_rounded,
                         size: 46,
-                        color: t.widgetBg,
-                        outline: true,
+                        color: Colors.black,
+                        outline: false,
                         onTap: _reset),
                     const SizedBox(width: 22),
                   ],

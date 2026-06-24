@@ -549,6 +549,7 @@ class FirebaseService {
     required String type,
     required String title,
     required String body,
+    String? chatId,
   }) async {
     if (!_initialized) return;
     try {
@@ -556,6 +557,7 @@ class FirebaseService {
         'type': type,
         'title': title,
         'body': body,
+        if (chatId != null) 'chatId': chatId,
         'fromName': await _myName(),
         'seen': false,
         'createdAt': FieldValue.serverTimestamp(),
