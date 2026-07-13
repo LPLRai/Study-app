@@ -28,8 +28,12 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
+const GROQ_KEY = process.env.GROQ_KEY || "";
+const OCR_API_KEY = process.env.OCR_API_KEY || "";
+
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Health check (open this URL to confirm the server is up).
 app.get("/", (_req, res) => res.send("GYAN push server is running."));
@@ -165,6 +169,150 @@ app.post("/purge", async (req, res) => {
     res.json({ purged, registered: after.data().count });
   } catch (e) {
     console.error("purge failed:", e);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUOTA LOGIC
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkAdmin(uid, email) {
+  if (email && ADMIN_EMAILS.includes(email.toLowerCase())) return true;
+  const db = admin.firestore();
+  const doc = await db.doc(`admins/${uid}`).get();
+  return doc.exists;
+}
+
+async function checkAndDeductQuota(uid, email, feature) {
+  if (await checkAdmin(uid, email)) return true; // Admins have no quota
+
+  const db = admin.firestore();
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  const ref = db.doc(`user_quotas/${uid}`);
+  return await db.runTransaction(async (t) => {
+    const doc = await t.get(ref);
+    let data = doc.data() || {};
+    
+    // Reset if new month
+    if (data.month !== currentMonth) {
+      data = { month: currentMonth, quiz_count: 0, scan_count: 0 };
+    }
+    
+    const limit = feature === 'quiz' ? 15 : 5;
+    const countField = `${feature}_count`;
+    const currentUsage = data[countField] || 0;
+    
+    if (currentUsage >= limit) {
+      return false; // Quota exceeded
+    }
+    
+    data[countField] = currentUsage + 1;
+    t.set(ref, data, { merge: true });
+    return true; // OK
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROXY ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post("/api/generate-quiz", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!idToken) return res.status(401).json({ error: "missing token" });
+    
+    const caller = await admin.auth().verifyIdToken(idToken);
+    if (!caller) return res.status(403).json({ error: "unverified caller" });
+
+    const hasQuota = await checkAndDeductQuota(caller.uid, caller.email, 'quiz');
+    if (!hasQuota) return res.status(429).json({ error: "Quota exceeded: You have reached the limit of 15 quizzes this month." });
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req.body)
+    });
+
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (e) {
+    console.error("Quiz proxy failed:", e);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+app.post("/api/ocr", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!idToken) return res.status(401).json({ error: "missing token" });
+    
+    const caller = await admin.auth().verifyIdToken(idToken);
+    if (!caller) return res.status(403).json({ error: "unverified caller" });
+
+    // No quota deducted just for OCR, but requires auth
+    
+    // OCR space requires multipart or urlencoded, we can forward form data
+    const { base64Image } = req.body;
+    if (!base64Image) return res.status(400).json({ error: "missing base64Image" });
+    
+    const formData = new URLSearchParams();
+    formData.append('base64Image', base64Image);
+    formData.append('language', 'eng');
+    formData.append('isTable', 'true');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2');
+    formData.append('filetype', 'jpg');
+
+    const response = await fetch("https://api.ocr.space/parse/image", {
+      method: "POST",
+      headers: {
+        "apikey": OCR_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData.toString()
+    });
+
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (e) {
+    console.error("OCR proxy failed:", e);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+app.post("/api/analyze-sheet", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    if (!idToken) return res.status(401).json({ error: "missing token" });
+    
+    const caller = await admin.auth().verifyIdToken(idToken);
+    if (!caller) return res.status(403).json({ error: "unverified caller" });
+
+    const hasQuota = await checkAndDeductQuota(caller.uid, caller.email, 'scan');
+    if (!hasQuota) return res.status(429).json({ error: "Quota exceeded: You have reached the limit of 5 scans this month." });
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req.body)
+    });
+
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (e) {
+    console.error("Analyze sheet proxy failed:", e);
     res.status(500).json({ error: "server error" });
   }
 });

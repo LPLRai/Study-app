@@ -10,9 +10,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/app_provider.dart';
 
-final _kGroqKey   = dotenv.env['GROQ_KEY'] ?? '';
+final _kPushEndpoint = dotenv.env['PUSH_ENDPOINT']?.replaceAll(RegExp(r'/$'), '') ?? 'http://localhost:3000';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data model
@@ -73,10 +74,14 @@ class _QuizService {
   static Future<List<QuizQuestion>> generateGroq(
       String topic, String notes, String difficulty, int count, String grade) async {
     final prompt = _buildPrompt(topic, notes, difficulty, count, grade);
+    
+    final user = FirebaseAuth.instance.currentUser;
+    final token = user != null ? await user.getIdToken() : '';
+    
     final res = await http.post(
-      Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+      Uri.parse('$_kPushEndpoint/api/generate-quiz'),
       headers: {
-        'Authorization': 'Bearer $_kGroqKey',
+        'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
@@ -92,9 +97,13 @@ class _QuizService {
         'max_tokens': 2000,
       }),
     );
+    if (res.statusCode == 429) {
+      final err = jsonDecode(res.body);
+      throw Exception(err['error'] ?? 'Quota exceeded. Please try again next month.');
+    }
     if (res.statusCode != 200) {
       final err = jsonDecode(res.body);
-      throw Exception(err['error']?['message'] ?? 'Groq error ${res.statusCode}');
+      throw Exception(err['error']?['message'] ?? err['error'] ?? 'Server error ${res.statusCode}');
     }
     final data   = jsonDecode(res.body);
     final text   = data['choices'][0]['message']['content'] as String;

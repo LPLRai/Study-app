@@ -626,7 +626,7 @@ class _AdminScreenState extends State<AdminScreen> {
       _privRow(t, Icons.groups_rounded, 'Unlimited groups',
           'The 5-group limit is lifted for you.'),
       _privRow(t, Icons.auto_awesome_rounded, 'AI features unlocked',
-          'Full access (free for everyone for now).'),
+          'Unlimited access to AI quizzes and answer sheet scans (no quotas).'),
       _privRow(t, Icons.timer_rounded, 'Custom Pomodoro timings',
           'Set above — your timer only.'),
     ]);

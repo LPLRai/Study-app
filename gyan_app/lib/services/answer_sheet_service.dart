@@ -77,8 +77,7 @@ class AnalysisException implements Exception {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AnswerSheetService {
-  static String get _ocrApiKey  => dotenv.env['OCR_API_KEY']    ?? '';
-  static String get _groqApiKey => dotenv.env['GROQ_API_KEY_2'] ?? '';
+  static String get _pushEndpoint => dotenv.env['PUSH_ENDPOINT']?.replaceAll(RegExp(r'/$'), '') ?? 'http://localhost:3000';
   static const String _groqModel = 'llama-3.3-70b-versatile';
 
   final _db   = FirebaseFirestore.instance;
@@ -158,18 +157,19 @@ class AnswerSheetService {
 
   Future<String> _performOCR(Uint8List imageBytes) async {
     final b64 = base64Encode(imageBytes);
+    
+    final currentUser = _auth.currentUser;
+    final token = currentUser != null ? await currentUser.getIdToken() : '';
+    
     final res = await http.post(
-      Uri.parse('https://api.ocr.space/parse/image'),
-      headers: {'apikey': _ocrApiKey},
-      body: {
-        'base64Image':       'data:image/jpeg;base64,$b64',
-        'language':          'eng',
-        'isTable':           'true',
-        'detectOrientation': 'true',
-        'scale':             'true',
-        'OCREngine':         '2',
-        'filetype':          'jpg',
+      Uri.parse('$_pushEndpoint/api/ocr'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
       },
+      body: jsonEncode({
+        'base64Image': 'data:image/jpeg;base64,$b64',
+      }),
     );
 
     if (res.statusCode != 200) {
@@ -268,10 +268,13 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
 }
 ''';
 
+    final currentUser = _auth.currentUser;
+    final token = currentUser != null ? await currentUser.getIdToken() : '';
+
     final res = await http.post(
-      Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+      Uri.parse('$_pushEndpoint/api/analyze-sheet'),
       headers: {
-        'Authorization': 'Bearer $_groqApiKey',
+        'Authorization': 'Bearer $token',
         'Content-Type':  'application/json',
       },
       body: jsonEncode({
@@ -288,6 +291,10 @@ ${params.answerKey != null ? 'Answer Key:\n${params.answerKey}\n' : ''}${params.
       }),
     );
 
+    if (res.statusCode == 429) {
+      final err = jsonDecode(res.body);
+      throw AnalysisException(err['error'] ?? 'Quota exceeded. Please try again next month.');
+    }
     if (res.statusCode != 200) {
       throw AnalysisException('Groq ${res.statusCode}: ${res.body}');
     }

@@ -780,6 +780,30 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> signOutUser() async {
+    // Preserve today's in-progress study time before signing out. A live
+    // (uncommitted) focus session lives only in memory + local prefs, so a
+    // logout would drop it — that's why the data only survived once a day had
+    // passed and a phase completion had committed it. Commit it and push the
+    // full state to Firestore while we are still signed in.
+    final live = _liveSession;
+    if (_remoteBackendReady && live != null && live.durationSeconds >= 60) {
+      await addSession(StudySessionModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        subjectId: live.subjectId,
+        subjectName: live.subjectName,
+        colorIndex: live.colorIndex,
+        durationMinutes: live.durationSeconds ~/ 60,
+        durationSeconds: live.durationSeconds,
+        startTime: live.startTime,
+        endTime: DateTime.now(),
+      ));
+    }
+    if (_remoteBackendReady) {
+      try {
+        await _syncToFirestore();
+      } catch (_) {}
+    }
+
     // Cancel scheduled notifications before clearing the token ── NEW
     await LocalNotificationService.instance.cancelAll(); // ← NEW
     await PushService.instance.clearToken();
