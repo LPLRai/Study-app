@@ -28,7 +28,8 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-const GROQ_KEY = process.env.GROQ_KEY || "";
+const GROQ_KEY_QUIZ = process.env.GROQ_KEY_QUIZ || "";
+const GROQ_KEY_SCAN = process.env.GROQ_KEY_SCAN || "";
 const OCR_API_KEY = process.env.OCR_API_KEY || "";
 
 const app = express();
@@ -233,7 +234,7 @@ app.post("/api/generate-quiz", async (req, res) => {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROQ_KEY}`,
+        "Authorization": `Bearer ${GROQ_KEY_QUIZ}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(req.body)
@@ -303,7 +304,7 @@ app.post("/api/analyze-sheet", async (req, res) => {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${GROQ_KEY}`,
+        "Authorization": `Bearer ${GROQ_KEY_SCAN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(req.body)
