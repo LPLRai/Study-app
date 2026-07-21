@@ -60,9 +60,9 @@ class _AdminScreenState extends State<AdminScreen> {
   void initState() {
     super.initState();
     final prov = context.read<AppProvider>();
-    _focus = prov.focusMinutes;
-    _short = prov.shortBreakMinutes;
-    _long = prov.longBreakMinutes;
+    _focus = prov.focusSecs;
+    _short = prov.shortBreakSecs;
+    _long = prov.longBreakSecs;
     _cycles = prov.cyclesPerSession;
     _fillStatFields(prov);
     _loadCounts();
@@ -454,15 +454,62 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   // ── Timer config ─────────────────────────────────────────────────────────────
+  static const Map<int, String> _timeOptions = {
+    10: '10 sec',
+    30: '30 sec',
+    60: '1 min',
+    120: '2 min',
+    300: '5 min',
+    600: '10 min',
+    900: '15 min',
+    1200: '20 min',
+    1500: '25 min',
+    1800: '30 min',
+    2700: '45 min',
+    3600: '60 min',
+  };
+
+  Widget _timeDropdown(
+      AppThemeData t, String label, int value, ValueChanged<int?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        Expanded(
+          child: Text(label,
+              style: GoogleFonts.inder(color: t.textPrimary, fontSize: 14)),
+        ),
+        Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: t.inputBg,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: DropdownButton<int>(
+            value: _timeOptions.containsKey(value) ? value : _timeOptions.keys.first,
+            underline: const SizedBox(),
+            icon: Icon(Icons.arrow_drop_down, color: t.textMuted, size: 18),
+            dropdownColor: t.surface,
+            style: GoogleFonts.inder(
+                color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+            onChanged: onChanged,
+            items: _timeOptions.entries
+                .map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ))
+                .toList(),
+          ),
+        ),
+      ]),
+    );
+  }
+
   Widget _timerCard(AppProvider prov, AppThemeData t) {
     return _card(t, Icons.timer_rounded, 'Pomodoro Timings', [
-      _stepper(t, 'Focus', _focus, 'min', (v) => setState(() => _focus = v),
-          min: 1, max: 180),
-      _stepper(t, 'Short break', _short, 'min',
-          (v) => setState(() => _short = v),
-          min: 1, max: 120),
-      _stepper(t, 'Long break', _long, 'min', (v) => setState(() => _long = v),
-          min: 1, max: 180),
+      _timeDropdown(t, 'Focus', _focus, (v) => setState(() => _focus = v!)),
+      _timeDropdown(t, 'Short break', _short, (v) => setState(() => _short = v!)),
+      _timeDropdown(t, 'Long break', _long, (v) => setState(() => _long = v!)),
       _stepper(t, 'Cycles', _cycles, '', (v) => setState(() => _cycles = v),
           min: 1, max: 12),
       const SizedBox(height: 6),
@@ -470,9 +517,9 @@ class _AdminScreenState extends State<AdminScreen> {
         Expanded(
           child: _btn('Save', _accent, Colors.white, () async {
             await prov.setTimerConfig(
-                focusMinutes: _focus,
-                shortBreakMinutes: _short,
-                longBreakMinutes: _long,
+                focusSecs: _focus,
+                shortBreakSecs: _short,
+                longBreakSecs: _long,
                 cycles: _cycles);
             _toast('Timer settings saved');
           }),
@@ -482,9 +529,9 @@ class _AdminScreenState extends State<AdminScreen> {
           child: _btn('Reset', t.inputBg, t.textPrimary, () async {
             await prov.resetTimerConfig();
             setState(() {
-              _focus = prov.focusMinutes;
-              _short = prov.shortBreakMinutes;
-              _long = prov.longBreakMinutes;
+              _focus = prov.focusSecs;
+              _short = prov.shortBreakSecs;
+              _long = prov.longBreakSecs;
               _cycles = prov.cyclesPerSession;
             });
             _toast('Reset to default (25 / 5 / 15 × 4)');

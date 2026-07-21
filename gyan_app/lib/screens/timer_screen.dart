@@ -29,6 +29,7 @@ import '../models/subject_model.dart';
 import '../providers/app_provider.dart';
 import '../services/focus_lock_store.dart';
 import '../services/focus_monitor.dart';
+import '../services/timer_notification_service.dart';
 import '../widgets/white_noise_widget.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,6 +165,8 @@ class _TimerScreenState extends State<TimerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Initialise the timer notification service so it's ready when phases end.
+    TimerNotificationService.instance.init();
     // Start from the configured focus length (admins can change it).
     _remainingSecs = context.read<AppProvider>().focusSecs;
     _phaseTotalSecs = _remainingSecs;
@@ -331,18 +334,21 @@ class _TimerScreenState extends State<TimerScreen>
     }
   }
 
-  // Chime for the phase we just ENTERED (mirrors the foreground transitions).
+  // Chime for the phase we just ENTERED while the app is BACKGROUNDED in a
+  // Focus Lock. Uses OS-level notifications so the sound fires even when the
+  // screen is off — AudioPlayer cannot play in that state.
   void _playPhaseEntrySound() {
+    final notifs = TimerNotificationService.instance;
     switch (_phase) {
       case TimerPhase.shortBreak:
-        _playNotificationSound('audio/focus_end.mp3');
+        notifs.notifyFocusEnd();
         break;
       case TimerPhase.longBreak:
-        _playNotificationSound('audio/focus_end.mp3');
-        _playNotificationSound('audio/long_break_start.mp3');
+        notifs.notifyFocusEnd();
+        notifs.notifyLongBreakStart();
         break;
       case TimerPhase.focus:
-        _playNotificationSound('audio/break_end.mp3');
+        notifs.notifyBreakEnd();
         break;
     }
   }
@@ -654,10 +660,27 @@ class _TimerScreenState extends State<TimerScreen>
     });
   }
 
+  // Plays a sound via AudioPlayer (foreground only) AND fires an OS
+  // notification with the matching custom sound so the chime works even
+  // when the screen is locked or the app is briefly backgrounded.
   Future<void> _playNotificationSound(String assetPath) async {
-    final player = AudioPlayer();
-    await player.play(AssetSource(assetPath));
-    player.onPlayerComplete.first.then((_) => player.dispose());
+    // 1) In-app audio — instant feedback while the screen is on / app visible.
+    try {
+      final player = AudioPlayer();
+      await player.play(AssetSource(assetPath));
+      player.onPlayerComplete.first.then((_) => player.dispose());
+    } catch (_) {}
+    // 2) OS notification — fires even when the screen is off or the app is
+    //    put to background mid-phase (e.g. the user locks the screen
+    //    immediately after pressing play without Focus Lock enabled).
+    final notifs = TimerNotificationService.instance;
+    if (assetPath.contains('focus_end')) {
+      notifs.notifyFocusEnd();
+    } else if (assetPath.contains('long_break_start')) {
+      notifs.notifyLongBreakStart();
+    } else if (assetPath.contains('break_end')) {
+      notifs.notifyBreakEnd();
+    }
   }
 
   void _pause() {

@@ -1,0 +1,25 @@
+{
+  "runs": [
+    {
+      "date": "2026-06-16T07:58:40.660911+00:00",
+      "input_tokens": 76616,
+      "output_tokens": 0,
+      "files": 161
+    },
+    {
+      "date": "2026-06-16T13:28:11.730958+00:00",
+      "input_tokens": 30112,
+      "output_tokens": 0,
+      "files": 145
+    },
+    {
+      "date": "2026-06-17T07:57:57.889691+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 7,
+      "mode": "update(AST-only)"
+    }
+  ],
+  "total_input_tokens": 106728,
+  "total_output_tokens": 0
+}

@@ -37,9 +37,9 @@ class AppProvider extends ChangeNotifier {
   Timer? _midnightTimer;
 
   // ── Timer configuration (per-device; only the Admin Panel changes it) ───────
-  int _focusMinutes = 25;
-  int _shortBreakMinutes = 5;
-  int _longBreakMinutes = 15;
+  int _focusSecsValue = 25 * 60;
+  int _shortBreakSecsValue = 5 * 60;
+  int _longBreakSecsValue = 15 * 60;
   int _cycles = 4;
 
   // ── Admin-only headline stat overrides (null = use real, derived value) ─────
@@ -89,13 +89,9 @@ class AppProvider extends ChangeNotifier {
   AppThemeData get appTheme => AppThemeData(isDark: _isDarkMode);
 
   // ── Timer configuration ─────────────────────────────────────────────────────
-  int get focusMinutes => _focusMinutes;
-  int get shortBreakMinutes => _shortBreakMinutes;
-  int get longBreakMinutes => _longBreakMinutes;
-  int get cyclesPerSession => _cycles;
-  int get focusSecs => _focusMinutes * 60;
-  int get shortBreakSecs => _shortBreakMinutes * 60;
-  int get longBreakSecs => _longBreakMinutes * 60;
+  int get focusSecs => _focusSecsValue;
+  int get shortBreakSecs => _shortBreakSecsValue;
+  int get longBreakSecs => _longBreakSecsValue;
   int get totalCycles => _cycles;
 
   // ── Admin status ────────────────────────────────────────────────────────────
@@ -882,9 +878,9 @@ class AppProvider extends ChangeNotifier {
     _isDarkMode = p.getBool('isDarkMode') ?? false;
     if (_subjects.isNotEmpty) _selectedSubjectId = _subjects.first.id;
 
-    _focusMinutes = p.getInt('cfg_focus') ?? 25;
-    _shortBreakMinutes = p.getInt('cfg_short') ?? 5;
-    _longBreakMinutes = p.getInt('cfg_long') ?? 15;
+    _focusSecsValue = p.getInt('cfg_focus_secs') ?? (p.getInt('cfg_focus') ?? 25) * 60;
+    _shortBreakSecsValue = p.getInt('cfg_short_secs') ?? (p.getInt('cfg_short') ?? 5) * 60;
+    _longBreakSecsValue = p.getInt('cfg_long_secs') ?? (p.getInt('cfg_long') ?? 15) * 60;
     _cycles = p.getInt('cfg_cycles') ?? 4;
     _ovrStreak = p.getInt('ovr_streak');
     _ovrBestStreak = p.getInt('ovr_best');
@@ -930,27 +926,25 @@ class AppProvider extends ChangeNotifier {
 
   // ── Admin: timer configuration ──────────────────────────────────────────────
   Future<void> setTimerConfig({
-    int? focusMinutes,
-    int? shortBreakMinutes,
-    int? longBreakMinutes,
+    int? focusSecs,
+    int? shortBreakSecs,
+    int? longBreakSecs,
     int? cycles,
   }) async {
-    if (focusMinutes != null) _focusMinutes = focusMinutes.clamp(1, 180);
-    if (shortBreakMinutes != null) {
-      _shortBreakMinutes = shortBreakMinutes.clamp(1, 120);
-    }
-    if (longBreakMinutes != null) _longBreakMinutes = longBreakMinutes.clamp(1, 180);
+    if (focusSecs != null) _focusSecsValue = focusSecs;
+    if (shortBreakSecs != null) _shortBreakSecsValue = shortBreakSecs;
+    if (longBreakSecs != null) _longBreakSecsValue = longBreakSecs;
     if (cycles != null) _cycles = cycles.clamp(1, 12);
     final p = await _prefs;
-    await p.setInt('cfg_focus', _focusMinutes);
-    await p.setInt('cfg_short', _shortBreakMinutes);
-    await p.setInt('cfg_long', _longBreakMinutes);
+    await p.setInt('cfg_focus_secs', _focusSecsValue);
+    await p.setInt('cfg_short_secs', _shortBreakSecsValue);
+    await p.setInt('cfg_long_secs', _longBreakSecsValue);
     await p.setInt('cfg_cycles', _cycles);
     notifyListeners();
   }
 
   Future<void> resetTimerConfig() => setTimerConfig(
-      focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, cycles: 4);
+      focusSecs: 25 * 60, shortBreakSecs: 5 * 60, longBreakSecs: 15 * 60, cycles: 4);
 
   // ── Admin: headline stat overrides ──────────────────────────────────────────
   Future<void> adminSetStatOverrides({

@@ -1,0 +1,1162 @@
+{
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\.claude\\settings.local.json": {
+    "mtime": 1781174442.4701712,
+    "ast_hash": "437d25717689bc9d8f0dc6c6a3f8462b",
+    "semantic_hash": "437d25717689bc9d8f0dc6c6a3f8462b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\dartpad\\web_plugin_registrant.dart": {
+    "mtime": 1781615707.1178582,
+    "ast_hash": "445893cc0bb44a181d578a9f2c046c2b",
+    "semantic_hash": "445893cc0bb44a181d578a9f2c046c2b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\extension_discovery\\vs_code.json": {
+    "mtime": 1781278521.8658717,
+    "ast_hash": "fddd6924761b5fee2beb7e1f9b88d8ab",
+    "semantic_hash": "fddd6924761b5fee2beb7e1f9b88d8ab"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\481c51e4d643e05940d7a8a8c3da33db\\dart_build_result.json": {
+    "mtime": 1780997053.2397742,
+    "ast_hash": "fe4c75c7a1b1312ae31d084a51e08027",
+    "semantic_hash": "fe4c75c7a1b1312ae31d084a51e08027"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\481c51e4d643e05940d7a8a8c3da33db\\native_assets.json": {
+    "mtime": 1780996557.3885572,
+    "ast_hash": "f3a664e105b4f792c6c7fe4e4d22c398",
+    "semantic_hash": "f3a664e105b4f792c6c7fe4e4d22c398"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\481c51e4d643e05940d7a8a8c3da33db\\outputs.json": {
+    "mtime": 1780997101.5691087,
+    "ast_hash": "21507d48cdcf7e63418d9db34975bebd",
+    "semantic_hash": "21507d48cdcf7e63418d9db34975bebd"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\63a3c4b781f041aac6fd69d83c90bf37\\dart_build_result.json": {
+    "mtime": 1781233005.753732,
+    "ast_hash": "850ad1b145df04e090d34c3cfe7febeb",
+    "semantic_hash": "850ad1b145df04e090d34c3cfe7febeb"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\63a3c4b781f041aac6fd69d83c90bf37\\native_assets.json": {
+    "mtime": 1781233005.7747467,
+    "ast_hash": "f3a664e105b4f792c6c7fe4e4d22c398",
+    "semantic_hash": "f3a664e105b4f792c6c7fe4e4d22c398"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\63a3c4b781f041aac6fd69d83c90bf37\\outputs.json": {
+    "mtime": 1781233028.7428062,
+    "ast_hash": "7f7b84c023d9f8f1522cebcd05d2b12b",
+    "semantic_hash": "7f7b84c023d9f8f1522cebcd05d2b12b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\8d495626acc77e8690ef4b9721218a80\\dart_build_result.json": {
+    "mtime": 1781169478.1849937,
+    "ast_hash": "f8a65eefcc8f2576ca2cf28126a36bf5",
+    "semantic_hash": "f8a65eefcc8f2576ca2cf28126a36bf5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\8d495626acc77e8690ef4b9721218a80\\native_assets.json": {
+    "mtime": 1781169478.2108433,
+    "ast_hash": "f3a664e105b4f792c6c7fe4e4d22c398",
+    "semantic_hash": "f3a664e105b4f792c6c7fe4e4d22c398"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\8d495626acc77e8690ef4b9721218a80\\outputs.json": {
+    "mtime": 1781232366.9116974,
+    "ast_hash": "a9854c7698a582531379ee939cf917c2",
+    "semantic_hash": "a9854c7698a582531379ee939cf917c2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\92f5c71a4ae92168dab609ba4540557f\\dart_build_result.json": {
+    "mtime": 1781248111.1728306,
+    "ast_hash": "d5505aa88c513613b9f43eb17c9edd28",
+    "semantic_hash": "d5505aa88c513613b9f43eb17c9edd28"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\92f5c71a4ae92168dab609ba4540557f\\native_assets.json": {
+    "mtime": 1781248111.2129118,
+    "ast_hash": "f3a664e105b4f792c6c7fe4e4d22c398",
+    "semantic_hash": "f3a664e105b4f792c6c7fe4e4d22c398"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\92f5c71a4ae92168dab609ba4540557f\\outputs.json": {
+    "mtime": 1781615335.962122,
+    "ast_hash": "a9854c7698a582531379ee939cf917c2",
+    "semantic_hash": "a9854c7698a582531379ee939cf917c2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\flutter_build\\dart_plugin_registrant.dart": {
+    "mtime": 1780666303.76789,
+    "ast_hash": "41cae4d7b51fb91e53da299a70f7641a",
+    "semantic_hash": "41cae4d7b51fb91e53da299a70f7641a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781233005.749734,
+    "ast_hash": "7954a2cb929f4bd9170c3acc0905cde9",
+    "semantic_hash": "7954a2cb929f4bd9170c3acc0905cde9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\hook.dependencies_hash_file.json": {
+    "mtime": 1781233005.4557624,
+    "ast_hash": "fd13638eab0f07f808cf55af8c00a652",
+    "semantic_hash": "fd13638eab0f07f808cf55af8c00a652"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\input.json": {
+    "mtime": 1781233005.457765,
+    "ast_hash": "8ab11adc80f315d5e68a1dcd44a68c05",
+    "semantic_hash": "8ab11adc80f315d5e68a1dcd44a68c05"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\output.json": {
+    "mtime": 1781233005.7157352,
+    "ast_hash": "de875a3f3fba0eb191f250e1f4662a54",
+    "semantic_hash": "de875a3f3fba0eb191f250e1f4662a54"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781248178.2673333,
+    "ast_hash": "91ca19f9008cc490d9f2170ba0954b9d",
+    "semantic_hash": "91ca19f9008cc490d9f2170ba0954b9d"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\hook.dependencies_hash_file.json": {
+    "mtime": 1781248110.7853694,
+    "ast_hash": "fd13638eab0f07f808cf55af8c00a652",
+    "semantic_hash": "fd13638eab0f07f808cf55af8c00a652"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\input.json": {
+    "mtime": 1781248177.9325032,
+    "ast_hash": "5aa8d0d7da7ec6f4f9e5fc4be7cea86f",
+    "semantic_hash": "5aa8d0d7da7ec6f4f9e5fc4be7cea86f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\output.json": {
+    "mtime": 1781248178.197441,
+    "ast_hash": "a21c5f3ceecc0e1a8d2cd6f6508f5d72",
+    "semantic_hash": "a21c5f3ceecc0e1a8d2cd6f6508f5d72"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781169473.3701878,
+    "ast_hash": "7954a2cb929f4bd9170c3acc0905cde9",
+    "semantic_hash": "7954a2cb929f4bd9170c3acc0905cde9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\hook.dependencies_hash_file.json": {
+    "mtime": 1781169472.9953792,
+    "ast_hash": "5439085f54a75b2a5fba519b72c50810",
+    "semantic_hash": "5439085f54a75b2a5fba519b72c50810"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\input.json": {
+    "mtime": 1781169473.0043075,
+    "ast_hash": "09b4f426fcb6b0aabcfae40ef8f90eab",
+    "semantic_hash": "09b4f426fcb6b0aabcfae40ef8f90eab"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\output.json": {
+    "mtime": 1781169473.293877,
+    "ast_hash": "f7586b09eb359b1d6262791c28a6de2c",
+    "semantic_hash": "f7586b09eb359b1d6262791c28a6de2c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781169478.1758778,
+    "ast_hash": "7954a2cb929f4bd9170c3acc0905cde9",
+    "semantic_hash": "7954a2cb929f4bd9170c3acc0905cde9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\hook.dependencies_hash_file.json": {
+    "mtime": 1781169477.9051409,
+    "ast_hash": "5439085f54a75b2a5fba519b72c50810",
+    "semantic_hash": "5439085f54a75b2a5fba519b72c50810"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\input.json": {
+    "mtime": 1781169477.9120376,
+    "ast_hash": "84e5888461293d65d6c8572d2957e5b1",
+    "semantic_hash": "84e5888461293d65d6c8572d2957e5b1"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\output.json": {
+    "mtime": 1781169478.1412714,
+    "ast_hash": "4d268a6087b337c4be1469801908f09a",
+    "semantic_hash": "4d268a6087b337c4be1469801908f09a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781233001.3771043,
+    "ast_hash": "7954a2cb929f4bd9170c3acc0905cde9",
+    "semantic_hash": "7954a2cb929f4bd9170c3acc0905cde9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\hook.dependencies_hash_file.json": {
+    "mtime": 1781233001.0128279,
+    "ast_hash": "fd13638eab0f07f808cf55af8c00a652",
+    "semantic_hash": "fd13638eab0f07f808cf55af8c00a652"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\input.json": {
+    "mtime": 1781233001.0198264,
+    "ast_hash": "d03fadd0e8046a638dd2afa2f110866c",
+    "semantic_hash": "d03fadd0e8046a638dd2afa2f110866c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\output.json": {
+    "mtime": 1781233001.2945137,
+    "ast_hash": "342cb3e29fc043df9a53c79b5001e181",
+    "semantic_hash": "342cb3e29fc043df9a53c79b5001e181"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\dependencies.dependencies_hash_file.json": {
+    "mtime": 1781233003.52387,
+    "ast_hash": "7954a2cb929f4bd9170c3acc0905cde9",
+    "semantic_hash": "7954a2cb929f4bd9170c3acc0905cde9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\hook.dependencies_hash_file.json": {
+    "mtime": 1781233003.218251,
+    "ast_hash": "fd13638eab0f07f808cf55af8c00a652",
+    "semantic_hash": "fd13638eab0f07f808cf55af8c00a652"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\input.json": {
+    "mtime": 1781233003.221246,
+    "ast_hash": "18d8e28ea6eaf0e1bbbbb0229a105091",
+    "semantic_hash": "18d8e28ea6eaf0e1bbbbb0229a105091"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\output.json": {
+    "mtime": 1781233003.4877555,
+    "ast_hash": "c62587986e13ef5c28325574d7ab5c27",
+    "semantic_hash": "c62587986e13ef5c28325574d7ab5c27"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\package_config.json": {
+    "mtime": 1781615589.540815,
+    "ast_hash": "00cf9e1d92e99c282bf4c3f8b2fc3b5a",
+    "semantic_hash": "00cf9e1d92e99c282bf4c3f8b2fc3b5a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\package_graph.json": {
+    "mtime": 1781615589.5440388,
+    "ast_hash": "9e52c72b4c1dcdf478b06c0c4f3e046f",
+    "semantic_hash": "9e52c72b4c1dcdf478b06c0c4f3e046f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.vscode\\settings.json": {
+    "mtime": 1781235851.773156,
+    "ast_hash": "eb073a1d396079a27791d476abbecacc",
+    "semantic_hash": "eb073a1d396079a27791d476abbecacc"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\build.gradle.kts": {
+    "mtime": 1781235893.9612715,
+    "ast_hash": "f5c969daba54e49891d6816e88e67273",
+    "semantic_hash": "f5c969daba54e49891d6816e88e67273"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\google-services.json": {
+    "mtime": 1781235852.8373203,
+    "ast_hash": "88dc850070f5e0d99a21b4ef6f64bf02",
+    "semantic_hash": "88dc850070f5e0d99a21b4ef6f64bf02"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\java\\io\\flutter\\plugins\\GeneratedPluginRegistrant.java": {
+    "mtime": 1781615707.3439796,
+    "ast_hash": "9b65493ca6022dcbc272a331e4a884d5",
+    "semantic_hash": "9b65493ca6022dcbc272a331e4a884d5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\kotlin\\com\\example\\gyan_app\\MainActivity.kt": {
+    "mtime": 1781662126.2596312,
+    "ast_hash": "6d2c75fd6fe06d27968273b126991ef7",
+    "semantic_hash": "6d2c75fd6fe06d27968273b126991ef7"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\build.gradle.kts": {
+    "mtime": 1781235852.8393185,
+    "ast_hash": "63d2a3a4bc17b722657504ba7c592ca2",
+    "semantic_hash": "63d2a3a4bc17b722657504ba7c592ca2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\gradlew": {
+    "mtime": 1780625203.3159215,
+    "ast_hash": "7f1cd7eb3f75a1dc85cd37753972a6e2",
+    "semantic_hash": "7f1cd7eb3f75a1dc85cd37753972a6e2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\settings.gradle.kts": {
+    "mtime": 1781235852.841323,
+    "ast_hash": "fd62288f596bf60c0ba901fc00cb0929",
+    "semantic_hash": "fd62288f596bf60c0ba901fc00cb0929"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\firebase.json": {
+    "mtime": 1781235853.1737306,
+    "ast_hash": "51c84b019d0de95fd826255bdc1857ac",
+    "semantic_hash": "51c84b019d0de95fd826255bdc1857ac"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\functions\\index.js": {
+    "mtime": 1781235894.0228567,
+    "ast_hash": "e7ccdec66935da592ef7368ad73b9525",
+    "semantic_hash": "e7ccdec66935da592ef7368ad73b9525"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\functions\\package.json": {
+    "mtime": 1781235853.1807325,
+    "ast_hash": "e3aee3cdb581a430e5ad56466d50dc53",
+    "semantic_hash": "e3aee3cdb581a430e5ad56466d50dc53"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Flutter\\ephemeral\\flutter_lldb_helper.py": {
+    "mtime": 1780625201.1230226,
+    "ast_hash": "98fc75412162af387e2e3461e4e58094",
+    "semantic_hash": "98fc75412162af387e2e3461e4e58094"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Flutter\\flutter_export_environment.sh": {
+    "mtime": 1780625201.1323454,
+    "ast_hash": "6983f33ed05070c63e6e656f9203a990",
+    "semantic_hash": "6983f33ed05070c63e6e656f9203a990"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\RunnerTests\\RunnerTests.swift": {
+    "mtime": 1781235852.0822644,
+    "ast_hash": "24e5d095048eb86c30423f4e04b6e57b",
+    "semantic_hash": "24e5d095048eb86c30423f4e04b6e57b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\AppDelegate.swift": {
+    "mtime": 1781235852.0452645,
+    "ast_hash": "9e1de9c329a3fe4931876063de95132b",
+    "semantic_hash": "9e1de9c329a3fe4931876063de95132b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Contents.json": {
+    "mtime": 1781235852.0482635,
+    "ast_hash": "31a08e429403e265cabfb31b3d65f049",
+    "semantic_hash": "31a08e429403e265cabfb31b3d65f049"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\Contents.json": {
+    "mtime": 1781235852.0692623,
+    "ast_hash": "b9e927ac17345f2d5f052fe68a3487f9",
+    "semantic_hash": "b9e927ac17345f2d5f052fe68a3487f9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\GeneratedPluginRegistrant.h": {
+    "mtime": 1780625201.6258214,
+    "ast_hash": "decb9041b5e91a07e66f4664e5dac408",
+    "semantic_hash": "decb9041b5e91a07e66f4664e5dac408"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\GeneratedPluginRegistrant.m": {
+    "mtime": 1781615707.3936315,
+    "ast_hash": "dcba852f60b2729968cf44d9525ea82c",
+    "semantic_hash": "dcba852f60b2729968cf44d9525ea82c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Runner-Bridging-Header.h": {
+    "mtime": 1781235852.079264,
+    "ast_hash": "7ad7b5cea096132de13ba526b2b9efbe",
+    "semantic_hash": "7ad7b5cea096132de13ba526b2b9efbe"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\SceneDelegate.swift": {
+    "mtime": 1781235852.080265,
+    "ast_hash": "0c3e86af131f6a9e547c80b5ed058914",
+    "semantic_hash": "0c3e86af131f6a9e547c80b5ed058914"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\config\\admin_config.dart": {
+    "mtime": 1781235866.820222,
+    "ast_hash": "89e8ada58c3c5c9b16312929079077a3",
+    "semantic_hash": "89e8ada58c3c5c9b16312929079077a3"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\constants\\app_colors.dart": {
+    "mtime": 1781235852.084269,
+    "ast_hash": "9210c37317396db65e6dfe915a301bb7",
+    "semantic_hash": "9210c37317396db65e6dfe915a301bb7"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\constants\\avatars.dart": {
+    "mtime": 1781235866.8222225,
+    "ast_hash": "34b1cc102257afe6bf64fca31949a6b5",
+    "semantic_hash": "34b1cc102257afe6bf64fca31949a6b5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\constants\\subjects.dart": {
+    "mtime": 1781435243.221104,
+    "ast_hash": "19364b196dcca61acff6bf132cd96982",
+    "semantic_hash": "19364b196dcca61acff6bf132cd96982"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\firebase_options.dart": {
+    "mtime": 1781235852.8463206,
+    "ast_hash": "663480c5fad532e2b718e798aebeec2f",
+    "semantic_hash": "663480c5fad532e2b718e798aebeec2f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\main.dart": {
+    "mtime": 1781235894.6992693,
+    "ast_hash": "08e37d3df012556c8bad867f3470e5ee",
+    "semantic_hash": "08e37d3df012556c8bad867f3470e5ee"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\models\\group_model.dart": {
+    "mtime": 1781435243.2278697,
+    "ast_hash": "150743fdf7e81cf40cfdc292a761b241",
+    "semantic_hash": "150743fdf7e81cf40cfdc292a761b241"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\models\\study_session_model.dart": {
+    "mtime": 1781344337.4394972,
+    "ast_hash": "46b80b0c5b476b82923db85095ae05d0",
+    "semantic_hash": "46b80b0c5b476b82923db85095ae05d0"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\models\\subject_model.dart": {
+    "mtime": 1781235852.0902693,
+    "ast_hash": "93b8f8d4065de9e8d6ce4228d7bb43f4",
+    "semantic_hash": "93b8f8d4065de9e8d6ce4228d7bb43f4"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\models\\user_model.dart": {
+    "mtime": 1781613956.3889573,
+    "ast_hash": "0bcfbe9cf1e272ded453d430c21bd196",
+    "semantic_hash": "0bcfbe9cf1e272ded453d430c21bd196"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\overlay\\overlay_entry.dart": {
+    "mtime": 1781344337.4414945,
+    "ast_hash": "0c65f3df295810935d6db442556be44d",
+    "semantic_hash": "0c65f3df295810935d6db442556be44d"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\providers\\app_provider.dart": {
+    "mtime": 1781680983.2032745,
+    "ast_hash": "57d45cd879652a0066a9c0c3623b6971",
+    "semantic_hash": "57d45cd879652a0066a9c0c3623b6971"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\admin_screen.dart": {
+    "mtime": 1781235894.1965067,
+    "ast_hash": "a2e14b327fa8d2411971c5ca8863c2e8",
+    "semantic_hash": "a2e14b327fa8d2411971c5ca8863c2e8"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\ai_features_screen.dart": {
+    "mtime": 1781595704.6202312,
+    "ast_hash": "8cc8e5ce4d0f5abbe508a04b85e284be",
+    "semantic_hash": "8cc8e5ce4d0f5abbe508a04b85e284be"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\auth_screen.dart": {
+    "mtime": 1781235866.6173604,
+    "ast_hash": "710f1846370725bfed6941ce2c75f93b",
+    "semantic_hash": "710f1846370725bfed6941ce2c75f93b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\getstarted_screen.dart": {
+    "mtime": 1781614217.8074193,
+    "ast_hash": "19b7b15b53eaff160ccd65e4660924fb",
+    "semantic_hash": "19b7b15b53eaff160ccd65e4660924fb"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\group_detail_screen.dart": {
+    "mtime": 1781462594.1331823,
+    "ast_hash": "193d3b86968760bff5891687de535033",
+    "semantic_hash": "193d3b86968760bff5891687de535033"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\groups_screen.dart": {
+    "mtime": 1781614835.2038918,
+    "ast_hash": "fe82bb0295d69571f06034ace122e331",
+    "semantic_hash": "fe82bb0295d69571f06034ace122e331"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\home_screen.dart": {
+    "mtime": 1781235866.829233,
+    "ast_hash": "c68b29770deebc002996dab6161597fa",
+    "semantic_hash": "c68b29770deebc002996dab6161597fa"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\join_group_screen.dart": {
+    "mtime": 1781435243.2405806,
+    "ast_hash": "be10bdb8b617fd4d90e6713d165635b6",
+    "semantic_hash": "be10bdb8b617fd4d90e6713d165635b6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\main_screen.dart": {
+    "mtime": 1781595614.1987786,
+    "ast_hash": "b8a16033b5495e5aeb14c15ac255aaaa",
+    "semantic_hash": "b8a16033b5495e5aeb14c15ac255aaaa"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\profile_screen.dart": {
+    "mtime": 1781614100.7196765,
+    "ast_hash": "a3393856a9f587487cb5d0f9382b0808",
+    "semantic_hash": "a3393856a9f587487cb5d0f9382b0808"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\quiz_screen.dart": {
+    "mtime": 1781235894.3047845,
+    "ast_hash": "093375b004cfd987f5f077ce66067a68",
+    "semantic_hash": "093375b004cfd987f5f077ce66067a68"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\result_screen.dart": {
+    "mtime": 1781235894.2115018,
+    "ast_hash": "038da9e72f73c5ef4b1449fcada49dd1",
+    "semantic_hash": "038da9e72f73c5ef4b1449fcada49dd1"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\sessions_screen.dart": {
+    "mtime": 1781235853.9605541,
+    "ast_hash": "67dbae3fc2d773221cd5c20f2b46cf3e",
+    "semantic_hash": "67dbae3fc2d773221cd5c20f2b46cf3e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\statistics_screen.dart": {
+    "mtime": 1781235866.83623,
+    "ast_hash": "c2af5f6a64ca8306ca1ef982c67dacf9",
+    "semantic_hash": "c2af5f6a64ca8306ca1ef982c67dacf9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\streak_calendar_screen.dart": {
+    "mtime": 1781235866.8382323,
+    "ast_hash": "fb2c469ce3733953cdffe938618f81f9",
+    "semantic_hash": "fb2c469ce3733953cdffe938618f81f9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\terms_screen.dart": {
+    "mtime": 1781235853.965553,
+    "ast_hash": "240e5cdd4b13511edc19251695788b2c",
+    "semantic_hash": "240e5cdd4b13511edc19251695788b2c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\timer_screen.dart": {
+    "mtime": 1781681083.0180488,
+    "ast_hash": "a45312e69b75fae7ecde6fb94cab7b44",
+    "semantic_hash": "a45312e69b75fae7ecde6fb94cab7b44"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\upload_screen.dart": {
+    "mtime": 1781235866.7532227,
+    "ast_hash": "340e334539f8045b8ffb5aef99da584c",
+    "semantic_hash": "340e334539f8045b8ffb5aef99da584c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\answer_sheet_service.dart": {
+    "mtime": 1781235894.305781,
+    "ast_hash": "9273bffd87b5c3311925446c9b541f20",
+    "semantic_hash": "9273bffd87b5c3311925446c9b541f20"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\firebase_service.dart": {
+    "mtime": 1781614611.5720475,
+    "ast_hash": "842da0dff1d416fcfff3c3154fa653e5",
+    "semantic_hash": "842da0dff1d416fcfff3c3154fa653e5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\focus_lock_store.dart": {
+    "mtime": 1781235894.7072709,
+    "ast_hash": "359fe0b4f2d10148bd7ccf5059ccc16c",
+    "semantic_hash": "359fe0b4f2d10148bd7ccf5059ccc16c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\focus_monitor.dart": {
+    "mtime": 1781679858.710658,
+    "ast_hash": "febc46d1b03c21f5110f00b3a0a0854b",
+    "semantic_hash": "febc46d1b03c21f5110f00b3a0a0854b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\push_service.dart": {
+    "mtime": 1781235866.8432271,
+    "ast_hash": "d0b31cfe43844b92338f4b2f6c3007d3",
+    "semantic_hash": "d0b31cfe43844b92338f4b2f6c3007d3"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\theme\\app_theme.dart": {
+    "mtime": 1781235894.2155004,
+    "ast_hash": "43c99323214413019c2971c239d21441",
+    "semantic_hash": "43c99323214413019c2971c239d21441"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\analyzing_overlay.dart": {
+    "mtime": 1781235894.2175007,
+    "ast_hash": "3b2eeae688a5e59ec4f980c8ec8861b7",
+    "semantic_hash": "3b2eeae688a5e59ec4f980c8ec8861b7"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\notification_panel.dart": {
+    "mtime": 1781614854.0154917,
+    "ast_hash": "fc7651c513d8ca2ad34cdb87a90804aa",
+    "semantic_hash": "fc7651c513d8ca2ad34cdb87a90804aa"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\profile_avatar.dart": {
+    "mtime": 1781235866.8443372,
+    "ast_hash": "afb6fd45446bc7c07ee1b3b0a2f7f0b5",
+    "semantic_hash": "afb6fd45446bc7c07ee1b3b0a2f7f0b5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\profile_modal.dart": {
+    "mtime": 1781235866.4898326,
+    "ast_hash": "9b344bc0015b81b47aafdcfc5361b579",
+    "semantic_hash": "9b344bc0015b81b47aafdcfc5361b579"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\sign_out_dialog.dart": {
+    "mtime": 1781235853.9765522,
+    "ast_hash": "3dfaceda77b629d397f313ab60d06ebf",
+    "semantic_hash": "3dfaceda77b629d397f313ab60d06ebf"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\theme_toggle.dart": {
+    "mtime": 1781235853.1149218,
+    "ast_hash": "90adcf4bf591547a86a718f2a17e71bf",
+    "semantic_hash": "90adcf4bf591547a86a718f2a17e71bf"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\white_noise_widget.dart": {
+    "mtime": 1781235853.9785526,
+    "ast_hash": "ce06e7c3e4e8b2cbc9ad70510dc16a22",
+    "semantic_hash": "ce06e7c3e4e8b2cbc9ad70510dc16a22"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\flutter\\generated_plugin_registrant.cc": {
+    "mtime": 1781248051.3286998,
+    "ast_hash": "dae66ddaff7d54f61f8cd027a3c27808",
+    "semantic_hash": "dae66ddaff7d54f61f8cd027a3c27808"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\flutter\\generated_plugin_registrant.h": {
+    "mtime": 1781248051.306914,
+    "ast_hash": "d295462c9da9f7fef22dc86c34492318",
+    "semantic_hash": "d295462c9da9f7fef22dc86c34492318"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\runner\\main.cc": {
+    "mtime": 1781235852.1167977,
+    "ast_hash": "539395bcd63dba20afed0838d136189f",
+    "semantic_hash": "539395bcd63dba20afed0838d136189f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\runner\\my_application.cc": {
+    "mtime": 1781235852.1167977,
+    "ast_hash": "2ebd1645b752d94a26ae2d982adc81be",
+    "semantic_hash": "2ebd1645b752d94a26ae2d982adc81be"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\runner\\my_application.h": {
+    "mtime": 1781235852.1187992,
+    "ast_hash": "ffa1a7c0a2ad45a2c14a921596516ff8",
+    "semantic_hash": "ffa1a7c0a2ad45a2c14a921596516ff8"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Flutter\\GeneratedPluginRegistrant.swift": {
+    "mtime": 1781615707.4145625,
+    "ast_hash": "d3746fbb787ea29db448ac54bba4abcb",
+    "semantic_hash": "d3746fbb787ea29db448ac54bba4abcb"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Flutter\\ephemeral\\flutter_export_environment.sh": {
+    "mtime": 1780625201.1441047,
+    "ast_hash": "b9bd1caf860925ceb9ffe9cf37b0eb01",
+    "semantic_hash": "b9bd1caf860925ceb9ffe9cf37b0eb01"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\RunnerTests\\RunnerTests.swift": {
+    "mtime": 1781235852.1572897,
+    "ast_hash": "8059f5d27a19c556eeafb49b3f9b7bdd",
+    "semantic_hash": "8059f5d27a19c556eeafb49b3f9b7bdd"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\AppDelegate.swift": {
+    "mtime": 1781235852.131871,
+    "ast_hash": "4b52e0b89ebfef9baf45b04548c463d6",
+    "semantic_hash": "4b52e0b89ebfef9baf45b04548c463d6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Contents.json": {
+    "mtime": 1781235852.1348743,
+    "ast_hash": "1d48e925145d4b573a3b5d7960a1c585",
+    "semantic_hash": "1d48e925145d4b573a3b5d7960a1c585"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\MainFlutterWindow.swift": {
+    "mtime": 1781235852.1552932,
+    "ast_hash": "93c22dae2d93f3dc1402e121901f582b",
+    "semantic_hash": "93c22dae2d93f3dc1402e121901f582b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\push-server\\index.js": {
+    "mtime": 1781235894.032858,
+    "ast_hash": "2a2de3377f0d5733da9aa49c7ce65fa0",
+    "semantic_hash": "2a2de3377f0d5733da9aa49c7ce65fa0"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\push-server\\package.json": {
+    "mtime": 1781235894.0348587,
+    "ast_hash": "b1662ab6b176b9fe9380928fda1238a0",
+    "semantic_hash": "b1662ab6b176b9fe9380928fda1238a0"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\test\\widget_test.dart": {
+    "mtime": 1781235852.1622915,
+    "ast_hash": "a7ea6c2bf14732438923338d4722709a",
+    "semantic_hash": "a7ea6c2bf14732438923338d4722709a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\manifest.json": {
+    "mtime": 1781235852.1732914,
+    "ast_hash": "b58f618e54ff39767f5c2fccf8458940",
+    "semantic_hash": "b58f618e54ff39767f5c2fccf8458940"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\flutter\\generated_plugin_registrant.cc": {
+    "mtime": 1781615707.3723252,
+    "ast_hash": "4a4ac1690b45c8db4a11dea8ded487ba",
+    "semantic_hash": "4a4ac1690b45c8db4a11dea8ded487ba"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\flutter\\generated_plugin_registrant.h": {
+    "mtime": 1781248051.3646922,
+    "ast_hash": "0ea33875f9f8e118f9c2ded03e2e2835",
+    "semantic_hash": "0ea33875f9f8e118f9c2ded03e2e2835"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\flutter_window.cpp": {
+    "mtime": 1781235852.1842895,
+    "ast_hash": "2f463f9b7da67a2d692a012f9ea85e0c",
+    "semantic_hash": "2f463f9b7da67a2d692a012f9ea85e0c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\flutter_window.h": {
+    "mtime": 1781235852.185294,
+    "ast_hash": "7defcc89d4a26d56e801241d624d48fb",
+    "semantic_hash": "7defcc89d4a26d56e801241d624d48fb"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\main.cpp": {
+    "mtime": 1781235852.187291,
+    "ast_hash": "a032cd047121ecc96bb95c517dc20137",
+    "semantic_hash": "a032cd047121ecc96bb95c517dc20137"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\resource.h": {
+    "mtime": 1781235852.1882887,
+    "ast_hash": "1ade5dd15e613479a15e8832ed276f2b",
+    "semantic_hash": "1ade5dd15e613479a15e8832ed276f2b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\utils.cpp": {
+    "mtime": 1781235852.1922886,
+    "ast_hash": "432461b09d862a2f8dadf380ff0e34e5",
+    "semantic_hash": "432461b09d862a2f8dadf380ff0e34e5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\utils.h": {
+    "mtime": 1781235852.1932898,
+    "ast_hash": "fd81e143f5614eb6fd75efe539002853",
+    "semantic_hash": "fd81e143f5614eb6fd75efe539002853"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\win32_window.cpp": {
+    "mtime": 1781235852.1952887,
+    "ast_hash": "571eb8234dbc2661be03aa5f2a4d2fca",
+    "semantic_hash": "571eb8234dbc2661be03aa5f2a4d2fca"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\win32_window.h": {
+    "mtime": 1781235852.1962886,
+    "ast_hash": "7569387d58711ab975940f4df3b4bcda",
+    "semantic_hash": "7569387d58711ab975940f4df3b4bcda"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\README.md": {
+    "mtime": 1781235894.4158287,
+    "ast_hash": "a35b4af1a41855ebf34c472d0784fe15",
+    "semantic_hash": "a35b4af1a41855ebf34c472d0784fe15"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\stderr.txt": {
+    "mtime": 1781233005.4617646,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\1c07c1330c\\stdout.txt": {
+    "mtime": 1781233005.462764,
+    "ast_hash": "9cab88605dba8e109ee0e197ed6e214e",
+    "semantic_hash": "9cab88605dba8e109ee0e197ed6e214e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\stderr.txt": {
+    "mtime": 1781248177.9410195,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\4c9038e2d4\\stdout.txt": {
+    "mtime": 1781248177.9465394,
+    "ast_hash": "72d249813efb4d21d3d4c3e95c6618be",
+    "semantic_hash": "72d249813efb4d21d3d4c3e95c6618be"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\stderr.txt": {
+    "mtime": 1781169473.0091922,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\8cf6e200e8\\stdout.txt": {
+    "mtime": 1781169473.0091922,
+    "ast_hash": "5dd7a585f72ee49976cd7bc646c38ecd",
+    "semantic_hash": "5dd7a585f72ee49976cd7bc646c38ecd"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\stderr.txt": {
+    "mtime": 1781169477.9120376,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\94f46293d3\\stdout.txt": {
+    "mtime": 1781169477.9120376,
+    "ast_hash": "47735ff11ad09794aa71ec4e5fce9713",
+    "semantic_hash": "47735ff11ad09794aa71ec4e5fce9713"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\stderr.txt": {
+    "mtime": 1781233001.026828,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\dc9dbb5af1\\stdout.txt": {
+    "mtime": 1781233001.0308297,
+    "ast_hash": "5179695cf442d736c54110e1ad26a8f9",
+    "semantic_hash": "5179695cf442d736c54110e1ad26a8f9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\stderr.txt": {
+    "mtime": 1781233003.2242446,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\.dart_tool\\hooks_runner\\objective_c\\fb1360dcf1\\stdout.txt": {
+    "mtime": 1781233003.2252462,
+    "ast_hash": "8056a118c22257b8ed13324ace53e91a",
+    "semantic_hash": "8056a118c22257b8ed13324ace53e91a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\README.md": {
+    "mtime": 1781235851.7741551,
+    "ast_hash": "319305d0e8d3b917dbe7e8b7e35b8ed3",
+    "semantic_hash": "319305d0e8d3b917dbe7e8b7e35b8ed3"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\analysis_options.yaml": {
+    "mtime": 1781235851.7751586,
+    "ast_hash": "9e65f4b9beebb674c0dc252f70a5c177",
+    "semantic_hash": "9e65f4b9beebb674c0dc252f70a5c177"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\devtools_options.yaml": {
+    "mtime": 1781235852.0257413,
+    "ast_hash": "1b16e156b9f8b9f43ca52a78a6f72e80",
+    "semantic_hash": "1b16e156b9f8b9f43ca52a78a6f72e80"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\firebase-setup.md": {
+    "mtime": 1781235852.8443203,
+    "ast_hash": "ce22756adda45cd6cb86f28fb7bd52a2",
+    "semantic_hash": "ce22756adda45cd6cb86f28fb7bd52a2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\README.md": {
+    "mtime": 1781235852.0732622,
+    "ast_hash": "f7ee1b402881509d197f34963e569927",
+    "semantic_hash": "f7ee1b402881509d197f34963e569927"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\prototype\\quiz.html": {
+    "mtime": 1781344457.9642203,
+    "ast_hash": "e25c352fb7074cd7750fac405adabaa9",
+    "semantic_hash": "e25c352fb7074cd7750fac405adabaa9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\CMakeLists.txt": {
+    "mtime": 1781235852.10827,
+    "ast_hash": "1a3aedc8af32038a39e685839dd47acc",
+    "semantic_hash": "1a3aedc8af32038a39e685839dd47acc"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\flutter\\CMakeLists.txt": {
+    "mtime": 1781235852.1102695,
+    "ast_hash": "2195470ce31675d31db5a37590d011f6",
+    "semantic_hash": "2195470ce31675d31db5a37590d011f6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\linux\\runner\\CMakeLists.txt": {
+    "mtime": 1781235852.114799,
+    "ast_hash": "30cc1614b16214b66c014af09ba699eb",
+    "semantic_hash": "30cc1614b16214b66c014af09ba699eb"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\pubspec.yaml": {
+    "mtime": 1781615463.7866025,
+    "ast_hash": "96b0780d1f57b2352aa02601c4e48b41",
+    "semantic_hash": "96b0780d1f57b2352aa02601c4e48b41"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\push-server\\README.md": {
+    "mtime": 1781235894.0308564,
+    "ast_hash": "e89c027b65589c0e8155ba416c9c5ed2",
+    "semantic_hash": "e89c027b65589c0e8155ba416c9c5ed2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\index.html": {
+    "mtime": 1781235852.1722913,
+    "ast_hash": "d1918f58ad5fbf30af27a968c47e56d8",
+    "semantic_hash": "d1918f58ad5fbf30af27a968c47e56d8"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\CMakeLists.txt": {
+    "mtime": 1781235852.1752896,
+    "ast_hash": "c79940ded05a3bca1a94133f91d93e17",
+    "semantic_hash": "c79940ded05a3bca1a94133f91d93e17"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\flutter\\CMakeLists.txt": {
+    "mtime": 1781235852.1762917,
+    "ast_hash": "bbf66fed5180bd9ae8198b8d7c4a0001",
+    "semantic_hash": "bbf66fed5180bd9ae8198b8d7c4a0001"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\windows\\runner\\CMakeLists.txt": {
+    "mtime": 1781235852.1812894,
+    "ast_hash": "028602ab9754bffe716659ada7590d29",
+    "semantic_hash": "028602ab9754bffe716659ada7590d29"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\website\\GYAN.html": {
+    "mtime": 1781235894.5793662,
+    "ast_hash": "ee750242f222a8097cc2200fab670979",
+    "semantic_hash": "ee750242f222a8097cc2200fab670979"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\models\\buddy_chat_model.dart": {
+    "mtime": 1781614597.3171535,
+    "ast_hash": "4d5341188c1e7a451f3ae2b31e9a1925",
+    "semantic_hash": "4d5341188c1e7a451f3ae2b31e9a1925"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\buddy_chat_screen.dart": {
+    "mtime": 1781633572.6286318,
+    "ast_hash": "0959e8327fce104c36b69558414380e9",
+    "semantic_hash": "0959e8327fce104c36b69558414380e9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\screens\\find_buddy_screen.dart": {
+    "mtime": 1781631780.0698895,
+    "ast_hash": "5a7abd6fec312710273844167a9bd848",
+    "semantic_hash": "5a7abd6fec312710273844167a9bd848"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\buddy_chat_service.dart": {
+    "mtime": 1781633478.2815726,
+    "ast_hash": "e5d57a021dbb671d843d21b068d6d658",
+    "semantic_hash": "e5d57a021dbb671d843d21b068d6d658"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\services\\local_notification_service.dart": {
+    "mtime": 1781615463.7816768,
+    "ast_hash": "ddb66bdfda4f53ce3af5e2aa29147219",
+    "semantic_hash": "ddb66bdfda4f53ce3af5e2aa29147219"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\lib\\widgets\\buddies_view.dart": {
+    "mtime": 1781614878.2833538,
+    "ast_hash": "e81978aa22baecba7743802862a97871",
+    "semantic_hash": "e81978aa22baecba7743802862a97871"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\drawable-hdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781235852.2498348,
+    "ast_hash": "c9748c2d0afe4c8d0730a96b2ebf9cf0",
+    "semantic_hash": "c9748c2d0afe4c8d0730a96b2ebf9cf0"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\drawable-mdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781235852.2518332,
+    "ast_hash": "d56222fe1f6c4bafbbf4a8ad42332348",
+    "semantic_hash": "d56222fe1f6c4bafbbf4a8ad42332348"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\drawable-xhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781235852.253835,
+    "ast_hash": "cc86ec5454e56eb03fee9c74452afdbc",
+    "semantic_hash": "cc86ec5454e56eb03fee9c74452afdbc"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\drawable-xxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781235852.2568355,
+    "ast_hash": "94bccf4530c93ef87c5c9215710ac121",
+    "semantic_hash": "94bccf4530c93ef87c5c9215710ac121"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\drawable-xxxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781235852.2588327,
+    "ast_hash": "1266f4542f362f41ceb390f80e138679",
+    "semantic_hash": "1266f4542f362f41ceb390f80e138679"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png": {
+    "mtime": 1781235852.2618344,
+    "ast_hash": "6105f2bc1a33aeb87cb799f7b6b193f4",
+    "semantic_hash": "6105f2bc1a33aeb87cb799f7b6b193f4"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png": {
+    "mtime": 1781235852.2643397,
+    "ast_hash": "7d926a0254ba0964a2612d97ac47714c",
+    "semantic_hash": "7d926a0254ba0964a2612d97ac47714c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png": {
+    "mtime": 1781235852.26635,
+    "ast_hash": "893eba6e22bcd6bb1531ea1772b6d397",
+    "semantic_hash": "893eba6e22bcd6bb1531ea1772b6d397"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png": {
+    "mtime": 1781235852.2683516,
+    "ast_hash": "2f36bb16c04d696d634d44ecd9666c1f",
+    "semantic_hash": "2f36bb16c04d696d634d44ecd9666c1f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png": {
+    "mtime": 1781235852.2703502,
+    "ast_hash": "f52e0c07e449dfcc9f1bfa53e0d8a92b",
+    "semantic_hash": "f52e0c07e449dfcc9f1bfa53e0d8a92b"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_1.png": {
+    "mtime": 1781235894.0048566,
+    "ast_hash": "bfd9b192011d69bba7442c50931ba717",
+    "semantic_hash": "bfd9b192011d69bba7442c50931ba717"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_10.png": {
+    "mtime": 1781235894.0068564,
+    "ast_hash": "8db48438ca7aa672397e5a3e7704ef88",
+    "semantic_hash": "8db48438ca7aa672397e5a3e7704ef88"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_2.png": {
+    "mtime": 1781235894.0078573,
+    "ast_hash": "6d5554f537a243db7d2405ca1eda4f68",
+    "semantic_hash": "6d5554f537a243db7d2405ca1eda4f68"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_3.png": {
+    "mtime": 1781235894.0098565,
+    "ast_hash": "965b524c6b293a2ada262e7f43f52a19",
+    "semantic_hash": "965b524c6b293a2ada262e7f43f52a19"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_4.png": {
+    "mtime": 1781235894.0108554,
+    "ast_hash": "af115034adf1ed769c9179a0676bbd58",
+    "semantic_hash": "af115034adf1ed769c9179a0676bbd58"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_5.png": {
+    "mtime": 1781235894.0128572,
+    "ast_hash": "e3a1861a8f015c286c0b26abce668d38",
+    "semantic_hash": "e3a1861a8f015c286c0b26abce668d38"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_6.png": {
+    "mtime": 1781235894.0148573,
+    "ast_hash": "693d5db5942567576bff9b3ef5c2687f",
+    "semantic_hash": "693d5db5942567576bff9b3ef5c2687f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_7.png": {
+    "mtime": 1781235894.0168579,
+    "ast_hash": "0c53b9b5a414fa991dddaef22adbfed6",
+    "semantic_hash": "0c53b9b5a414fa991dddaef22adbfed6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_8.png": {
+    "mtime": 1781235894.0188603,
+    "ast_hash": "9de09547381a88211c30dbeea1a8a69d",
+    "semantic_hash": "9de09547381a88211c30dbeea1a8a69d"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\avatars\\avatar_9.png": {
+    "mtime": 1781235894.0208578,
+    "ast_hash": "6086e03467933c2f6a21fdf8ef153b6a",
+    "semantic_hash": "6086e03467933c2f6a21fdf8ef153b6a"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\icon\\app_icon.png": {
+    "mtime": 1781235852.0247433,
+    "ast_hash": "290d7bcc523633118181a90f003ad0db",
+    "semantic_hash": "290d7bcc523633118181a90f003ad0db"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\icon\\gyam.svg": {
+    "mtime": 1781235852.8433237,
+    "ast_hash": "bb0f7e206d3a34764af7419dfd4c59af",
+    "semantic_hash": "bb0f7e206d3a34764af7419dfd4c59af"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-1024x1024@1x.png": {
+    "mtime": 1781235852.2763507,
+    "ast_hash": "2edabffc2a6f7e3501ac895f096472de",
+    "semantic_hash": "2edabffc2a6f7e3501ac895f096472de"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-20x20@1x.png": {
+    "mtime": 1781235852.2773478,
+    "ast_hash": "2eccb1bc8069623c7fd4c6702131a2b8",
+    "semantic_hash": "2eccb1bc8069623c7fd4c6702131a2b8"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-20x20@2x.png": {
+    "mtime": 1781235852.2793493,
+    "ast_hash": "8aa7f0694e25d3a21087609c7e3ecdc2",
+    "semantic_hash": "8aa7f0694e25d3a21087609c7e3ecdc2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-20x20@3x.png": {
+    "mtime": 1781235852.281812,
+    "ast_hash": "5e93ce785eebae25e4c0ecc49fa76925",
+    "semantic_hash": "5e93ce785eebae25e4c0ecc49fa76925"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-29x29@1x.png": {
+    "mtime": 1781235852.2828135,
+    "ast_hash": "9ecf06c0b62522ff07c11acaf8ccb0ac",
+    "semantic_hash": "9ecf06c0b62522ff07c11acaf8ccb0ac"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-29x29@2x.png": {
+    "mtime": 1781235852.2838135,
+    "ast_hash": "28ca42b9bffbc58683cfc556cd4110f6",
+    "semantic_hash": "28ca42b9bffbc58683cfc556cd4110f6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-29x29@3x.png": {
+    "mtime": 1781235852.285812,
+    "ast_hash": "357c65d27b4f14457bd0ad920f58231f",
+    "semantic_hash": "357c65d27b4f14457bd0ad920f58231f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-40x40@1x.png": {
+    "mtime": 1781235852.287813,
+    "ast_hash": "8aa7f0694e25d3a21087609c7e3ecdc2",
+    "semantic_hash": "8aa7f0694e25d3a21087609c7e3ecdc2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-40x40@2x.png": {
+    "mtime": 1781235852.2888122,
+    "ast_hash": "3391b40985df90be06b60255f098aa45",
+    "semantic_hash": "3391b40985df90be06b60255f098aa45"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-40x40@3x.png": {
+    "mtime": 1781235852.2908106,
+    "ast_hash": "3d229d0f35d404f2ffd7cc740b3decfa",
+    "semantic_hash": "3d229d0f35d404f2ffd7cc740b3decfa"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-50x50@1x.png": {
+    "mtime": 1781235852.291811,
+    "ast_hash": "e9d5957e2347c3fbb9579c0f5d278c0d",
+    "semantic_hash": "e9d5957e2347c3fbb9579c0f5d278c0d"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-50x50@2x.png": {
+    "mtime": 1781235852.293812,
+    "ast_hash": "cce2a8aceecada6e1cabc41f8f22c08d",
+    "semantic_hash": "cce2a8aceecada6e1cabc41f8f22c08d"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-57x57@1x.png": {
+    "mtime": 1781235852.294813,
+    "ast_hash": "3290aafac886fd7f0ff215b38132a551",
+    "semantic_hash": "3290aafac886fd7f0ff215b38132a551"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-57x57@2x.png": {
+    "mtime": 1781235852.2958138,
+    "ast_hash": "66e48d76eb3e4b0558f262820d598425",
+    "semantic_hash": "66e48d76eb3e4b0558f262820d598425"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-60x60@2x.png": {
+    "mtime": 1781235852.2978132,
+    "ast_hash": "3d229d0f35d404f2ffd7cc740b3decfa",
+    "semantic_hash": "3d229d0f35d404f2ffd7cc740b3decfa"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-60x60@3x.png": {
+    "mtime": 1781235852.2998123,
+    "ast_hash": "f9b470b7ec7410a4094f793f7cefdac2",
+    "semantic_hash": "f9b470b7ec7410a4094f793f7cefdac2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-72x72@1x.png": {
+    "mtime": 1781235852.30081,
+    "ast_hash": "6105f2bc1a33aeb87cb799f7b6b193f4",
+    "semantic_hash": "6105f2bc1a33aeb87cb799f7b6b193f4"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-72x72@2x.png": {
+    "mtime": 1781235852.3018148,
+    "ast_hash": "2f36bb16c04d696d634d44ecd9666c1f",
+    "semantic_hash": "2f36bb16c04d696d634d44ecd9666c1f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-76x76@1x.png": {
+    "mtime": 1781235852.303812,
+    "ast_hash": "96e2d23617476d4268dc2d5055f0769f",
+    "semantic_hash": "96e2d23617476d4268dc2d5055f0769f"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-76x76@2x.png": {
+    "mtime": 1781235852.304813,
+    "ast_hash": "0986d67a7c95cc21d594ba766d4e2fa7",
+    "semantic_hash": "0986d67a7c95cc21d594ba766d4e2fa7"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Icon-App-83.5x83.5@2x.png": {
+    "mtime": 1781235852.3058107,
+    "ast_hash": "2d568309082a0dbb530b7ea18d629de2",
+    "semantic_hash": "2d568309082a0dbb530b7ea18d629de2"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\LaunchImage.png": {
+    "mtime": 1781235852.0702631,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\LaunchImage@2x.png": {
+    "mtime": 1781235852.0712614,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\LaunchImage@3x.png": {
+    "mtime": 1781235852.072262,
+    "ast_hash": "978c1bee49d7ad5fc1a4d81099b13e18",
+    "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_1024.png": {
+    "mtime": 1781235852.136873,
+    "ast_hash": "c9becc9105f8cabce934d20c7bfb6aac",
+    "semantic_hash": "c9becc9105f8cabce934d20c7bfb6aac"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_128.png": {
+    "mtime": 1781235852.1378741,
+    "ast_hash": "3ded30823804caaa5ccc944067c54a36",
+    "semantic_hash": "3ded30823804caaa5ccc944067c54a36"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_16.png": {
+    "mtime": 1781235852.1388726,
+    "ast_hash": "8bf511604bc6ed0a6aeb380c5113fdcf",
+    "semantic_hash": "8bf511604bc6ed0a6aeb380c5113fdcf"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_256.png": {
+    "mtime": 1781235852.1408732,
+    "ast_hash": "dfe2c93d1536ae02f085cc63faa3430e",
+    "semantic_hash": "dfe2c93d1536ae02f085cc63faa3430e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_32.png": {
+    "mtime": 1781235852.1418722,
+    "ast_hash": "8e0ae58e362a6636bdfccbc04da2c58c",
+    "semantic_hash": "8e0ae58e362a6636bdfccbc04da2c58c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_512.png": {
+    "mtime": 1781235852.1438708,
+    "ast_hash": "0ad44039155424738917502c69667699",
+    "semantic_hash": "0ad44039155424738917502c69667699"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\macos\\Runner\\Assets.xcassets\\AppIcon.appiconset\\app_icon_64.png": {
+    "mtime": 1781235852.1438708,
+    "ast_hash": "04e7b6ef05346c70b663ca1d97de3ad5",
+    "semantic_hash": "04e7b6ef05346c70b663ca1d97de3ad5"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\favicon.png": {
+    "mtime": 1781235852.164289,
+    "ast_hash": "5dcef449791fa27946b3d35ad8803796",
+    "semantic_hash": "5dcef449791fa27946b3d35ad8803796"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\icons\\Icon-192.png": {
+    "mtime": 1781235852.1662896,
+    "ast_hash": "ac9a721a12bbc803b44f645561ecb1e1",
+    "semantic_hash": "ac9a721a12bbc803b44f645561ecb1e1"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\icons\\Icon-512.png": {
+    "mtime": 1781235852.1672914,
+    "ast_hash": "96e752610906ba2a93c65f8abe1645f1",
+    "semantic_hash": "96e752610906ba2a93c65f8abe1645f1"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\icons\\Icon-maskable-192.png": {
+    "mtime": 1781235852.1692889,
+    "ast_hash": "c457ef57daa1d16f64b27b786ec2ea3c",
+    "semantic_hash": "c457ef57daa1d16f64b27b786ec2ea3c"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\web\\icons\\Icon-maskable-512.png": {
+    "mtime": 1781235852.17129,
+    "ast_hash": "301a7604d45b3e739efc881eb04896ea",
+    "semantic_hash": "301a7604d45b3e739efc881eb04896ea"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\break_end.mp3": {
+    "mtime": 1781235866.6776645,
+    "ast_hash": "02dfd453e36c5478c1449413f0e97876",
+    "semantic_hash": "02dfd453e36c5478c1449413f0e97876"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\cafe.mp3": {
+    "mtime": 1781235883.2664132,
+    "ast_hash": "ee3ca8d82f0fd49fb08fd9353d52db09",
+    "semantic_hash": "ee3ca8d82f0fd49fb08fd9353d52db09"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\fire.mp3": {
+    "mtime": 1781235875.9122307,
+    "ast_hash": "d6653314cf0af337815bd348324d9b59",
+    "semantic_hash": "d6653314cf0af337815bd348324d9b59"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\focus_end.mp3": {
+    "mtime": 1781235866.6796677,
+    "ast_hash": "3ecd1afce4fd8b0c75f4e9fb0d3b79b9",
+    "semantic_hash": "3ecd1afce4fd8b0c75f4e9fb0d3b79b9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\forest.mp3": {
+    "mtime": 1781235893.9883387,
+    "ast_hash": "2759905e98eac264adb4f289367d02a9",
+    "semantic_hash": "2759905e98eac264adb4f289367d02a9"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\long_break_start.mp3": {
+    "mtime": 1781235866.6816616,
+    "ast_hash": "fa81158f918629f36ca70c203171329e",
+    "semantic_hash": "fa81158f918629f36ca70c203171329e"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\ocean.mp3": {
+    "mtime": 1781235893.9958549,
+    "ast_hash": "a45b46f72b990d3bd0e68ac2598c7fc6",
+    "semantic_hash": "a45b46f72b990d3bd0e68ac2598c7fc6"
+  },
+  "C:\\Users\\TUF\\Desktop\\flutter-workspace\\Study-app\\Study-app\\gyan_app\\assets\\audio\\rain.mp3": {
+    "mtime": 1781235894.0028563,
+    "ast_hash": "eee0ed1829c0d2ee0d5959c86afe4921",
+    "semantic_hash": "eee0ed1829c0d2ee0d5959c86afe4921"
+  }
+}

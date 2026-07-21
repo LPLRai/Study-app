@@ -1,0 +1,8 @@
+# Flutter / Dart generated output — build cache, never source
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+ephemeral/
+# graphify's own output
+graphify-out/
