@@ -821,9 +821,9 @@ class AppProvider extends ChangeNotifier {
     _selectedSubjectId = null;
 
     _grantedAdmin = false;
-    _focusMinutes = 25;
-    _shortBreakMinutes = 5;
-    _longBreakMinutes = 15;
+    _focusSecsValue = 25 * 60;
+    _shortBreakSecsValue = 5 * 60;
+    _longBreakSecsValue = 15 * 60;
     _cycles = 4;
     _ovrStreak = _ovrBestStreak = _ovrSessions = _ovrStudyMinutes = null;
 

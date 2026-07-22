@@ -102,8 +102,15 @@ class _QuizService {
       throw Exception(err['error'] ?? 'Quota exceeded. Please try again next month.');
     }
     if (res.statusCode != 200) {
-      final err = jsonDecode(res.body);
-      throw Exception(err['error']?['message'] ?? err['error'] ?? 'Server error ${res.statusCode}');
+      try {
+        final err = jsonDecode(res.body);
+        throw Exception(err['error']?['message'] ?? err['error'] ?? 'Server error ${res.statusCode}');
+      } catch (e) {
+        if (e is FormatException && res.body.trimLeft().startsWith('<')) {
+          throw Exception('Backend endpoint missing! Did you forget to deploy the updated push-server to Render?');
+        }
+        throw Exception('Server error ${res.statusCode}: ${res.body.length > 50 ? res.body.substring(0, 50) : res.body}');
+      }
     }
     final data   = jsonDecode(res.body);
     final text   = data['choices'][0]['message']['content'] as String;

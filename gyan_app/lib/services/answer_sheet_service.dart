@@ -173,6 +173,9 @@ class AnswerSheetService {
     );
 
     if (res.statusCode != 200) {
+      if (res.statusCode == 413 || res.statusCode == 404) {
+        throw AnalysisException('Backend endpoint error (${res.statusCode}). Did you forget to deploy the updated push-server to Render?');
+      }
       throw AnalysisException('OCR HTTP ${res.statusCode}');
     }
     final json = jsonDecode(res.body) as Map<String, dynamic>;

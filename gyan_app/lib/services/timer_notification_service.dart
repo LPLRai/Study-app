@@ -22,9 +22,10 @@ class TimerNotificationService {
   bool _ready = false;
 
   // ── Channel IDs ────────────────────────────────────────────────────────────
-  static const _chFocusEnd       = 'gyan_focus_end';
-  static const _chBreakEnd       = 'gyan_break_end';
-  static const _chLongBreakStart = 'gyan_long_break_start';
+  // Appending _v2 to force Android to recreate the channels with the new sounds
+  static const _chFocusEnd       = 'gyan_focus_end_v2';
+  static const _chBreakEnd       = 'gyan_break_end_v2';
+  static const _chLongBreakStart = 'gyan_long_break_start_v2';
 
   // ── Notification IDs (one per channel; we just overwrite) ─────────────────
   static const _idFocusEnd       = 2001;

@@ -63,7 +63,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _focus = prov.focusSecs;
     _short = prov.shortBreakSecs;
     _long = prov.longBreakSecs;
-    _cycles = prov.cyclesPerSession;
+    _cycles = prov.totalCycles;
     _fillStatFields(prov);
     _loadCounts();
   }
@@ -489,7 +489,7 @@ class _AdminScreenState extends State<AdminScreen> {
             value: _timeOptions.containsKey(value) ? value : _timeOptions.keys.first,
             underline: const SizedBox(),
             icon: Icon(Icons.arrow_drop_down, color: t.textMuted, size: 18),
-            dropdownColor: t.surface,
+            dropdownColor: t.widgetBg,
             style: GoogleFonts.inder(
                 color: t.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
             onChanged: onChanged,
@@ -532,7 +532,7 @@ class _AdminScreenState extends State<AdminScreen> {
               _focus = prov.focusSecs;
               _short = prov.shortBreakSecs;
               _long = prov.longBreakSecs;
-              _cycles = prov.cyclesPerSession;
+              _cycles = prov.totalCycles;
             });
             _toast('Reset to default (25 / 5 / 15 × 4)');
           }),
