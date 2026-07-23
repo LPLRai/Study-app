@@ -174,15 +174,16 @@ class FirebaseService {
   /// FCM notification to [toUid]. No-op when PUSH_ENDPOINT isn't configured, so
   /// the in-app notification still works on its own. Never throws to the caller.
   void _sendPush(String toUid, String type, {String groupName = ''}) {
-    final endpoint = dotenv.env['PUSH_ENDPOINT'] ?? '';
+    final endpoint = dotenv.env['PUSH_ENDPOINT']?.replaceAll(RegExp(r'/$'), '') ?? '';
     if (endpoint.isEmpty) return;
+    final sendUrl = '$endpoint/send';
     () async {
       try {
         final token = await currentUser?.getIdToken();
         if (token == null) return;
         await http
             .post(
-              Uri.parse(endpoint),
+              Uri.parse(sendUrl),
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer $token',
